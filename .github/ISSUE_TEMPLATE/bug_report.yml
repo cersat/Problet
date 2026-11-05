@@ -1,0 +1,60 @@
+name: Сообщить об ошибке
+description: Что-то работает не так, как должно
+title: "[Баг] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Опиши ошибку своими словами. Скриншот или текст ошибки очень помогают.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить
+      placeholder: |
+        1. Открыть ...
+        2. Нажать ...
+        3. Увидеть ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что должно было произойти
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Версия Problet
+      description: Её видно на странице problet://version
+      placeholder: "8.0.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Система
+      options:
+        - Linux
+        - Windows
+        - macOS
+    validations:
+      required: true
+  - type: input
+    id: system-details
+    attributes:
+      label: Версия системы и способ установки
+      placeholder: "Linux Mint 22, AppImage"
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Дополнительно
+      description: Сайт, на котором это случилось, включённые настройки (блокировщик, маскировка, инкогнито), расширения.
+    validations:
+      required: false
