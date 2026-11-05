@@ -77839,3 +77839,7 @@ ethicalads.io
 codefund.io
 pubmatic.com
 bsa.ad
+syndicatedsearch.goog
+imasdk.googleapis.com
+ads.youtube.com
+googleadapis.l.google.com

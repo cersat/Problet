@@ -43,6 +43,7 @@ function isAllowedHost(host) {
 function isBlockedHost(host) {
 	if (isAllowedHost(host)) return false;
 	let h = String(host).toLowerCase().replace(/\.$/, '');
+	if (/^adservice\.google\.[a-z.]+$/.test(h)) return true; // adservice.google.<любая страна>
 	for (;;) {
 		if (domains.has(h)) return true;
 		const dot = h.indexOf('.');
@@ -108,6 +109,13 @@ function start(session, store) {
 	});
 }
 
+// Что пролезло мимо запретов по адресам, прячем на странице: блоки Google AdSense, рекламные места Ad Manager и рекламу в выдаче Google
+const COSMETIC_CSS = [
+	'ins.adsbygoogle', '.adsbygoogle', 'iframe[id^="google_ads_iframe"]', 'iframe[src*="googlesyndication.com"]', 'iframe[src*="doubleclick.net"]',
+	'div[id^="div-gpt-ad"]', 'div[id^="google_ads_"]', 'amp-ad', 'amp-embed[type="adsense"]',
+	'#tads', '#tadsb', '#bottomads', '#taw[data-text-ad]', 'div[data-text-ad]', 'div[data-ad-slot]',
+].join(',\n') + ' { display: none !important; }';
+
 const blockedCount = () => blocked;
 
-module.exports = { blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };

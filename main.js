@@ -344,6 +344,10 @@ function wireTab(tab) {
 	wc.on('did-finish-load', () => {
 		if (tab.id === activeId && isNewTab(wc.getURL()) && Date.now() - tab.created < 5000 && win && win.isFocused()) focusAddress();
 	});
+	// Включённый блокировщик прячет остатки рекламы на самой странице
+	wc.on('dom-ready', () => {
+		if (settings().adblock && /^https?:/i.test(wc.getURL())) wc.insertCSS(adblock.COSMETIC_CSS).catch(() => {});
+	});
 	wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
 		if (!isMainFrame || code === -3) return; // -3 — загрузку отменили сами
 		wc.loadURL(errorPage(code, description, url)).catch(() => {});

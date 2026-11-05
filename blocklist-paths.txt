@@ -11,3 +11,6 @@ yandex.ru|/adv/
 www.google.com|/pagead/
 www.google.com|/adsense/
 www.google.com|/ads/
+cse.google.com|/adsense/
+www.google.com|/afs/
+www.gstatic.com|/adsense/
