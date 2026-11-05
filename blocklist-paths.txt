@@ -1,0 +1,13 @@
+# Правила по пути: хост|часть пути. Блокируется запрос к хосту (или его поддомену), путь которого начинается с этой части; с «~» впереди часть может быть в любом месте пути
+# Meta: пиксель и его конфигурация. Сам домен нужен для входа через Facebook и кнопок, поэтому блокируются только эти пути
+connect.facebook.net|~/fbevents.js
+connect.facebook.net|/signals/
+www.facebook.com|/tr/
+www.facebook.com|/tr?
+# Яндекс: рекламные блоки
+yandex.ru|/ads/
+yandex.ru|/adv/
+# Google: рекламные пути на основном домене (сам поиск и сервисы не трогаются)
+www.google.com|/pagead/
+www.google.com|/adsense/
+www.google.com|/ads/

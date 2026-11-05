@@ -1,0 +1,100 @@
+name: Сборка
+
+# Сборка под Windows, Linux и macOS при каждом изменении кода
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Проверка синтаксиса
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: node --check для всех скриптов
+        run: |
+          for f in *.js pages/*.js; do node --check "$f"; done
+
+  build:
+    name: Сборка ${{ matrix.name }}
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            args: --linux
+          - name: Windows
+            os: windows-latest
+            args: --win
+          - name: macOS
+            os: macos-latest
+            args: --mac --x64 --arm64
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Сборка
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Артефакты
+        uses: actions/upload-artifact@v7
+        with:
+          name: Problet-${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.exe
+            dist/*.zip
+            dist/*.dmg
+
+  release:
+    name: Публикация в Releases
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: out
+          merge-multiple: true
+      - name: Список файлов
+        run: ls -la out
+      # Метка v* — отдельный релиз с этой версией
+      - name: Релиз по метке
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" out/* --title "Problet ${GITHUB_REF_NAME#v}" --generate-notes
+      # Пуш в main — «последняя сборка», которая каждый раз пересоздаётся
+      - name: Последняя сборка
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest out/* --prerelease --target "$GITHUB_SHA" \
+            --title "Последняя сборка" \
+            --notes "Автосборка из коммита ${GITHUB_SHA::7}. Файлы для Linux, Windows и macOS ниже."

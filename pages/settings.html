@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Настройки</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+</head>
+<body class="settings">
+	<main>
+		<h1>Настройки</h1>
+		<nav id="cats" class="cats"></nav>
+
+		<section>
+			<h2>Поиск</h2>
+			<label class="field"><span>Поисковик</span><select id="engine"></select></label>
+			<label class="field hidden" id="custom-row"><span>Шаблон адреса</span><input id="custom" type="text" spellcheck="false" placeholder="https://example.com/search?q=%s"></label>
+			<p class="hint hidden" id="custom-hint">Вместо <code>%s</code> подставится текст запроса.</p>
+			<div class="setting">
+				<div class="what">Использовать калькулятор в подсказках<small>Выражение вроде 2+2*3 сразу показывает результат</small></div>
+				<label class="switch"><input type="checkbox" data-setting="calcSuggest"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Использовать историю поиска в подсказках</div>
+				<label class="switch"><input type="checkbox" data-setting="searchSuggest"><span></span></label>
+			</div>
+		</section>
+
+		<section>
+			<h2>Вкладки</h2>
+			<div class="setting">
+				<div class="what">Показывать URL вместо названия страницы</div>
+				<label class="switch"><input type="checkbox" data-setting="showUrlInTabs"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Показывать иконки вкладок</div>
+				<label class="switch"><input type="checkbox" data-setting="showTabIcons"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">При загрузке</div>
+				<select data-setting="startup"><option value="newtab">Открывать новую вкладку</option><option value="url">Открывать страницу по адресу</option><option value="session">Открывать прошлую сессию</option></select>
+			</div>
+			<div class="setting hidden" id="startup-url-row">
+				<div class="what">Адрес стартовой страницы</div>
+				<input id="startup-url" type="text" spellcheck="false" placeholder="https://example.com">
+			</div>
+			<div class="setting">
+				<div class="what">При переполнении панели</div>
+				<select data-setting="tabOverflow"><option value="shrink">Сжимать вкладки</option><option value="scroll">Делать панель прокручиваемой</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Показывать настройки как вкладку</div>
+				<label class="switch"><input type="checkbox" data-setting="settingsAsTab"><span></span></label>
+			</div>
+		</section>
+
+		<section>
+			<h2>Тема</h2>
+			<div class="setting">
+				<div class="what">Тёмная тема</div>
+				<label class="switch"><input type="checkbox" data-setting="darkTheme"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Акцентный цвет</div>
+			</div>
+			<div class="swatches" id="swatches"></div>
+		</section>
+
+		<section>
+			<h2>Кеш</h2>
+			<div class="setting">
+				<div class="what">Хранить кеш</div>
+				<select data-setting="cacheKeep"><option value="always">Всегда</option><option value="month">Месяц</option><option value="week">Неделю</option><option value="day">День</option><option value="hour">Час</option><option value="restart">До перезапуска</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Кешировать иконки</div>
+				<label class="switch"><input type="checkbox" data-setting="cacheIcons"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Кешировать веб-страницы</div>
+				<label class="switch"><input type="checkbox" data-setting="cachePages"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Кешировать картинки</div>
+				<label class="switch"><input type="checkbox" data-setting="cacheImages"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Очистить кеш<small>Удаляет сохранённые файлы сайтов. Закладки, история и входы не затрагиваются.</small></div>
+				<button id="clear-cache" class="danger">Очистить кеш</button>
+			</div>
+		</section>
+
+		<section>
+			<h2>Приватность и безопасность</h2>
+			<div class="setting">
+				<div class="what">Блокировать рекламу и трекеры<small>Блокируются запросы к известным рекламным и следящим доменам, адреса самих страниц не трогаются</small></div>
+				<label class="switch"><input type="checkbox" data-setting="adblock"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Заблокировано рекламных запросов<small id="blocked-note"></small></div>
+				<b id="blocked-total" class="counter">0</b>
+			</div>
+			<div class="setting">
+				<div class="what">Отправлять Do not track<small>Сайты получают заголовок DNT: 1. Соблюдать его сайты не обязаны</small></div>
+				<label class="switch"><input type="checkbox" data-setting="dnt"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Маскироваться под браузер<small>Меняет User-Agent и Sec-CH-UA. На открытых страницах подмена в JavaScript вступит после перезагрузки</small></div>
+				<select data-setting="maskAs"><option value="chrome">Chrome</option><option value="problet">Problet</option><option value="firefox">Firefox</option></select>
+			</div>
+		</section>
+
+		<section>
+			<h2>Загрузки</h2>
+			<div class="setting">
+				<div class="what">Спрашивать, куда сохранять файлы<small>Если выключено, файлы сохраняются в папку загрузок системы</small></div>
+				<label class="switch"><input type="checkbox" data-setting="askDownload"><span></span></label>
+			</div>
+		</section>
+
+		<section>
+			<h2>Горячие клавиши</h2>
+			<p class="hint">Нажми на сочетание и введи новое. Esc отменяет, Delete отключает клавишу. Нужна Ctrl, Alt или клавиша F1–F12. Ctrl+1…9 для перехода к вкладке менять нельзя</p>
+			<div id="hotkeys"></div>
+			<div class="setting">
+				<div class="what">Вернуть клавиши по умолчанию</div>
+				<button id="hotkeys-reset">Сбросить все</button>
+			</div>
+		</section>
+
+		<section>
+			<h2>Пароли</h2>
+			<div class="setting">
+				<div class="what">Менеджер паролей<small>Пароли хранятся в зашифрованном виде, ключ получается из мастер-пароля</small></div>
+				<button id="open-passwords">Открыть</button>
+			</div>
+			<div class="setting">
+				<div class="what">Предлагать сохранять пароли</div>
+				<label class="switch"><input type="checkbox" data-setting="pwOffer"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Подставлять пароли<small>Логин и пароль вставляются, когда ты нажимаешь на поле входа, и только на том же сайте, где их сохранили</small></div>
+				<label class="switch"><input type="checkbox" data-setting="pwFill"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Запирать хранилище при бездействии</div>
+				<select data-setting="pwLock"><option value="5">Через 5 минут</option><option value="15">Через 15 минут</option><option value="60">Через час</option><option value="0">Никогда</option></select>
+			</div>
+		</section>
+
+		<section>
+			<h2>История</h2>
+			<div class="setting">
+				<div class="what">Сохранять историю посещений<small>Она нужна для страницы «История» и подсказок в адресной строке</small></div>
+				<label class="switch"><input type="checkbox" data-setting="saveHistory"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Просмотреть историю<small>Откроется в новой вкладке</small></div>
+				<button id="view-history">Просмотреть историю</button>
+			</div>
+			<div class="setting">
+				<div class="what">Очистить историю посещений</div>
+				<button id="clear-visits" class="danger">Очистить</button>
+			</div>
+		</section>
+
+		<section>
+			<h2>Обновления</h2>
+			<div class="setting">
+				<div class="what">Обновлять автоматически<small>Раз в несколько часов Problet смотрит последний релиз на GitHub и сам скачивает новую версию. Установится она после перезапуска</small></div>
+				<label class="switch"><input type="checkbox" data-setting="autoUpdate"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Версия <span id="app-version"></span><small id="update-status"></small></div>
+				<span class="row-buttons">
+					<button id="open-version">О браузере</button>
+					<button id="update-check">Проверить</button>
+					<button id="update-apply" class="primary hidden">Обновить</button>
+				</span>
+			</div>
+		</section>
+
+		<section>
+			<h2>Данные</h2>
+			<div class="data-row">
+				<div class="what"><b>Резервная копия</b><span>Настройки, закладки и история поиска в одном JSON-файле</span></div>
+				<button id="export">Экспорт</button>
+				<button id="import">Импорт</button>
+			</div>
+			<div class="data-row">
+				<div class="what"><b>Закладки в HTML</b><span>Формат, который понимают Chrome, Firefox и другие браузеры</span></div>
+				<button id="export-html">Экспорт</button>
+				<button id="import-html">Импорт</button>
+				<input id="html-file" type="file" accept=".html,.htm" class="hidden">
+			</div>
+			<div class="data-row">
+				<div class="what"><b>Из другого браузера</b><span id="import-hint">Закладки из Chrome, Edge, Brave, Vivaldi, Opera и Firefox, которые установлены на этом компьютере</span></div>
+				<select id="import-src"></select>
+				<button id="import-run">Импортировать</button>
+			</div>
+			<div class="data-row">
+				<div class="what"><b>Пароли</b><span>Файл CSV, как у Chrome. Он не зашифрован, держи его в надёжном месте. Для экспорта и импорта нужен мастер-пароль</span></div>
+				<input id="pw-master" type="password" placeholder="Мастер-пароль" autocomplete="off">
+				<button id="pw-export">Экспорт</button>
+				<button id="pw-import">Импорт</button>
+			</div>
+			<div class="data-row">
+				<div class="what"><b>История поиска</b><span id="history-count"></span></div>
+				<button id="clear" class="danger">Очистить</button>
+			</div>
+		</section>
+
+		<section>
+			<h2>Расширения</h2>
+			<div class="data-row">
+				<div class="what"><b>Расширения Chrome</b><span>Выбери папку с распакованным расширением (где лежит manifest.json). Поддерживаются не все возможности: сложные расширения могут работать не полностью.</span></div>
+				<button id="ext-add">Добавить</button>
+			</div>
+			<div id="ext-list"></div>
+		</section>
+
+		<p id="status" class="status"></p>
+	</main>
+	<script src="accel.js"></script>
+	<script src="settings.js"></script>
+</body>
+</html>

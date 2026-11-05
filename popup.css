@@ -1,0 +1,83 @@
+* {
+	box-sizing: border-box;
+}
+
+html, body {
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
+	background: var(--surface);
+	color: var(--text);
+	font: 14px system-ui, sans-serif;
+	user-select: none;
+}
+
+body {
+	padding: 4px 0;
+	border: 1px solid var(--border-strong);
+	border-radius: 0 0 10px 10px;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 34px;
+	padding: 0 8px 0 14px;
+	cursor: pointer;
+}
+
+.row:hover {
+	background: var(--hover);
+}
+
+.row.selected {
+	background: var(--accent-soft);
+}
+
+.icon {
+	width: 16px;
+	flex: none;
+	color: var(--muted);
+	text-align: center;
+}
+
+.text {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dim {
+	color: var(--muted);
+}
+
+.text b {
+	color: var(--text-strong);
+}
+
+.del {
+	display: none;
+	width: 24px;
+	height: 24px;
+	flex: none;
+	padding: 0;
+	border: none;
+	border-radius: 12px;
+	background: transparent;
+	color: var(--muted);
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.row:hover .del, .row.selected .del {
+	display: block;
+}
+
+.del:hover {
+	background: var(--danger-bg);
+	color: var(--text-strong);
+}

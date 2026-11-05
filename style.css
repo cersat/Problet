@@ -1,0 +1,296 @@
+* {
+	box-sizing: border-box;
+}
+
+html, body {
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
+	background: var(--bg);
+	color: var(--text);
+	font: 14px system-ui, sans-serif;
+	user-select: none;
+}
+
+body {
+	display: flex;
+	flex-direction: column;
+}
+
+button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	flex: none;
+	padding: 0;
+	border: none;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--text);
+	font-size: 16px;
+	cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+	background: var(--hover);
+}
+
+button:disabled {
+	color: var(--faint);
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* ---------- Вкладки ---------- */
+
+.tabbar {
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 36px;
+	flex: none;
+	padding: 4px 6px 0;
+	background: var(--tabbar);
+}
+
+.tabs {
+	display: flex;
+	flex: 0 1 calc(var(--n, 1) * 222px);
+	min-width: 0;
+	height: 100%;
+	gap: 2px;
+}
+
+.tabs.scroll {
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.tabs.scroll::-webkit-scrollbar {
+	display: none;
+}
+
+.tab {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 1 220px;
+	min-width: 36px;
+	height: 100%;
+	padding: 0 6px 0 10px;
+	border-radius: 8px 8px 0 0;
+	container-type: inline-size;
+	color: var(--muted);
+	cursor: default;
+}
+
+.tabs.scroll .tab {
+	flex: 0 0 180px;
+}
+
+.tab:hover {
+	background: var(--hover);
+}
+
+.tab.active {
+	background: var(--bg);
+	color: var(--text-strong);
+	box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tab .fav.spinning {
+	animation: spin 0.8s linear infinite;
+}
+
+.tab .fav, .tab .spin {
+	width: 16px;
+	height: 16px;
+	flex: none;
+	border-radius: 3px;
+}
+
+.tab .fav.letter {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--control);
+	color: var(--muted);
+	font-size: 10px;
+	font-weight: 600;
+}
+
+.tab .spin {
+	border: 2px solid var(--border-strong);
+	border-top-color: var(--accent);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+.tab .label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tab .close {
+	width: 20px;
+	height: 20px;
+	font-size: 14px;
+	line-height: 1;
+	border-radius: 10px;
+	color: var(--muted);
+}
+
+.tab:not(.active) .close {
+	opacity: 0;
+}
+
+.tab:hover .close {
+	opacity: 1;
+}
+
+@container (max-width: 110px) {
+	.tab:not(.active) .close { display: none; }
+}
+
+@container (max-width: 70px) {
+	.tab .label { display: none; }
+	.tab .close { display: none; }
+}
+
+.tabs .tab.pinned,
+.tabs.scroll .tab.pinned {
+	flex: 0 0 40px;
+	justify-content: center;
+	padding: 0;
+}
+
+.tab.pinned .label,
+.tab.pinned .close {
+	display: none;
+}
+
+.tab.dragging {
+	opacity: 0.45;
+}
+
+.tab.drop-before {
+	box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.tab.drop-after {
+	box-shadow: inset -3px 0 0 var(--accent);
+}
+
+#update {
+	color: var(--accent);
+}
+
+#update.hidden {
+	display: none;
+}
+
+#update.busy {
+	animation: pulse 1.2s ease-in-out infinite;
+}
+
+#downloads.busy {
+	color: var(--accent);
+	animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+	50% { opacity: 0.45; }
+}
+
+.newtab {
+	width: 28px;
+	height: 28px;
+	margin-bottom: 3px;
+	border-radius: 14px;
+	font-size: 18px;
+	color: var(--muted);
+}
+
+/* ---------- Панель инструментов ---------- */
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 44px;
+	flex: none;
+	padding: 0 8px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg);
+}
+
+.address {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 0;
+	height: 30px;
+	border: 1px solid var(--border);
+	border-radius: 15px;
+	background: var(--surface);
+}
+
+.address:focus-within {
+	border-color: var(--accent);
+}
+
+input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	padding: 0 6px 0 14px;
+	border: none;
+	background: transparent;
+	color: var(--text-strong);
+	font: inherit;
+	user-select: text;
+	outline: none;
+}
+
+input::placeholder {
+	color: var(--faint);
+}
+
+button.inner {
+	width: 28px;
+	height: 28px;
+	margin-right: 1px;
+	border-radius: 14px;
+}
+
+button.inner.zoom {
+	width: auto;
+	padding: 0 8px;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+button.inner.pwoffer {
+	color: var(--accent);
+}
+
+button.inner.hidden {
+	display: none;
+}
+
+button.inner.on {
+	color: var(--star);
+}
+
+button.inner.on svg {
+	fill: currentColor;
+}

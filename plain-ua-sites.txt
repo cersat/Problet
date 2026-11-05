@@ -1,0 +1,21 @@
+# Сайты, которые определяют браузер по User-Agent. При маскировке под Problet на них из UA и Sec-CH-UA убирается Chrome/Chromium, чтобы они видели именно Problet. Один домен на строку (поддомены тоже)
+whatismybrowser.com
+whatsmybrowser.org
+useragentstring.com
+user-agents.net
+useragents.me
+whatmyuseragent.com
+browserleaks.com
+amiunique.org
+coveryourtracks.eff.org
+browserscan.net
+pixelscan.net
+webbrowsertools.com
+detectmybrowser.com
+whatsmyua.info
+supportdetails.com
+browserspy.dk
+deviceinfo.me
+mybrowserinfo.com
+uaparser.dev
+fingerprint.com

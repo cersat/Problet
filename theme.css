@@ -1,0 +1,51 @@
+/* Общие переменные темы: мягкая тёмная по умолчанию, светлая включается атрибутом data-theme="light" */
+:root {
+	color-scheme: dark;
+	--accent: #7c9cf5;
+	--accent-soft: rgba(124, 156, 245, 0.24);
+	--on-accent: #1d1d1f;
+	--bg: #1e1e20;
+	--tabbar: #151517;
+	--panel: #28282b;
+	--sidebar: #232326;
+	--surface: #2c2c2f;
+	--control: #38383c;
+	--hover: #3a3a3e;
+	--border: #38383c;
+	--border-strong: #4a4a50;
+	--text: #e4e4e8;
+	--text-strong: #ffffff;
+	--muted: #a0a0a8;
+	--faint: #7c7c84;
+	--ok: #8fd3a3;
+	--danger: #f2929a;
+	--danger-bg: #4a2e32;
+	--danger-border: #7d4a50;
+	--star: #f6d365;
+	--shadow: rgba(0, 0, 0, 0.45);
+	--backdrop: rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg: #fbfbfd;
+	--tabbar: #e9e9ee;
+	--panel: #f3f3f7;
+	--sidebar: #efeff4;
+	--surface: #f0f0f5;
+	--control: #e8e8ee;
+	--hover: #dcdce4;
+	--border: #e2e2e8;
+	--border-strong: #cfcfd8;
+	--text: #2c2c30;
+	--text-strong: #111111;
+	--muted: #6e6e78;
+	--faint: #94949e;
+	--ok: #3f9a5c;
+	--danger: #d9535e;
+	--danger-bg: #fdeaec;
+	--danger-border: #f0b4ba;
+	--star: #e0a82e;
+	--shadow: rgba(0, 0, 0, 0.14);
+	--backdrop: rgba(0, 0, 0, 0.3);
+}

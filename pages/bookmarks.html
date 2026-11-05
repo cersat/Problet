@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Закладки</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+</head>
+<body class="bookmarks">
+	<aside>
+		<h1>Закладки</h1>
+		<nav id="nav"></nav>
+		<button id="new-folder" class="wide">+ Новая папка</button>
+	</aside>
+
+	<main>
+		<header>
+			<input id="search" type="text" placeholder="Поиск по закладкам" spellcheck="false" autocomplete="off">
+			<select id="sort">
+				<option value="new">Сначала новые</option>
+				<option value="old">Сначала старые</option>
+				<option value="title">По названию</option>
+			</select>
+			<button id="add" class="primary">Добавить</button>
+		</header>
+		<div id="list"></div>
+	</main>
+
+	<dialog id="edit-dialog">
+		<form id="edit-form">
+			<h3 id="edit-title"></h3>
+			<label>Название<input id="f-title" type="text" autocomplete="off"></label>
+			<label>Адрес<input id="f-url" type="text" spellcheck="false" autocomplete="off"></label>
+			<label>Папка<select id="f-folder"></select></label>
+			<p id="edit-error" class="error"></p>
+			<div class="buttons">
+				<button type="button" id="edit-cancel">Отмена</button>
+				<button type="submit" class="primary">Сохранить</button>
+			</div>
+		</form>
+	</dialog>
+
+	<dialog id="folder-dialog">
+		<form id="folder-form">
+			<h3 id="folder-title"></h3>
+			<label>Название<input id="folder-name" type="text" autocomplete="off"></label>
+			<p id="folder-error" class="error"></p>
+			<div class="buttons">
+				<button type="button" id="folder-cancel">Отмена</button>
+				<button type="submit" class="primary">Сохранить</button>
+			</div>
+		</form>
+	</dialog>
+
+	<div id="toast" class="toast hidden">
+		<span id="toast-text"></span>
+		<button id="toast-undo">Отменить</button>
+	</div>
+
+	<script src="bookmarks.js"></script>
+</body>
+</html>
