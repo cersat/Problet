@@ -555,7 +555,7 @@ function reopenTab(index) {
 function closeTab(id) {
 	const index = tabs.findIndex((t) => t.id === id);
 	if (index < 0) return;
-	if (tabs.length > 1) rememberClosed(tabs[index]);
+	if (tabs.length > 1 && !tabs[index].incognito) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
