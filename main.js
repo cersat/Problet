@@ -19,7 +19,8 @@ const { themePayload, accentList } = require('./theme');
 
 const TABBAR_HEIGHT = 36;
 const TOOLBAR_HEIGHT = 44;
-const TOP = TABBAR_HEIGHT + TOOLBAR_HEIGHT;
+const BMBAR_HEIGHT = 32;
+const SIDE_WIDTH = 220; // ширина вертикальной панели вкладок
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
@@ -93,15 +94,25 @@ function loadInActive(url) {
 	tab.view.webContents.focus();
 }
 
+// История поисковых запросов не пополняется из вкладок инкогнито
+function rememberSearch(text, tab) {
+	const t = tab === undefined ? activeTab() : tab;
+	if (!t || !t.incognito) store.addSearch(text);
+}
+
+function tabOfContents(wc) {
+	return tabs.find((t) => t.view.webContents === wc) || {};
+}
+
 function navigate(raw) {
 	const r = resolveInput(raw);
 	if (!r) return;
-	if (r.search) store.addSearch(r.search);
+	if (r.search) rememberSearch(r.search);
 	loadInActive(r.url);
 }
 
 function searchFor(text) {
-	store.addSearch(text);
+	rememberSearch(text);
 	loadInActive(store.searchUrl(text));
 }
 
@@ -138,6 +149,69 @@ function internalIcon(url) {
 	return INTERNAL_ICONS[m[1]] || '';
 }
 
+const LAYOUT_KEYS = ['tabsPos', 'bmPos', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate'];
+
+function layoutPayload() {
+	const s = settings();
+	const out = {};
+	for (const k of LAYOUT_KEYS) out[k] = s[k];
+	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
+	return out;
+}
+
+function sendLayout() {
+	if (win && !win.isDestroyed()) win.webContents.send('layout', layoutPayload());
+}
+
+ipcMain.on('layout:get', (e) => {
+	e.returnValue = layoutPayload();
+});
+
+const fromToolbar0 = (e) => !!win && e.sender === win.webContents;
+ipcMain.on('newtab-menu', (e) => {
+	if (!fromToolbar0(e)) return;
+	popupMenu([
+		{ label: 'Новая вкладка', click: () => createTab(NEWTAB) },
+		{ label: 'Новая вкладка инкогнито', click: () => openIncognito() },
+	]);
+});
+ipcMain.on('win:minimize', (e) => fromToolbar0(e) && win.minimize());
+ipcMain.on('win:maximize', (e) => {
+	if (!fromToolbar0(e)) return;
+	if (win.isMaximized()) win.unmaximize();
+	else win.maximize();
+});
+ipcMain.on('win:close', (e) => fromToolbar0(e) && win.close());
+
+// Панель закладок: папки и закладки целиком, рисует их окно тулбара
+function barPayload() {
+	const st = store.bookmarksState();
+	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, folder: b.folder })) };
+}
+
+function sendBar() {
+	if (win && !win.isDestroyed()) win.webContents.send('bar', barPayload());
+}
+
+ipcMain.on('bar:get', (e) => {
+	e.returnValue = barPayload();
+});
+ipcMain.on('bar:open', (e, id, newTab) => {
+	if (!fromToolbar0(e)) return;
+	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
+	if (!b) return;
+	if (newTab) createTab(b.url, { activate: true });
+	else loadInActive(b.url);
+});
+ipcMain.on('bar:folder', (e, folderId) => {
+	if (!fromToolbar0(e)) return;
+	const st = store.bookmarksState();
+	const items = st.bookmarks.filter((b) => b.folder === folderId);
+	popupMenu(items.length
+		? items.map((b) => ({ label: b.title.length > 50 ? b.title.slice(0, 49) + '…' : b.title, click: () => loadInActive(b.url) }))
+		: [{ label: 'Папка пуста', enabled: false }]);
+});
+
 function sendTabs() {
 	if (!win || win.isDestroyed()) return;
 	const s = settings();
@@ -146,7 +220,8 @@ function sendTabs() {
 		showUrl: s.showUrlInTabs,
 		showIcons: s.showTabIcons,
 		overflow: s.tabOverflow,
-		tabs: tabs.map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned })),
+		tabs: tabs.map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, incognito: !!t.incognito })),
+		side: s.tabsPos === 'left' || s.tabsPos === 'right',
 	});
 }
 
@@ -214,9 +289,25 @@ function contentSize() {
 	return [b.width, b.height];
 }
 
+// Сколько места вокруг страницы занимают панели. Те же числа заданы в style.css
+function insets() {
+	const s = settings();
+	const i = { top: TOOLBAR_HEIGHT, bottom: 0, left: 0, right: 0 };
+	if (s.tabsPos === 'top') i.top += TABBAR_HEIGHT;
+	else if (s.tabsPos === 'bottom') i.bottom += TABBAR_HEIGHT;
+	else if (s.tabsPos === 'left') i.left = SIDE_WIDTH;
+	else i.right = SIDE_WIDTH;
+	if (s.bookmarksBar) {
+		if (s.bmPos === 'bottom') i.bottom += BMBAR_HEIGHT;
+		else i.top += BMBAR_HEIGHT;
+	}
+	return i;
+}
+
 function pageBounds() {
 	const [w, h] = contentSize();
-	return { x: 0, y: TOP, width: w, height: Math.max(0, h - TOP) };
+	const i = insets();
+	return { x: i.left, y: i.top, width: Math.max(0, w - i.left - i.right), height: Math.max(0, h - i.top - i.bottom) };
 }
 
 function layout() {
@@ -241,7 +332,7 @@ function persistable(url) {
 function saveSession() {
 	clearTimeout(sessionTimer);
 	sessionTimer = null;
-	const kept = tabs.filter((t) => persistable(t.pendingUrl || t.url));
+	const kept = tabs.filter((t) => !t.incognito && persistable(t.pendingUrl || t.url));
 	store.setSession({
 		tabs: kept.map((t) => ({ url: t.pendingUrl || t.url, title: t.title, icon: t.icon, pinned: t.pinned })),
 		active: Math.max(0, kept.findIndex((t) => t.id === activeId)),
@@ -302,20 +393,20 @@ function wireTab(tab) {
 		if (!tab.title) tab.title = wc.getTitle();
 		onNavigated(tab);
 		if (tab.id === activeId) closeFind();
-		store.addVisit(wc.getURL(), wc.getTitle());
+		if (!tab.incognito) store.addVisit(wc.getURL(), wc.getTitle());
 	});
 	wc.on('did-navigate-in-page', () => onNavigated(tab));
 	wc.on('did-start-navigation', (details) => {
 		if (!details.isMainFrame || details.isSameDocument) return;
 		// Если иконка этого сайта уже известна (и кеш иконок включён), показываем её сразу
-		tab.icon = (settings().cacheIcons && iconByOrigin.get(originOf(details.url))) || '';
+		tab.icon = (!tab.incognito && settings().cacheIcons && iconByOrigin.get(originOf(details.url))) || '';
 		tab.title = ''; // старое название не должно переходить на новую страницу, у которой своего может не быть (например, 404)
 		sendTabs();
 	});
 	wc.on('page-title-updated', (_e, title) => {
 		if (!alive()) return;
 		tab.title = title;
-		store.updateVisitTitle(wc.getURL(), title);
+		if (!tab.incognito) store.updateVisitTitle(wc.getURL(), title);
 		if (tab.id === activeId) setWindowTitle(tab);
 		sendTabs();
 		scheduleSession();
@@ -323,8 +414,8 @@ function wireTab(tab) {
 	wc.on('page-favicon-updated', (_e, icons) => {
 		if (!alive()) return;
 		tab.icon = icons[0] || '';
-		icons.forEach(cache.addIcon);
-		if (tab.icon) iconByOrigin.set(originOf(tab.view.webContents.getURL()), tab.icon);
+		if (!tab.incognito) icons.forEach(cache.addIcon);
+		if (tab.icon && !tab.incognito) iconByOrigin.set(originOf(tab.view.webContents.getURL()), tab.icon);
 		sendTabs();
 		scheduleSession();
 	});
@@ -356,13 +447,18 @@ function wireTab(tab) {
 
 // opts: activate (по умолчанию да), lazy (загрузить при первом открытии), afterId, title, icon
 function createTab(url, opts = {}) {
-	const view = new WebContentsView({
-		webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true },
-	});
+	// Вкладка, открытая из вкладки инкогнито, тоже инкогнито
+	if (opts.incognito === undefined && opts.afterId) {
+		const from = tabs.find((t) => t.id === opts.afterId);
+		if (from && from.incognito) opts = { ...opts, incognito: true };
+	}
+	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
+	if (opts.incognito) prefs.session = incognitoSession();
+	const view = new WebContentsView({ webPreferences: prefs });
 	view.setBackgroundColor(bgColor());
 	view.setVisible(false);
 	if (profile) view.webContents.setUserAgent(profile.userAgent);
-	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, created: Date.now() };
+	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, created: Date.now() };
 
 	let index = tabs.length;
 	if (opts.afterId) {
@@ -378,7 +474,7 @@ function createTab(url, opts = {}) {
 	view.setBounds(pageBounds());
 	wireTab(tab);
 
-	if (tab.icon && originOf(tab.url)) iconByOrigin.set(originOf(tab.url), tab.icon);
+	if (!tab.incognito && tab.icon && originOf(tab.url)) iconByOrigin.set(originOf(tab.url), tab.icon);
 	if (opts.lazy) tab.pendingUrl = url;
 	else if (url) view.webContents.loadURL(url).catch(() => {});
 
@@ -462,8 +558,10 @@ function closeTab(id) {
 	if (tabs.length > 1) rememberClosed(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
+	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
 	win.contentView.removeChildView(tab.view);
 	tab.view.webContents.close();
+	if (lastIncognito) wipeIncognito();
 	if (!tabs.length) {
 		win.close();
 		return;
@@ -542,6 +640,7 @@ const changedKinds = new Set();
 let changeTimer = null;
 
 store.onChange((kind) => {
+	if (kind === 'bookmarks' || kind === 'all') sendBar();
 	changedKinds.add(kind);
 	if (changeTimer) return;
 	changeTimer = setTimeout(() => {
@@ -625,7 +724,7 @@ function offerFor(tab) {
 ipcMain.on('pw:submit', (e, data) => {
 	const tab = tabOfSender(e);
 	const origin = frameOrigin(e);
-	if (!tab || !origin || !settings().pwOffer || !data || typeof data !== 'object') return;
+	if (!tab || tab.incognito || !origin || !settings().pwOffer || !data || typeof data !== 'object') return;
 	const username = String(data.username || '').slice(0, 300);
 	const password = String(data.password || '').slice(0, 1000);
 	if (!password) return;
@@ -803,6 +902,7 @@ const ACTION_RUN = {
 	zoomOut: () => zoomBy(-1),
 	zoomReset: () => zoomReset(),
 	screenshot: () => screenshotPage(),
+	incognito: () => openIncognito(),
 	print: () => printPage(),
 	pdf: () => pdfPage(),
 	reopenTab: () => reopenTab(),
@@ -865,7 +965,7 @@ function setZoomPercent(wc, percent) {
 	const level = percent === 100 ? 0 : percentToLevel(percent);
 	wc.setZoomLevel(level);
 	const key = zoomKey(wc.getURL());
-	if (key) store.setZoom(key, level);
+	if (key && !tabOfContents(wc).incognito) store.setZoom(key, level);
 	sendState();
 }
 
@@ -926,7 +1026,7 @@ async function pdfPage() {
 		if (process.env.PROBLET_TEST_SAVE_DIR) {
 			target = path.join(process.env.PROBLET_TEST_SAVE_DIR, name);
 		} else {
-			const r = await dialog.showSaveDialog(win, { title: 'Сохранить как PDF', defaultPath: path.join(app.getPath('downloads'), name), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+			const r = await dialog.showSaveDialog(win, { title: 'Сохранить как PDF', defaultPath: path.join(downloadDir(), name), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
 			if (r.canceled || !r.filePath) return;
 			target = r.filePath;
 		}
@@ -966,7 +1066,7 @@ async function screenshotPage() {
 		if (process.env.PROBLET_TEST_SAVE_DIR) {
 			target = path.join(process.env.PROBLET_TEST_SAVE_DIR, name);
 		} else {
-			const r = await dialog.showSaveDialog(win, { title: 'Скриншот страницы', defaultPath: path.join(app.getPath('downloads'), name), filters: [{ name: 'PNG', extensions: ['png'] }] });
+			const r = await dialog.showSaveDialog(win, { title: 'Скриншот страницы', defaultPath: path.join(downloadDir(), name), filters: [{ name: 'PNG', extensions: ['png'] }] });
 			if (r.canceled || !r.filePath) return;
 			target = r.filePath;
 		}
@@ -1012,7 +1112,7 @@ function errorPage(code, description, url) {
 function layoutFind() {
 	if (!findView || !win) return;
 	const [w] = contentSize();
-	findView.setBounds({ x: Math.max(0, w - FIND_WIDTH - 12), y: TOP + 6, width: FIND_WIDTH, height: FIND_HEIGHT });
+	findView.setBounds({ x: Math.max(0, w - FIND_WIDTH - 12 - insets().right), y: insets().top + 6, width: FIND_WIDTH, height: FIND_HEIGHT });
 }
 
 function openFind() {
@@ -1074,6 +1174,7 @@ function showPageMenu(tab, params) {
 	if (web(params.linkURL)) {
 		item('Открыть ссылку в новой вкладке', () => createTab(params.linkURL, { afterId: tab.id }));
 		item('Открыть в фоновой вкладке', () => createTab(params.linkURL, { afterId: tab.id, activate: false }));
+		item('Открыть ссылку в режиме инкогнито', () => openIncognito(params.linkURL));
 		item('Копировать адрес ссылки', () => clipboard.writeText(params.linkURL));
 		sep();
 	}
@@ -1098,7 +1199,7 @@ function showPageMenu(tab, params) {
 		const text = params.selectionText.trim().slice(0, 200);
 		t.push({ label: 'Копировать', role: 'copy' });
 		item('Искать «' + (text.length > 30 ? text.slice(0, 30) + '…' : text) + '»', () => {
-			store.addSearch(text);
+			rememberSearch(text, tab);
 			createTab(store.searchUrl(text), { afterId: tab.id });
 		});
 		sep();
@@ -1172,24 +1273,46 @@ function notifyDownloads() {
 	if (win && !win.isDestroyed()) win.webContents.send('downloads-busy', activeDownloads());
 }
 
+// Стандартная папка загрузок: выбранная в настройках, если она есть, иначе системная
+function downloadDir() {
+	const dir = settings().downloadDir;
+	try {
+		if (dir && fs.statSync(dir).isDirectory()) return dir;
+	} catch (e) { /* папку удалили: используем системную */ }
+	return app.getPath('downloads');
+}
+
 function persistDownloads() {
-	store.setDownloads(downloads.filter((d) => d.state !== 'progressing').map((d) => ({
+	store.setDownloads(downloads.filter((d) => d.state !== 'progressing' && !d.incognito).map((d) => ({
 		id: d.id, name: d.name, path: d.path, url: d.url, size: d.total || d.received, state: d.state, time: d.time,
 	})));
 }
 
-function setupDownloads(ses) {
-	for (const d of store.getDownloads()) downloads.push({ ...d, received: d.size, total: d.size, item: null });
+function setupDownloads(ses, incognito) {
+	if (!incognito) for (const d of store.getDownloads()) downloads.push({ ...d, received: d.size, total: d.size, item: null });
 
 	ses.on('will-download', (_e, item) => {
 		const d = {
 			id: crypto.randomUUID(), name: item.getFilename() || 'download', path: '', url: item.getURL().slice(0, 2048),
-			received: 0, total: item.getTotalBytes(), state: 'progressing', time: Date.now(), item,
+			received: 0, total: item.getTotalBytes(), state: 'progressing', time: Date.now(), item, incognito: !!incognito,
 		};
 		if (!settings().askDownload) {
-			d.path = uniquePath(app.getPath('downloads'), d.name);
+			d.path = uniquePath(downloadDir(), d.name);
 			d.name = path.basename(d.path);
 			item.setSavePath(d.path); // иначе Electron покажет диалог выбора места
+		} else {
+			item.setSaveDialogOptions({ defaultPath: path.join(downloadDir(), d.name) });
+		}
+		// Из инкогнито можно переспросить: файл останется на диске и выдаст, что человек что-то качал
+		if (incognito && settings().incognitoAsk) {
+			item.pause();
+			dialog.showMessageBox(win, {
+				type: 'question', buttons: ['Скачать', 'Отмена'], defaultId: 1, cancelId: 1,
+				message: 'Скачать файл из режима инкогнито?', detail: d.name + '\nФайл останется на компьютере после закрытия инкогнито.',
+			}).then((r) => {
+				if (r.response === 0) item.resume();
+				else item.cancel();
+			}).catch(() => item.cancel());
 		}
 		downloads.unshift(d);
 		notifyDownloads();
@@ -1263,16 +1386,21 @@ function refreshIdentity() {
 	profile = identity.build(settings().maskAs, app.getVersion());
 	plainProfile = identity.build('problet', app.getVersion(), true);
 	session.defaultSession.setUserAgent(profile.userAgent);
+	if (incSession) incSession.setUserAgent(profile.userAgent);
 	for (const t of tabs) if (!t.view.webContents.isDestroyed()) t.view.webContents.setUserAgent(profile.userAgent);
 }
 
 function startIdentity(ses) {
 	loadPlainSites();
 	refreshIdentity();
-	// Единственный обработчик заголовков запроса: кеш, затем маскировка и DNT
+	attachIdentity(ses, true);
+}
+
+// Единственный обработчик заголовков запроса: кеш (только в обычной сессии), затем маскировка и DNT
+function attachIdentity(ses, withCache) {
 	ses.webRequest.onBeforeSendHeaders({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
 		const headers = { ...details.requestHeaders };
-		cache.tweakRequest(details, headers);
+		if (withCache) cache.tweakRequest(details, headers);
 		identity.applyHeaders(headers, profileFor(details.url), settings().dnt);
 		callback({ requestHeaders: headers });
 	});
@@ -1302,6 +1430,8 @@ function applySettings() {
 	if (findView) findView.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
 	for (const t of tabs) t.view.setBackgroundColor(bgColor());
 	broadcastTheme();
+	sendLayout();
+	layout();
 	sendTabs();
 	cache.checkRetention();
 }
@@ -1319,7 +1449,7 @@ function buildSuggestions(text) {
 	const calc = q && s.calcSuggest ? tryCalc(q) : null;
 	if (calc !== null) items.push({ type: 'calc', text: calc, label: q });
 	const searches = s.searchSuggest ? store.searchSuggestions(q, MAX_SUGGESTIONS) : [];
-	const pages = q ? store.searchVisits(q, 12).filter((p) => !store.isSearchUrl(p.url)).slice(0, 4) : [];
+	const pages = q && s.urlSuggest ? store.searchVisits(q, 12).filter((p) => !store.isSearchUrl(p.url)).slice(0, 4) : [];
 	for (const h of searches.slice(0, pages.length ? 3 : MAX_SUGGESTIONS)) items.push({ type: 'history', text: h });
 	for (const p of pages) items.push({ type: 'page', text: p.url, label: p.title });
 	return items.slice(0, MAX_SUGGESTIONS);
@@ -1332,7 +1462,7 @@ function renderSuggest() {
 	}
 	popup.setBounds({
 		x: sug.x,
-		y: TOP - 2,
+		y: (settings().tabsPos === 'top' ? TABBAR_HEIGHT : 0) + TOOLBAR_HEIGHT - 2, // сразу под адресной строкой
 		width: sug.width,
 		height: sug.items.length * ROW_HEIGHT + POPUP_PADDING * 2,
 	});
@@ -1490,6 +1620,11 @@ handle('settings:set', (patch) => {
 	applySettings();
 	return result;
 });
+handle('dir:pick', async () => {
+	const r = await dialog.showOpenDialog(win, { title: 'Папка для загрузок', defaultPath: downloadDir(), properties: ['openDirectory', 'createDirectory'] });
+	if (r.canceled || !r.filePaths[0]) return { canceled: true };
+	return { path: r.filePaths[0] };
+});
 handle('history:clear', () => {
 	store.clearSearches();
 });
@@ -1504,7 +1639,7 @@ ipcMain.handle('search:run', (e, text) => {
 	const tab = tabs.find((t) => t.view.webContents === e.sender);
 	const q = String(text || '').trim().slice(0, 500);
 	if (!tab || !q) return;
-	store.addSearch(q);
+	rememberSearch(q, tab);
 	tab.pendingUrl = null;
 	tab.view.webContents.loadURL(store.searchUrl(q)).catch(() => {});
 });
@@ -1647,9 +1782,9 @@ handle('data:import', async () => {
 
 // ---------- Окно ----------
 
-function registerInternalPages() {
+function internalHandler(request) {
 	const root = path.join(__dirname, 'pages');
-	protocol.handle('problet', (request) => {
+	{
 		const url = new URL(request.url);
 		if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || new Response('Not found', { status: 404 });
 		if (!INTERNAL_PAGES.has(url.hostname)) return new Response('Not found', { status: 404 });
@@ -1658,7 +1793,38 @@ function registerInternalPages() {
 		const filePath = name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name); // тема общая для всех окон
 		if (!fs.existsSync(filePath)) return new Response('Not found', { status: 404 });
 		return net.fetch(pathToFileURL(filePath).toString());
-	});
+	}
+}
+
+function registerInternalPages() {
+	protocol.handle('problet', internalHandler);
+}
+
+// ---------- Режим инкогнито ----------
+// Все вкладки инкогнито делят одну сессию в памяти: куки, кеш и хранилища живут, пока открыта хоть одна такая вкладка
+
+let incSession = null;
+
+function incognitoSession() {
+	if (incSession) return incSession;
+	incSession = session.fromPartition('incognito'); // без префикса persist: данные только в памяти
+	incSession.protocol.handle('problet', internalHandler);
+	adblock.start(incSession, store);
+	attachIdentity(incSession, false);
+	setupDownloads(incSession, true);
+	if (profile) incSession.setUserAgent(profile.userAgent);
+	return incSession;
+}
+
+function wipeIncognito() {
+	if (!incSession) return;
+	incSession.clearStorageData().catch(() => {});
+	incSession.clearCache().catch(() => {});
+	incSession.closeAllConnections().catch(() => {});
+}
+
+function openIncognito(url) {
+	createTab(url || NEWTAB, { incognito: true });
 }
 
 function createWindow() {
@@ -1670,6 +1836,7 @@ function createWindow() {
 		backgroundColor: bgColor(),
 		icon: path.join(__dirname, 'icon.png'),
 		autoHideMenuBar: true,
+		frame: false, // заголовок окна рисуем сами: панель вкладок и кнопки окна лежат в нём
 		title: 'Problet',
 		webPreferences: {
 			preload: path.join(__dirname, 'preload-toolbar.js'),
@@ -1717,6 +1884,8 @@ function createWindow() {
 	for (const ev of ['resize', 'maximize', 'unmaximize', 'restore', 'enter-full-screen', 'leave-full-screen']) win.on(ev, layout);
 	win.contentView.on('bounds-changed', layout);
 	win.on('close', saveSession);
+	win.on('maximize', sendLayout);
+	win.on('unmaximize', sendLayout);
 	win.webContents.on('before-input-event', hotkeys);
 	win.webContents.on('did-finish-load', () => {
 		if (started) return;
@@ -1755,7 +1924,7 @@ app.whenReady().then(() => {
 	updater.onChange((st) => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
 	});
-	updater.schedule(() => settings().autoUpdate);
+	updater.schedule(() => settings().autoUpdate, () => settings().autoRestart);
 });
 app.on('before-quit', () => store.flush());
 app.on('window-all-closed', () => app.quit());

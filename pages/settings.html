@@ -25,10 +25,18 @@
 				<div class="what">Использовать историю поиска в подсказках</div>
 				<label class="switch"><input type="checkbox" data-setting="searchSuggest"><span></span></label>
 			</div>
+			<div class="setting">
+				<div class="what">URL-подсказки<small>В подсказках предлагаются известные адреса из истории посещений</small></div>
+				<label class="switch"><input type="checkbox" data-setting="urlSuggest"><span></span></label>
+			</div>
 		</section>
 
 		<section>
 			<h2>Вкладки</h2>
+			<div class="setting">
+				<div class="what">Расположение панели вкладок</div>
+				<select data-setting="tabsPos"><option value="top">Сверху</option><option value="bottom">Снизу</option><option value="right">Справа</option><option value="left">Слева</option></select>
+			</div>
 			<div class="setting">
 				<div class="what">Показывать URL вместо названия страницы</div>
 				<label class="switch"><input type="checkbox" data-setting="showUrlInTabs"><span></span></label>
@@ -53,6 +61,64 @@
 				<div class="what">Показывать настройки как вкладку</div>
 				<label class="switch"><input type="checkbox" data-setting="settingsAsTab"><span></span></label>
 			</div>
+		</section>
+
+		<section>
+			<h2>Закладки</h2>
+			<div class="setting">
+				<div class="what">Расположение панели закладок</div>
+				<select data-setting="bmPos"><option value="top">Сверху</option><option value="bottom">Снизу</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Показывать только иконку</div>
+				<label class="switch"><input type="checkbox" data-setting="bmOnlyIcons"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Менеджер закладок</div>
+				<button id="open-bookmarks">Открыть менеджер закладок</button>
+			</div>
+		</section>
+
+		<section>
+			<h2>Панели</h2>
+			<div class="setting">
+				<div class="what">Показывать панель закладок</div>
+				<label class="switch"><input type="checkbox" data-setting="bookmarksBar"><span></span></label>
+			</div>
+			<details class="group">
+				<summary>Содержимое панели со вкладками</summary>
+				<div class="setting">
+					<div class="what">Кнопка «Новая вкладка»</div>
+					<label class="switch"><input type="checkbox" data-setting="tabsNewButton"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Кнопки взаимодействия с окном<small>Свернуть, развернуть, закрыть</small></div>
+					<label class="switch"><input type="checkbox" data-setting="winButtons"><span></span></label>
+				</div>
+			</details>
+			<details class="group">
+				<summary>Содержимое панели поиска</summary>
+				<div class="setting">
+					<div class="what">Апплет «Пароли»</div>
+					<label class="switch"><input type="checkbox" data-setting="appPasswords"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Апплет «История поиска»</div>
+					<label class="switch"><input type="checkbox" data-setting="appHistory"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Апплет «Настройки»<small id="app-settings-note"></small></div>
+					<label class="switch"><input type="checkbox" data-setting="appSettings"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Апплет «Загрузки»</div>
+					<label class="switch"><input type="checkbox" data-setting="appDownloads"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Иконка обновления</div>
+					<label class="switch"><input type="checkbox" data-setting="appUpdate"><span></span></label>
+				</div>
+			</details>
 		</section>
 
 		<section>
@@ -117,6 +183,17 @@
 				<div class="what">Спрашивать, куда сохранять файлы<small>Если выключено, файлы сохраняются в папку загрузок системы</small></div>
 				<label class="switch"><input type="checkbox" data-setting="askDownload"><span></span></label>
 			</div>
+			<div class="setting">
+				<div class="what">Стандартная папка для загрузок<small id="download-dir"></small></div>
+				<span class="row-buttons">
+					<button id="download-dir-pick">Выбрать</button>
+					<button id="download-dir-reset">Сбросить</button>
+				</span>
+			</div>
+			<div class="setting">
+				<div class="what">Спрашивать при скачивании из режима инкогнито<small>Перед скачиванием из инкогнито спрашивает, точно ли сохранить файл</small></div>
+				<label class="switch"><input type="checkbox" data-setting="incognitoAsk"><span></span></label>
+			</div>
 		</section>
 
 		<section>
@@ -170,6 +247,10 @@
 			<div class="setting">
 				<div class="what">Обновлять автоматически<small>Раз в несколько часов Problet смотрит последний релиз на GitHub и сам скачивает новую версию. Установится она после перезапуска</small></div>
 				<label class="switch"><input type="checkbox" data-setting="autoUpdate"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Перезагружать автоматически<small>Когда новая версия скачана, Problet сам перезапускается. Открытые вкладки вернутся только если в настройках запуска выбрано восстановление сессии. Работает при включённом автообновлении</small></div>
+				<label class="switch"><input type="checkbox" data-setting="autoRestart"><span></span></label>
 			</div>
 			<div class="setting">
 				<div class="what">Версия <span id="app-version"></span><small id="update-status"></small></div>

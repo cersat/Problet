@@ -1,3 +1,5 @@
+let layoutState = {};
+let barData = { folders: [], bookmarks: [] };
 const back = document.getElementById('back');
 const forward = document.getElementById('forward');
 const reload = document.getElementById('reload');
@@ -41,12 +43,20 @@ forward.addEventListener('click', () => api.forward());
 reload.addEventListener('click', () => api.reload());
 star.addEventListener('click', () => api.toggleBookmark());
 document.getElementById('bookmarks').addEventListener('click', () => api.openInternal('bookmarks'));
+document.getElementById('passwords').addEventListener('click', () => api.openInternal('passwords'));
 document.getElementById('history').addEventListener('click', () => api.openInternal('history'));
 document.getElementById('pwoffer').addEventListener('click', () => api.pwOfferAccept());
 document.getElementById('zoom').addEventListener('click', () => api.zoomReset());
 document.getElementById('downloads').addEventListener('click', () => api.openInternal('downloads'));
 document.getElementById('settings').addEventListener('click', () => api.openInternal('settings'));
 document.getElementById('newtab').addEventListener('click', () => api.newTab());
+document.getElementById('newtab').addEventListener('contextmenu', (e) => {
+	e.preventDefault();
+	api.newTabMenu();
+});
+document.getElementById('win-min').addEventListener('click', () => api.winMinimize());
+document.getElementById('win-max').addEventListener('click', () => api.winMaximize());
+document.getElementById('win-close').addEventListener('click', () => api.winClose());
 
 // ---------- Вкладки ----------
 
@@ -59,7 +69,7 @@ function tabLabel(t, showUrl) {
 
 function makeTab(t, state) {
 	const el = document.createElement('div');
-	el.className = 'tab' + (t.id === state.activeId ? ' active' : '') + (t.pinned ? ' pinned' : '');
+	el.className = 'tab' + (t.id === state.activeId ? ' active' : '') + (t.pinned ? ' pinned' : '') + (t.incognito ? ' incognito' : '');
 	el.draggable = true;
 	el.dataset.id = t.id;
 	const label = tabLabel(t, state.showUrl);
@@ -89,6 +99,13 @@ function makeTab(t, state) {
 		el.append(spin);
 	}
 
+	if (t.incognito) {
+		const mark = document.createElement('span');
+		mark.className = 'incog';
+		mark.title = 'Режим инкогнито';
+		mark.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 11h18M6 11l1.5-6h9L18 11"/><circle cx="8" cy="16" r="2.5"/><circle cx="16" cy="16" r="2.5"/><path d="M10.5 16h3"/></svg>';
+		el.append(mark);
+	}
 	const text = document.createElement('span');
 	text.className = 'label';
 	text.textContent = label;
@@ -101,13 +118,17 @@ function makeTab(t, state) {
 	return el;
 }
 
+let sideTabs = false;
+
 api.onTabs((state) => {
-	tabsEl.classList.toggle('scroll', state.overflow === 'scroll');
+	sideTabs = !!state.side;
+	tabsEl.classList.toggle('side', sideTabs);
+	tabsEl.classList.toggle('scroll', state.overflow === 'scroll' && !sideTabs);
 	tabsEl.style.setProperty('--n', state.tabs.length);
 	tabsEl.textContent = '';
 	for (const t of state.tabs) tabsEl.append(makeTab(t, state));
 	const active = tabsEl.querySelector('.tab.active');
-	if (active && state.overflow === 'scroll') active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	if (active && (state.overflow === 'scroll' || sideTabs)) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 });
 
 tabsEl.addEventListener('contextmenu', (e) => {
@@ -120,11 +141,11 @@ tabsEl.addEventListener('contextmenu', (e) => {
 // Перетаскивание вкладок. Позиция считается среди остальных вкладок (без перетаскиваемой)
 let dragId = null;
 
-function dropTarget(x) {
+function dropTarget(x, y) {
 	const others = [...tabsEl.querySelectorAll('.tab')].filter((el) => Number(el.dataset.id) !== dragId);
 	let index = others.findIndex((el) => {
 		const r = el.getBoundingClientRect();
-		return x < r.left + r.width / 2;
+		return sideTabs ? y < r.top + r.height / 2 : x < r.left + r.width / 2;
 	});
 	if (index < 0) index = others.length;
 	return { index, before: others[index] || null, last: others[others.length - 1] || null };
@@ -146,7 +167,7 @@ tabsEl.addEventListener('dragstart', (e) => {
 tabsEl.addEventListener('dragover', (e) => {
 	if (dragId === null) return;
 	e.preventDefault();
-	const t = dropTarget(e.clientX);
+	const t = dropTarget(e.clientX, e.clientY);
 	for (const el of tabsEl.querySelectorAll('.drop-before, .drop-after')) el.classList.remove('drop-before', 'drop-after');
 	if (t.before) t.before.classList.add('drop-before');
 	else if (t.last) t.last.classList.add('drop-after');
@@ -155,7 +176,7 @@ tabsEl.addEventListener('dragover', (e) => {
 tabsEl.addEventListener('drop', (e) => {
 	if (dragId === null) return;
 	e.preventDefault();
-	const t = dropTarget(e.clientX);
+	const t = dropTarget(e.clientX, e.clientY);
 	api.moveTab(dragId, t.index);
 	dragId = null;
 	clearDrop();
@@ -167,10 +188,12 @@ tabsEl.addEventListener('dragend', () => {
 });
 
 // Кнопка обновления видна, только когда есть что ставить
+let lastUpdate = null;
 const updateBtn = document.getElementById('update');
 updateBtn.addEventListener('click', () => api.updateApply());
 function showUpdate(st) {
-	const on = st && (st.status === 'ready' || st.status === 'downloading' || (st.status === 'available' && st.mode !== 'dev'));
+	lastUpdate = st;
+	const on = layoutState.appUpdate !== false && st && (st.status === 'ready' || st.status === 'downloading' || (st.status === 'available' && st.mode !== 'dev'));
 	updateBtn.classList.toggle('hidden', !on);
 	if (!on) return;
 	const titles = {
@@ -203,7 +226,7 @@ tabsEl.addEventListener('mousedown', (e) => {
 });
 
 tabsEl.addEventListener('wheel', (e) => {
-	if (!tabsEl.classList.contains('scroll')) return;
+	if (!tabsEl.classList.contains('scroll') || sideTabs) return;
 	tabsEl.scrollLeft += e.deltaY || e.deltaX;
 }, { passive: true });
 
@@ -286,3 +309,98 @@ api.onSetAddress(({ text, select }) => {
 api.onSuggestVisible((visible) => {
 	suggestOpen = visible;
 });
+
+// ---------- Раскладка: положение панелей и их содержимое ----------
+
+const bmbar = document.getElementById('bmbar');
+const winctl = document.getElementById('winctl');
+
+function applyLayout(l) {
+	layoutState = l;
+	document.body.dataset.tabs = l.tabsPos;
+	document.body.dataset.bm = l.bookmarksBar ? l.bmPos : 'off';
+	document.getElementById('newtab').classList.toggle('off', !l.tabsNewButton);
+	document.getElementById('passwords').classList.toggle('off', !l.appPasswords);
+	document.getElementById('history').classList.toggle('off', !l.appHistory);
+	document.getElementById('settings').classList.toggle('off', !l.appSettings);
+	document.getElementById('downloads').classList.toggle('off', !l.appDownloads);
+	// Кнопки окна живут в самой верхней полосе: во вкладках, а если вкладки не сверху, то в панели инструментов
+	winctl.classList.toggle('hidden', !l.winButtons);
+	const slot = document.getElementById(l.tabsPos === 'top' ? 'slot-tab' : 'slot-tool');
+	if (winctl.parentElement !== slot) slot.append(winctl);
+	document.getElementById('win-max').title = l.maximized ? 'Восстановить' : 'Развернуть';
+	document.getElementById('win-max-icon').innerHTML = l.maximized
+		? '<rect x="2.2" y="3.8" width="6" height="6"/><path d="M4 3.8V2.2h5.8v5.8H8.2"/>'
+		: '<rect x="2.2" y="2.2" width="7.6" height="7.6"/>';
+	bmbar.classList.toggle('icons', !!l.bmOnlyIcons);
+	renderBar();
+	if (lastUpdate) showUpdate(lastUpdate);
+}
+
+function renderBar() {
+	bmbar.textContent = '';
+	const only = !!layoutState.bmOnlyIcons;
+	const folderIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>';
+	for (const f of barData.folders) {
+		const b = document.createElement('button');
+		b.className = 'bm folder';
+		b.title = f.name;
+		b.innerHTML = folderIcon;
+		if (!only) {
+			const n = document.createElement('span');
+			n.className = 'name';
+			n.textContent = f.name;
+			b.append(n);
+		}
+		b.addEventListener('click', () => api.barFolder(f.id));
+		bmbar.append(b);
+	}
+	for (const m of barData.bookmarks.filter((x) => !x.folder)) {
+		const b = document.createElement('button');
+		b.className = 'bm';
+		b.title = m.title + '\n' + m.url;
+		let fav;
+		const letter = () => {
+			const l = document.createElement('span');
+			l.className = 'fav letter';
+			l.textContent = (m.title.trim()[0] || '•').toUpperCase();
+			return l;
+		};
+		if (m.icon) {
+			fav = document.createElement('img');
+			fav.className = 'fav';
+			fav.src = m.icon;
+			fav.addEventListener('error', () => fav.replaceWith(letter()));
+		} else {
+			fav = letter();
+		}
+		b.append(fav);
+		if (!only) {
+			const n = document.createElement('span');
+			n.className = 'name';
+			n.textContent = m.title;
+			b.append(n);
+		}
+		b.addEventListener('click', () => api.barOpen(m.id, false));
+		b.addEventListener('mousedown', (e) => {
+			if (e.button !== 1) return;
+			e.preventDefault();
+			api.barOpen(m.id, true);
+		});
+		bmbar.append(b);
+	}
+	if (!bmbar.children.length) {
+		const hint = document.createElement('span');
+		hint.className = 'empty';
+		hint.textContent = 'Закладок пока нет: нажми ☆ в адресной строке';
+		bmbar.append(hint);
+	}
+}
+
+api.onBar((data) => {
+	barData = data;
+	renderBar();
+});
+api.onLayout(applyLayout);
+barData = api.bar();
+applyLayout(api.layout());

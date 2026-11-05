@@ -119,9 +119,22 @@ dialog .buttons {
 /* ---------- Настройки ---------- */
 
 body.settings main {
-	max-width: 680px;
+	max-width: 900px;
 	margin: 0 auto;
 	padding: 32px 20px 60px;
+	display: grid;
+	grid-template-columns: 190px minmax(0, 1fr);
+	column-gap: 24px;
+	align-items: start;
+}
+
+body.settings main > h1 {
+	grid-column: 1 / -1;
+}
+
+body.settings main > section,
+body.settings main > .status {
+	grid-column: 2;
 }
 
 body.settings h1 {
@@ -717,15 +730,32 @@ body.list-page header input {
 }
 
 .cats {
+	grid-column: 1;
+	grid-row: 2 / span 20;
+	position: sticky;
+	top: 20px;
 	display: flex;
-	flex-wrap: wrap;
+	flex-direction: column;
 	gap: 6px;
-	margin-bottom: 18px;
 }
 
 .cats button {
-	padding: 6px 14px;
-	border-radius: 16px;
+	padding: 8px 14px;
+	border-radius: 10px;
+	text-align: left;
+}
+
+@media (max-width: 640px) {
+	body.settings main {
+		display: block;
+	}
+
+	.cats {
+		position: static;
+		flex-direction: row;
+		flex-wrap: wrap;
+		margin-bottom: 18px;
+	}
 }
 
 .cats button.active {
@@ -958,4 +988,17 @@ body.version .actions {
 	font-size: 22px;
 	color: var(--accent);
 	font-variant-numeric: tabular-nums;
+}
+
+/* Раскрывающиеся группы настроек */
+details.group {
+	margin-top: 10px;
+	border-top: 1px solid var(--border);
+}
+
+details.group > summary {
+	padding: 12px 0;
+	color: var(--text-strong);
+	cursor: pointer;
+	user-select: none;
 }

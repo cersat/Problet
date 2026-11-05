@@ -47,6 +47,8 @@ async function load() {
 		else el.value = v;
 	}
 	$('startup-url').value = settings.startupUrl;
+	showDownloadDir();
+	syncAppSettings();
 	$('startup-url-row').classList.toggle('hidden', settings.startup !== 'url');
 
 	const box = $('swatches');
@@ -307,6 +309,35 @@ $('update-apply').addEventListener('click', () => run(() => api.applyUpdate()));
 run(async () => renderUpdate(await api.updateState()));
 
 
+// Апплет «Настройки» нельзя убрать, пока у настроек нет горячей клавиши: иначе до них не добраться
+function syncAppSettings() {
+	const box = document.querySelector('[data-setting="appSettings"]');
+	const hasKey = !!effectiveKey('settings');
+	if (!hasKey) box.checked = true;
+	box.disabled = !hasKey;
+	$('app-settings-note').textContent = hasKey ? '' : 'Нельзя выключить: для настроек не назначено сочетание клавиш';
+}
+
+function showDownloadDir() {
+	$('download-dir').textContent = current.downloadDir || 'Папка «Загрузки» в системе';
+}
+
+$('download-dir-pick').addEventListener('click', () => run(async () => {
+	const r = await api.pickDownloadDir();
+	if (!r || r.canceled) return;
+	current = (await api.setSettings({ downloadDir: r.path })) || current;
+	showDownloadDir();
+	say('Сохранено');
+}));
+
+$('download-dir-reset').addEventListener('click', () => run(async () => {
+	current = (await api.setSettings({ downloadDir: '' })) || current;
+	showDownloadDir();
+	say('Сохранено');
+}));
+
+$('open-bookmarks').addEventListener('click', () => run(() => api.openInNewTab('bookmarks')));
+
 // ---------- Горячие клавиши ----------
 
 const hkEl = $('hotkeys');
@@ -356,6 +387,7 @@ async function saveHotkeys(next) {
 	const r = await api.setSettings({ hotkeys: next });
 	current = r || current;
 	renderHotkeys();
+	syncAppSettings();
 }
 
 document.addEventListener('keydown', (e) => {

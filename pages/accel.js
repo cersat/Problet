@@ -11,6 +11,7 @@
 		{ id: 'prevTab2', label: 'Предыдущая вкладка (запасное)', key: 'Ctrl+PageUp' },
 		{ id: 'reopenTab', label: 'Открыть закрытую вкладку', key: 'Ctrl+Shift+T' },
 		{ id: 'tabsMenu', label: 'Список вкладок', key: 'Ctrl+Shift+A' },
+		{ id: 'incognito', label: 'Новая вкладка инкогнито', key: 'Ctrl+Shift+N' },
 		{ id: 'pin', label: 'Закрепить вкладку', key: 'Ctrl+Shift+P' },
 		{ id: 'back', label: 'Назад', key: 'Alt+Left' },
 		{ id: 'forward', label: 'Вперёд', key: 'Alt+Right' },

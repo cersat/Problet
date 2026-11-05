@@ -44,19 +44,36 @@ const SETTING_DEFAULTS = {
 	searchSuggest: true,
 	dnt: false,
 	autoUpdate: true,
+	autoRestart: false,
 	pwOffer: true,
 	pwFill: true,
 	pwLock: '15',
 	maskAs: 'problet',
+	urlSuggest: true,
+	incognitoAsk: true,
+	downloadDir: '',
+	tabsPos: 'top',
+	bmPos: 'top',
+	bmOnlyIcons: false,
+	bookmarksBar: true,
+	tabsNewButton: true,
+	winButtons: true,
+	appPasswords: true,
+	appHistory: true,
+	appSettings: true,
+	appDownloads: true,
+	appUpdate: true,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'pwOffer', 'pwFill'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
 	accent: Object.keys(ACCENTS),
 	cacheKeep: ['always', 'month', 'week', 'day', 'hour', 'restart'],
 	maskAs: ['chrome', 'problet', 'firefox'],
+	tabsPos: ['top', 'bottom', 'left', 'right'],
+	bmPos: ['top', 'bottom'],
 	pwLock: ['5', '15', '60', '0'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
 };
 
@@ -129,6 +146,12 @@ function cleanHotkeys(raw) {
 	return out;
 }
 
+// true, если у настроек есть горячая клавиша (своя или по умолчанию)
+function settingsReachableByKey(hotkeys) {
+	const h = hotkeys || {};
+	return !!(Object.hasOwn(h, 'settings') ? h.settings : accel.ACTIONS.find((a) => a.id === 'settings').key);
+}
+
 function sanitizeSettings(raw) {
 	const r = raw && typeof raw === 'object' ? raw : {};
 	const out = { ...SETTING_DEFAULTS };
@@ -140,6 +163,8 @@ function sanitizeSettings(raw) {
 	}
 	out.hotkeys = cleanHotkeys(r.hotkeys);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
+	out.downloadDir = typeof r.downloadDir === 'string' && r.downloadDir.length <= 1024 && path.isAbsolute(r.downloadDir) ? r.downloadDir : '';
+	if (!settingsReachableByKey(out.hotkeys)) out.appSettings = true;
 	out.customTemplate = validTemplate(r.customTemplate) ? r.customTemplate.trim() : '';
 	let engine = typeof r.engine === 'string' ? r.engine : 'duckduckgo';
 	if (engine === 'custom' ? !out.customTemplate : !Object.hasOwn(ENGINES, engine)) engine = 'duckduckgo';
@@ -476,7 +501,13 @@ function setSettings(patch) {
 		if (/^(javascript|vbscript):/i.test(u)) throw new Error('Некорректный адрес стартовой страницы');
 		next.startupUrl = u;
 	}
+	if (p.downloadDir !== undefined) {
+		if (typeof p.downloadDir !== 'string' || p.downloadDir.length > 1024 || (p.downloadDir && !path.isAbsolute(p.downloadDir))) throw new Error('Некорректная папка загрузок');
+		next.downloadDir = p.downloadDir;
+	}
 	if (next.engine === 'custom' && !next.customTemplate) throw new Error('Укажи шаблон адреса для своего поисковика');
+	// Панель настроек нельзя убрать, пока у настроек нет горячей клавиши: иначе до них не добраться
+	if (!settingsReachableByKey(next.hotkeys)) next.appSettings = true;
 	data.settings = next;
 	scheduleSave();
 	changed('settings');

@@ -60,6 +60,7 @@ if (location.protocol === 'problet:') {
 		exportData: () => call('data:export'),
 		importData: () => call('data:import'),
 		exportBookmarksHtml: () => call('bookmarks:export-html'),
+		pickDownloadDir: () => call('dir:pick'),
 		importSources: () => call('import:detect'),
 		importFrom: (id) => call('import:run', id),
 		extList: () => call('ext:list'),

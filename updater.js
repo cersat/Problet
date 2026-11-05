@@ -190,13 +190,14 @@ async function apply() {
 }
 
 // Автопроверка: через минуту после запуска и дальше раз в несколько часов; найденное обновление качается само
-function schedule(enabled) {
+function schedule(enabled, restartWhenReady) {
 	if (timer) clearInterval(timer);
 	if (mode() === 'dev') return;
 	const run = async () => {
 		if (!enabled() || busy || state.status === 'ready') return;
 		await check();
 		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer')) await prepare();
+		if (state.status === 'ready' && restartWhenReady && restartWhenReady()) await apply();
 	};
 	setTimeout(run, 60 * 1000);
 	timer = setInterval(run, CHECK_EVERY);

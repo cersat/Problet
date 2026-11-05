@@ -8,9 +8,11 @@
 	<link rel="stylesheet" href="style.css">
 </head>
 <body>
-	<div class="tabbar">
+	<div class="tabbar" id="tabbar">
 		<div id="tabs" class="tabs"></div>
-		<button id="newtab" class="newtab" title="Новая вкладка (Ctrl+T)">+</button>
+		<button id="newtab" class="newtab" title="Новая вкладка (Ctrl+T). Правая кнопка: вкладка инкогнито">+</button>
+		<div class="grow"></div>
+		<div id="slot-tab" class="slot"></div>
 	</div>
 	<div class="toolbar">
 		<button id="back" title="Назад (Alt+←)" disabled>←</button>
@@ -33,6 +35,9 @@
 		<button id="bookmarks" title="Закладки (Ctrl+Shift+O)">
 			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M7 4h10v16l-5-4-5 4z"/></svg>
 		</button>
+		<button id="passwords" title="Пароли (Ctrl+Shift+K)">
+			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><circle cx="8.5" cy="14" r="3.5"/><path d="M11 12l8-8M16 7l2.5 2.5M13.5 9.5L15 11"/></svg>
+		</button>
 		<button id="history" title="История (Ctrl+H)">
 			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>
 		</button>
@@ -42,6 +47,14 @@
 		<button id="settings" title="Настройки (Ctrl+,)">
 			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg>
 		</button>
+		<div id="slot-tool" class="slot"></div>
+	</div>
+	<div class="bmbar" id="bmbar"></div>
+	<div class="mid"></div>
+	<div id="winctl" class="winctl">
+		<button id="win-min" title="Свернуть"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 6h8"/></svg></button>
+		<button id="win-max" title="Развернуть"><svg id="win-max-icon" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.2" y="2.2" width="7.6" height="7.6"/></svg></button>
+		<button id="win-close" class="close-win" title="Закрыть"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg></button>
 	</div>
 	<script src="renderer.js"></script>
 </body>

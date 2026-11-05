@@ -96,7 +96,7 @@ function replacement(type) {
 }
 
 function start(session, store) {
-	load();
+	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
 		if (store.getSettings().adblock && isBlocked(details)) {
 			blocked++;
