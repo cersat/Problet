@@ -53,6 +53,20 @@ function isBlockedHost(host) {
 	}
 }
 
+// Адреса YouTube: на них реклама блокируется только при включённом переключателе
+const isYoutubeHost = (h) => /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be|googlevideo\.com|ytimg\.com)$/.test(String(h).toLowerCase());
+
+// Запрос идёт со страницы YouTube (или к самому YouTube)
+function fromYoutube(details) {
+	try {
+		if (isYoutubeHost(new URL(details.url).hostname)) return true;
+		if (details.referrer && isYoutubeHost(new URL(details.referrer).hostname)) return true;
+		const wc = details.webContents;
+		if (wc && !wc.isDestroyed() && isYoutubeHost(new URL(wc.getURL()).hostname)) return true;
+	} catch (e) { /* адрес не разобрался — считаем обычным запросом */ }
+	return false;
+}
+
 function isBlocked(details) {
 	if (details.resourceType === 'mainFrame') return false;
 	try {
@@ -98,7 +112,8 @@ function replacement(type) {
 function start(session, store) {
 	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
-		if (store.getSettings().adblock && isBlocked(details)) {
+		const s = store.getSettings();
+		if (s.adblock && isBlocked(details) && (s.adblockYoutube || !fromYoutube(details))) {
 			blocked++;
 			store.addBlocked();
 			const url = replacement(details.resourceType);
@@ -118,4 +133,4 @@ const COSMETIC_CSS = [
 
 const blockedCount = () => blocked;
 
-module.exports = { COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };

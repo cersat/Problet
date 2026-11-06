@@ -451,7 +451,7 @@ function wireTab(tab) {
 	});
 	// Включённый блокировщик прячет остатки рекламы на самой странице
 	wc.on('dom-ready', () => {
-		if (settings().adblock && /^https?:/i.test(wc.getURL())) wc.insertCSS(adblock.COSMETIC_CSS).catch(() => {});
+		if (settings().adblock && /^https?:/i.test(wc.getURL()) && (settings().adblockYoutube || !adblock.isYoutubeHost(new URL(wc.getURL()).hostname))) wc.insertCSS(adblock.COSMETIC_CSS).catch(() => {});
 	});
 	wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
 		if (!isMainFrame || code === -3) return; // -3 — загрузку отменили сами
