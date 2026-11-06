@@ -1603,6 +1603,7 @@ let panelOpen = false;
 let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
+let panelOpenedAt = 0;
 const PANEL_SIZE = { spaces: [560, 440], chars: [352, 400] };
 
 function ensurePanel() {
@@ -1613,7 +1614,14 @@ function ensurePanel() {
 	panel.setBackgroundColor(bgColor());
 	panel.setVisible(false);
 	win.contentView.addChildView(panel);
-	panel.webContents.on('blur', () => closePanel());
+	// Потеря фокуса закрывает панель, но не пока она грузится: при загрузке страницы фокус на миг сбрасывается
+	panel.webContents.on('blur', () => {
+		if (!panelOpen || panel.webContents.isLoading() || Date.now() - panelOpenedAt < 500) return;
+		closePanel();
+	});
+	panel.webContents.on('did-finish-load', () => {
+		if (panelOpen) panel.webContents.focus();
+	});
 }
 
 function closePanel() {
@@ -1643,6 +1651,7 @@ function openPanel(kind, rect) {
 	panel.setBounds({ x, y, width: w, height: Math.min(h, Math.max(160, ch - y - 8)) });
 	panelKind = kind;
 	panelOpen = true;
+	panelOpenedAt = Date.now();
 	win.contentView.addChildView(panel);
 	panel.setVisible(true);
 	panel.webContents.loadURL('problet://' + kind + '/?popup=1').catch(() => {});
