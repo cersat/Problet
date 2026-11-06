@@ -1,4 +1,4 @@
-.chars-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.chars-page { border: 1px solid var(--border-strong); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .chars-page .cats { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border-strong); }
 .chars-page .cats button { padding: 3px 8px; font-size: 12px; }
 .chars-page .cats button.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }

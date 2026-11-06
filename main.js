@@ -519,10 +519,10 @@ function activateTab(id) {
 	if (tab.id !== activeId) { closeFind(); closePanel(); }
 	currentSpace = tab.space;
 	if (!tab.hidden) spaceActive[tab.space] = tab.id;
-	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
 	const prev = activeTab();
 	if (prev && prev !== tab) prev.view.setVisible(false);
 	activeId = tab.id;
+	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
 	tab.view.setVisible(true);
 	if (tab.pendingUrl) {
 		const url = tab.pendingUrl;
@@ -588,7 +588,7 @@ function reopenTab(index) {
 function closeTab(id) {
 	const index = tabs.findIndex((t) => t.id === id);
 	if (index < 0) return;
-	if (tabs.length > 1 && !tabs[index].incognito) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
+	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
 	const vIndex = tabs.filter((t) => t.space === tabs[index].space && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
@@ -603,7 +603,8 @@ function closeTab(id) {
 	if (tab.id === activeId) {
 		activeId = null;
 		const same = tabs.filter((t) => t.space === tab.space && !t.hidden);
-		if (same.length) activateTab(same[Math.min(vIndex, same.length - 1)].id);
+		const back = tab.hidden ? same.find((t) => t.id === spaceActive[tab.space]) : null;
+		if (same.length) activateTab((back || same[Math.min(Math.max(0, vIndex), same.length - 1)]).id);
 		else createTab(NEWTAB, { space: tab.space }); // пространство опустело — открываем в нём пустую вкладку
 	} else if (!visibleTabs().length) {
 		createTab(NEWTAB);
@@ -625,7 +626,7 @@ function openInternal(name) {
 	if (!INTERNAL_PAGES.has(name)) return;
 	const url = 'problet://' + name;
 	if (name !== 'settings' || settings().settingsAsTab) {
-		const existing = tabs.find((t) => (t.pendingUrl || t.url).startsWith(url));
+		const existing = tabs.find((t) => t.space === currentSpace && (t.pendingUrl || t.url).startsWith(url));
 		if (existing) activateTab(existing.id);
 		else createTab(url);
 		return;
@@ -1725,7 +1726,7 @@ ipcMain.on('applet-open', (e, kind, rect) => {
 // Апплет пространств: страница; если так выбрано в настройках, у неё нет вкладки в панели
 function openSpacesApplet() {
 	const url = 'problet://spaces';
-	const existing = tabs.find((t) => (t.pendingUrl || t.url).startsWith(url));
+	const existing = tabs.find((t) => t.space === currentSpace && (t.pendingUrl || t.url).startsWith(url));
 	if (existing) activateTab(existing.id);
 	else createTab(url, { hidden: settings().spacesPopup });
 }
