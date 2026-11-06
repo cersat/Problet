@@ -13,6 +13,8 @@ const ENGINES = {
 	bing: { name: 'Bing', url: 'https://www.bing.com/search?q=%s' },
 	yandex: { name: 'Яндекс', url: 'https://yandex.com/search/?text=%s' },
 };
+const DEFAULT_SPACE = 'main';
+const SPACES_LIMIT = 30;
 const HISTORY_LIMIT = 500;
 const BOOKMARKS_LIMIT = 50000;
 const VISITS_LIMIT = 5000;
@@ -63,9 +65,14 @@ const SETTING_DEFAULTS = {
 	appSettings: true,
 	appDownloads: true,
 	appUpdate: true,
+	appBookmarks: true,
+	appChars: true,
+	appSpaces: true,
+	spacesPopup: false,
+	bmNewTab: false,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'bmNewTab'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -87,7 +94,7 @@ function defaults() {
 		folders: [],
 		bookmarks: [],
 		searchHistory: [],
-		session: { tabs: [], active: 0 },
+		session: sanitizeSession({}),
 		cacheClearedAt: 0,
 		visits: [],
 		downloads: [],
@@ -179,10 +186,21 @@ function sanitizeSession(raw) {
 	for (const t of (Array.isArray(r.tabs) ? r.tabs : []).slice(0, 200)) {
 		if (!t || typeof t !== 'object') continue;
 		const url = cleanUrl(t.url);
-		if (url) tabs.push({ url, title: str(t.title, 300), icon: cleanIcon(t.icon), pinned: t.pinned === true });
+		if (url) tabs.push({ url, title: str(t.title, 300), icon: cleanIcon(t.icon), pinned: t.pinned === true, space: str(t.space, 40) || DEFAULT_SPACE });
 	}
 	const active = Math.min(Math.max(0, Math.floor(Number(r.active)) || 0), Math.max(0, tabs.length - 1));
-	return { tabs, active };
+	// Пространства: всегда есть основное, остальные по порядку
+	const spaces = [];
+	for (const sp of (Array.isArray(r.spaces) ? r.spaces : []).slice(0, SPACES_LIMIT)) {
+		if (!sp || typeof sp !== 'object') continue;
+		const id = str(sp.id, 40);
+		const name = str(sp.name, 40).trim();
+		if (id && name && !spaces.some((x) => x.id === id)) spaces.push({ id, name });
+	}
+	if (!spaces.some((x) => x.id === DEFAULT_SPACE)) spaces.unshift({ id: DEFAULT_SPACE, name: 'Основное' });
+	for (const t of tabs) if (!spaces.some((x) => x.id === t.space)) t.space = DEFAULT_SPACE;
+	const space = spaces.some((x) => x.id === r.space) ? r.space : DEFAULT_SPACE;
+	return { tabs, active, spaces, space };
 }
 
 // История посещений: новые сверху, только http/https/file
@@ -831,7 +849,7 @@ module.exports = {
 	addFolder, renameFolder, removeFolder, importBookmarkItems, exportBookmarksHtml,
 	exportData, looksLikeBackup, importData,
 	getSession, setSession, getCacheClearedAt, setCacheClearedAt,
-	onChange,
+	onChange, notify: changed, DEFAULT_SPACE,
 	addBlocked, blockedTotal,
 	getZoom, setZoom,
 	addVisit, isSearchUrl, updateVisitTitle, visitsList, removeVisit, clearVisits, searchVisits, getDownloads, setDownloads,

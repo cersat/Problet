@@ -1,0 +1,7 @@
+.chars-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.chars-page .cats { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border-strong); }
+.chars-page .cats button { padding: 3px 8px; font-size: 12px; }
+.chars-page .cats button.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.chars-page .grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 8px; align-content: start; }
+.chars-page .grid button { padding: 0; height: 34px; border-color: transparent; background: transparent; font-size: 18px; }
+.chars-page .grid button:hover { background: var(--hover); border-color: var(--border-strong); }

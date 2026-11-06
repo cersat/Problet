@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('api', {
 	barOpen: (id, newTab) => ipcRenderer.send('bar:open', id, !!newTab),
 	barFolder: (id) => ipcRenderer.send('bar:folder', id),
 	newTabMenu: () => ipcRenderer.send('newtab-menu'),
+	openApplet: (kind, rect) => ipcRenderer.send('applet-open', kind, rect),
 	winMinimize: () => ipcRenderer.send('win:minimize'),
 	winMaximize: () => ipcRenderer.send('win:maximize'),
 	winClose: () => ipcRenderer.send('win:close'),

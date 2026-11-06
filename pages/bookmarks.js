@@ -142,6 +142,11 @@ function favicon(b) {
 	return img;
 }
 
+let bmNew = false; // открывать закладки в новой вкладке
+const refreshBmNew = () => api.getSettings().then((r) => { bmNew = !!r.settings.bmNewTab; }).catch(() => {});
+refreshBmNew();
+window.addEventListener('focus', refreshBmNew);
+
 function renderRow(b) {
 	const row = el('div', 'item');
 	row.draggable = true;
@@ -153,6 +158,7 @@ function renderRow(b) {
 	const link = el('a', 'info');
 	link.href = b.url;
 	link.draggable = false; // тащим всю строку, а не ссылку
+	link.addEventListener('click', () => { link.target = bmNew ? '_blank' : ''; });
 	link.append(el('span', 'title', b.title), el('span', 'url', b.url));
 	row.append(favicon(b), link);
 

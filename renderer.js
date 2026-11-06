@@ -50,6 +50,14 @@ document.getElementById('zoom').addEventListener('click', () => api.zoomReset())
 document.getElementById('downloads').addEventListener('click', () => api.openInternal('downloads'));
 document.getElementById('settings').addEventListener('click', () => api.openInternal('settings'));
 document.getElementById('newtab').addEventListener('click', () => api.newTab());
+const appletRect = (el) => {
+	const r = el.getBoundingClientRect();
+	return { x: r.left, y: r.top, width: r.width, height: r.height };
+};
+for (const kind of ['chars', 'spaces']) {
+	const btn = document.getElementById(kind);
+	btn.addEventListener('click', () => api.openApplet(kind, appletRect(btn)));
+}
 document.getElementById('newtab').addEventListener('contextmenu', (e) => {
 	e.preventDefault();
 	api.newTabMenu();
@@ -125,6 +133,10 @@ api.onTabs((state) => {
 	tabsEl.classList.toggle('side', sideTabs);
 	tabsEl.classList.toggle('scroll', state.overflow === 'scroll' && !sideTabs);
 	tabsEl.style.setProperty('--n', state.tabs.length);
+	if (state.space) {
+		document.getElementById('space-name').textContent = state.space.name;
+		document.getElementById('spaces').title = 'Пространство: ' + state.space.name;
+	}
 	tabsEl.textContent = '';
 	for (const t of state.tabs) tabsEl.append(makeTab(t, state));
 	const active = tabsEl.querySelector('.tab.active');
@@ -321,6 +333,9 @@ function applyLayout(l) {
 	document.body.dataset.bm = l.bookmarksBar ? l.bmPos : 'off';
 	document.getElementById('newtab').classList.toggle('off', !l.tabsNewButton);
 	document.getElementById('passwords').classList.toggle('off', !l.appPasswords);
+	document.getElementById('bookmarks').classList.toggle('off', !l.appBookmarks);
+	document.getElementById('chars').classList.toggle('off', !l.appChars);
+	document.getElementById('spaces').classList.toggle('off', !l.appSpaces);
 	document.getElementById('history').classList.toggle('off', !l.appHistory);
 	document.getElementById('settings').classList.toggle('off', !l.appSettings);
 	document.getElementById('downloads').classList.toggle('off', !l.appDownloads);

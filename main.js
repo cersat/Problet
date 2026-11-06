@@ -24,7 +24,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -46,6 +46,9 @@ let nextTabId = 1;
 let activeId = null;
 let sessionTimer = null;
 const iconByOrigin = new Map(); // известные иконки сайтов, чтобы показать их сразу при начале загрузки
+let currentSpace = store.DEFAULT_SPACE;
+let spaces = [{ id: store.DEFAULT_SPACE, name: 'Основное' }];
+const spaceActive = {}; // последняя активная вкладка каждого пространства
 const tabs = []; // { id, view, title, url, icon, loading, pendingUrl, pinned }
 
 // Состояние выпадающего списка подсказок
@@ -136,6 +139,7 @@ const INTERNAL_ICONS = {
 	version: svgIcon('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/>'),
 	passwords: svgIcon('<circle cx="8.5" cy="14" r="3.5"/><path d="M11 12l8-8M16 7l2.5 2.5M13.5 9.5L15 11"/>'),
 	downloads: svgIcon('<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>'),
+	spaces: svgIcon('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
 };
 let browserIcon = '';
 
@@ -149,7 +153,7 @@ function internalIcon(url) {
 	return INTERNAL_ICONS[m[1]] || '';
 }
 
-const LAYOUT_KEYS = ['tabsPos', 'bmPos', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate'];
+const LAYOUT_KEYS = ['tabsPos', 'bmPos', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces'];
 
 function layoutPayload() {
 	const s = settings();
@@ -196,19 +200,26 @@ function sendBar() {
 ipcMain.on('bar:get', (e) => {
 	e.returnValue = barPayload();
 });
+// Закладка открывается в текущей вкладке или в новой (если так выбрано в настройках; пустую новую вкладку занимаем сами)
+function openBookmarkUrl(url, forceNew) {
+	const tab = activeTab();
+	const blank = tab && isNewTab(tab.view.webContents.getURL() || tab.url);
+	if ((forceNew || settings().bmNewTab) && !blank) createTab(url, { activate: true });
+	else loadInActive(url);
+}
+
 ipcMain.on('bar:open', (e, id, newTab) => {
 	if (!fromToolbar0(e)) return;
 	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
 	if (!b) return;
-	if (newTab) createTab(b.url, { activate: true });
-	else loadInActive(b.url);
+	openBookmarkUrl(b.url, newTab);
 });
 ipcMain.on('bar:folder', (e, folderId) => {
 	if (!fromToolbar0(e)) return;
 	const st = store.bookmarksState();
 	const items = st.bookmarks.filter((b) => b.folder === folderId);
 	popupMenu(items.length
-		? items.map((b) => ({ label: b.title.length > 50 ? b.title.slice(0, 49) + '…' : b.title, click: () => loadInActive(b.url) }))
+		? items.map((b) => ({ label: b.title.length > 50 ? b.title.slice(0, 49) + '…' : b.title, click: () => openBookmarkUrl(b.url) }))
 		: [{ label: 'Папка пуста', enabled: false }]);
 });
 
@@ -220,7 +231,8 @@ function sendTabs() {
 		showUrl: s.showUrlInTabs,
 		showIcons: s.showTabIcons,
 		overflow: s.tabOverflow,
-		tabs: tabs.map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, incognito: !!t.incognito })),
+		space: spaces.find((x) => x.id === currentSpace) || spaces[0],
+		tabs: visibleTabs().map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, incognito: !!t.incognito })),
 		side: s.tabsPos === 'left' || s.tabsPos === 'right',
 	});
 }
@@ -334,8 +346,10 @@ function saveSession() {
 	sessionTimer = null;
 	const kept = tabs.filter((t) => !t.incognito && persistable(t.pendingUrl || t.url));
 	store.setSession({
-		tabs: kept.map((t) => ({ url: t.pendingUrl || t.url, title: t.title, icon: t.icon, pinned: t.pinned })),
+		tabs: kept.map((t) => ({ url: t.pendingUrl || t.url, title: t.title, icon: t.icon, pinned: t.pinned, space: t.space })),
 		active: Math.max(0, kept.findIndex((t) => t.id === activeId)),
+		spaces,
+		space: currentSpace,
 	});
 }
 
@@ -446,6 +460,16 @@ function wireTab(tab) {
 }
 
 // opts: activate (по умолчанию да), lazy (загрузить при первом открытии), afterId, title, icon
+function visibleTabs() {
+	return tabs.filter((t) => t.space === currentSpace);
+}
+
+function spaceOf(opts) {
+	if (opts.space && spaces.some((x) => x.id === opts.space)) return opts.space;
+	const from = opts.afterId && tabs.find((t) => t.id === opts.afterId);
+	return from ? from.space : currentSpace;
+}
+
 function createTab(url, opts = {}) {
 	// Вкладка, открытая из вкладки инкогнито, тоже инкогнито
 	if (opts.incognito === undefined && opts.afterId) {
@@ -458,7 +482,7 @@ function createTab(url, opts = {}) {
 	view.setBackgroundColor(bgColor());
 	view.setVisible(false);
 	if (profile) view.webContents.setUserAgent(profile.userAgent);
-	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, created: Date.now() };
+	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), created: Date.now() };
 
 	let index = tabs.length;
 	if (opts.afterId) {
@@ -471,6 +495,7 @@ function createTab(url, opts = {}) {
 	win.contentView.addChildView(view);
 	win.contentView.addChildView(findView);
 	win.contentView.addChildView(popup); // подсказки всегда поверх страниц
+	if (panel) win.contentView.addChildView(panel);
 	view.setBounds(pageBounds());
 	wireTab(tab);
 
@@ -491,7 +516,9 @@ function activateTab(id) {
 	const tab = tabs.find((t) => t.id === id);
 	if (!tab) return;
 	hideSuggest();
-	if (tab.id !== activeId) closeFind();
+	if (tab.id !== activeId) { closeFind(); closePanel(); }
+	currentSpace = tab.space;
+	spaceActive[tab.space] = tab.id;
 	const prev = activeTab();
 	if (prev && prev !== tab) prev.view.setVisible(false);
 	activeId = tab.id;
@@ -528,7 +555,12 @@ function moveTab(id, to) {
 	const i = tabs.findIndex((t) => t.id === id);
 	if (i < 0 || !Number.isInteger(to)) return;
 	const [tab] = tabs.splice(i, 1);
-	tabs.splice(Math.min(Math.max(0, to), tabs.length), 0, tab);
+	// to считается среди видимых вкладок: переводим в позицию общего списка
+	const vis = tabs.filter((t) => t.space === tab.space);
+	const at = Math.min(Math.max(0, to), vis.length);
+	const target = vis[at];
+	if (target) tabs.splice(tabs.indexOf(target), 0, tab);
+	else tabs.splice(vis.length ? tabs.indexOf(vis[vis.length - 1]) + 1 : tabs.length, 0, tab);
 	const pinned = tabs.filter((t) => t.pinned);
 	const rest = tabs.filter((t) => !t.pinned);
 	tabs.splice(0, tabs.length, ...pinned, ...rest);
@@ -556,6 +588,7 @@ function closeTab(id) {
 	const index = tabs.findIndex((t) => t.id === id);
 	if (index < 0) return;
 	if (tabs.length > 1 && !tabs[index].incognito) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
+	const vIndex = tabs.filter((t) => t.space === tabs[index].space).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
@@ -568,7 +601,11 @@ function closeTab(id) {
 	}
 	if (tab.id === activeId) {
 		activeId = null;
-		activateTab(tabs[Math.min(index, tabs.length - 1)].id);
+		const same = tabs.filter((t) => t.space === tab.space);
+		if (same.length) activateTab(same[Math.min(vIndex, same.length - 1)].id);
+		else createTab(NEWTAB, { space: tab.space }); // пространство опустело — открываем в нём пустую вкладку
+	} else if (!visibleTabs().length) {
+		createTab(NEWTAB);
 	} else {
 		sendTabs();
 		scheduleSession();
@@ -576,9 +613,10 @@ function closeTab(id) {
 }
 
 function switchTab(delta) {
-	if (tabs.length < 2) return;
-	const index = tabs.findIndex((t) => t.id === activeId);
-	activateTab(tabs[(index + delta + tabs.length) % tabs.length].id);
+	const vis = visibleTabs();
+	if (vis.length < 2) return;
+	const index = vis.findIndex((t) => t.id === activeId);
+	activateTab(vis[(index + delta + vis.length) % vis.length].id);
 }
 
 // Внутренние страницы открываются отдельной вкладкой (настройки — если включено в них): если она уже есть, переключаемся на неё
@@ -600,8 +638,10 @@ function openStartupTabs() {
 	const saved = store.getSession();
 	let list = [];
 	let active = 0;
+	spaces = saved.spaces;
 
 	if (s.startup === 'session') {
+		currentSpace = saved.space;
 		list = saved.tabs.map((t) => ({ ...t, restored: true }));
 		active = saved.active;
 	} else {
@@ -631,6 +671,7 @@ function openStartupTabs() {
 		title: item.title,
 		icon: item.icon,
 		pinned: !!item.pinned,
+		space: item.space,
 	}));
 }
 
@@ -651,6 +692,7 @@ store.onChange((kind) => {
 			const wc = t.view.webContents;
 			if (!wc.isDestroyed() && wc.getURL().startsWith('problet://')) wc.send('data-changed', kinds);
 		}
+		if (panel && panelOpen) panel.webContents.send('data-changed', kinds);
 	}, 250);
 });
 
@@ -937,7 +979,8 @@ function hotkeys(event, input) {
 		ACTION_RUN[id]();
 	} else if (ctrl && !input.alt && !input.shift && /^[1-9]$/.test(input.key)) {
 		// Ctrl+1…9 — переход к вкладке по номеру, не настраивается
-		const target = tabs[input.key === '9' ? tabs.length - 1 : Number(input.key) - 1];
+		const vis = visibleTabs();
+		const target = vis[input.key === '9' ? vis.length - 1 : Number(input.key) - 1];
 		if (target) activateTab(target.id);
 	} else {
 		handled = false;
@@ -1223,7 +1266,7 @@ function showPageMenu(tab, params) {
 // Все открытые вкладки списком и недавно закрытые (Ctrl+Shift+A)
 function showTabsMenu() {
 	const short = (t) => (t.length > 60 ? t.slice(0, 59) + '…' : t);
-	const items = tabs.map((t) => ({
+	const items = visibleTabs().map((t) => ({
 		label: short((t.pinned ? '📌 ' : '') + (tabTitle(t) || t.pendingUrl || t.url || 'Новая вкладка')),
 		type: 'checkbox',
 		checked: t.id === activeId,
@@ -1241,7 +1284,8 @@ function showTabsMenu() {
 function showTabMenu(id) {
 	const tab = tabs.find((x) => x.id === id);
 	if (!tab) return;
-	const index = tabs.indexOf(tab);
+	const vis = visibleTabs();
+	const index = vis.indexOf(tab);
 	popupMenu([
 		{ label: tab.pinned ? 'Открепить вкладку' : 'Закрепить вкладку', click: () => setPinned(tab.id, !tab.pinned) },
 		{ label: 'Открыть закрытую вкладку', enabled: closedTabs.length > 0, click: () => reopenTab() },
@@ -1249,8 +1293,8 @@ function showTabMenu(id) {
 		{ label: 'Обновить', click: () => tab.view.webContents.reload() },
 		{ type: 'separator' },
 		{ label: 'Закрыть вкладку', click: () => closeTab(tab.id) },
-		{ label: 'Закрыть вкладки справа', enabled: tabs.slice(index + 1).some((x) => !x.pinned), click: () => tabs.slice(index + 1).filter((x) => !x.pinned).forEach((x) => closeTab(x.id)) },
-		{ label: 'Закрыть остальные', enabled: tabs.some((x) => x !== tab && !x.pinned), click: () => tabs.filter((x) => x !== tab && !x.pinned).forEach((x) => closeTab(x.id)) },
+		{ label: 'Закрыть вкладки справа', enabled: vis.slice(index + 1).some((x) => !x.pinned), click: () => vis.slice(index + 1).filter((x) => !x.pinned).forEach((x) => closeTab(x.id)) },
+		{ label: 'Закрыть остальные', enabled: vis.some((x) => x !== tab && !x.pinned), click: () => vis.filter((x) => x !== tab && !x.pinned).forEach((x) => closeTab(x.id)) },
 	]);
 }
 
@@ -1417,6 +1461,7 @@ function broadcastTheme() {
 	if (win && !win.isDestroyed()) win.webContents.send('theme', payload);
 	if (popup) popup.webContents.send('theme', payload);
 	if (findView) findView.webContents.send('theme', payload);
+	if (panel) panel.webContents.send('theme', payload);
 	for (const t of tabs) t.view.webContents.send('theme', payload);
 }
 
@@ -1551,11 +1596,100 @@ ipcMain.on('tab-close', (e, id) => fromToolbar(e) && closeTab(id));
 ipcMain.on('tab-menu', (e, id) => fromToolbar(e) && showTabMenu(id));
 ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 
+// ---------- Пространства и всплывающие апплеты ----------
+
+let panel = null;
+let panelOpen = false;
+let panelKind = '';
+let panelReturn = 'tab';
+let panelClosedAt = 0;
+const PANEL_SIZE = { spaces: [300, 380], chars: [352, 400] };
+
+function ensurePanel() {
+	if (panel) return;
+	panel = new WebContentsView({
+		webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true },
+	});
+	panel.setBackgroundColor(bgColor());
+	panel.setVisible(false);
+	win.contentView.addChildView(panel);
+	panel.webContents.on('blur', () => closePanel());
+}
+
+function closePanel() {
+	if (!panelOpen) return;
+	panelOpen = false;
+	panelClosedAt = Date.now();
+	panel.setVisible(false);
+	const back = panelReturn === 'toolbar' ? win.webContents : activeContents();
+	if (back && !back.isDestroyed() && !win.webContents.isFocused() && !(back === win.webContents)) back.focus();
+}
+
+// rect — положение кнопки в окне; без неё панель встаёт у верхнего края
+function openPanel(kind, rect) {
+	if (!PANEL_SIZE[kind] || !win || win.isDestroyed()) return;
+	if (panelOpen && panelKind === kind) {
+		closePanel();
+		return;
+	}
+	if (kind === panelKind && Date.now() - panelClosedAt < 300) return; // клик по кнопке закрыл панель потерей фокуса
+	ensurePanel();
+	panelReturn = win.webContents.isFocused() ? 'toolbar' : 'tab';
+	const [w, h] = PANEL_SIZE[kind];
+	const [cw, ch] = contentSize();
+	const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - w / 2, y: insets().top - 4, width: 0, height: 0 };
+	const x = Math.round(Math.min(Math.max(8, r.x + r.width / 2 - w / 2), Math.max(8, cw - w - 8)));
+	const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
+	panel.setBounds({ x, y, width: w, height: Math.min(h, Math.max(160, ch - y - 8)) });
+	panelKind = kind;
+	panelOpen = true;
+	win.contentView.addChildView(panel);
+	panel.setVisible(true);
+	panel.webContents.loadURL('problet://' + kind + '/?popup=1').catch(() => {});
+	panel.webContents.focus();
+}
+
+ipcMain.on('applet-open', (e, kind, rect) => {
+	if (!fromToolbar0(e)) return;
+	if (kind === 'spaces') openSpacesApplet(rect);
+	else openPanel(kind, rect);
+});
+
+// Апплет пространств: отдельной вкладкой или, если так выбрано в настройках, всплывающей панелью
+function openSpacesApplet(rect) {
+	if (settings().spacesPopup) openPanel('spaces', rect);
+	else openInternal('spaces');
+}
+
+function spacesState() {
+	return { spaces: spaces.map((x) => ({ ...x, count: tabs.filter((t) => t.space === x.id).length })), current: currentSpace };
+}
+
+function spacesChanged() {
+	sendTabs();
+	scheduleSession();
+	store.notify('spaces');
+}
+
+function switchSpace(id) {
+	if (!spaces.some((x) => x.id === id) || id === currentSpace) return;
+	const list = tabs.filter((t) => t.space === id);
+	const remembered = list.find((t) => t.id === spaceActive[id]);
+	if (remembered || list.length) activateTab((remembered || list[list.length - 1]).id);
+	else {
+		currentSpace = id;
+		createTab(NEWTAB, { space: id });
+	}
+	store.notify('spaces');
+}
+
+const cleanSpaceName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+
 // ---------- API для внутренних страниц (настройки, закладки, новая вкладка) ----------
 
 function guard(e) {
 	const frame = e.senderFrame;
-	const isTab = tabs.some((t) => t.view.webContents === e.sender);
+	const isTab = tabs.some((t) => t.view.webContents === e.sender) || (!!panel && e.sender === panel.webContents);
 	if (!isTab || !frame || frame !== e.sender.mainFrame || !frame.url.startsWith('problet://')) {
 		throw new Error('Доступ запрещён');
 	}
@@ -1648,6 +1782,50 @@ ipcMain.handle('search:run', (e, text) => {
 handle('page:open-tab', (name) => {
 	if (!INTERNAL_PAGES.has(name) || name === 'newtab') throw new Error('Неизвестная страница');
 	createTab('problet://' + name);
+});
+
+handle('spaces:state', () => spacesState());
+handle('spaces:switch', (id) => switchSpace(String(id)));
+handle('spaces:add', (name) => {
+	if (spaces.length >= store.SPACES_LIMIT) throw new Error('Слишком много пространств');
+	const clean = cleanSpaceName(name) || 'Пространство ' + (spaces.length + 1);
+	const space = { id: 's' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36), name: clean };
+	spaces.push(space);
+	switchSpace(space.id);
+	spacesChanged();
+	return space.id;
+});
+handle('spaces:rename', (id, name) => {
+	const space = spaces.find((x) => x.id === String(id));
+	const clean = cleanSpaceName(name);
+	if (!space || !clean) return;
+	space.name = clean;
+	spacesChanged();
+});
+handle('spaces:remove', (id) => {
+	id = String(id);
+	if (id === store.DEFAULT_SPACE || !spaces.some((x) => x.id === id)) return;
+	const wasCurrent = currentSpace === id;
+	for (const t of tabs) if (t.space === id) t.space = store.DEFAULT_SPACE; // вкладки удалённого пространства уходят в основное
+	spaces = spaces.filter((x) => x.id !== id);
+	delete spaceActive[id];
+	if (wasCurrent) {
+		currentSpace = null;
+		const list = tabs.filter((t) => t.space === store.DEFAULT_SPACE);
+		activateTab(list[list.length - 1].id);
+	}
+	spacesChanged();
+});
+handle('spaces:open-applet', () => openSpacesApplet());
+handle('panel:close', () => closePanel());
+handle('chars:pick', (ch) => {
+	if (typeof ch !== 'string' || !ch || ch.length > 8) return;
+	const toolbar = panelReturn === 'toolbar';
+	closePanel();
+	const wc = toolbar ? win.webContents : activeContents();
+	if (!wc || wc.isDestroyed()) return;
+	wc.focus();
+	wc.insertText(ch);
 });
 
 handle('visits:list', () => store.visitsList());
@@ -1883,6 +2061,7 @@ function createWindow() {
 	// Страницы должны подстраиваться под окно при любом изменении размера: перетаскивание, разворачивание, полный экран
 	for (const ev of ['resize', 'maximize', 'unmaximize', 'restore', 'enter-full-screen', 'leave-full-screen']) win.on(ev, layout);
 	win.contentView.on('bounds-changed', layout);
+	win.on('resize', closePanel);
 	win.on('close', saveSession);
 	win.on('maximize', sendLayout);
 	win.on('unmaximize', sendLayout);

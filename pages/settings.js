@@ -337,6 +337,7 @@ $('download-dir-reset').addEventListener('click', () => run(async () => {
 }));
 
 $('open-bookmarks').addEventListener('click', () => run(() => api.openInNewTab('bookmarks')));
+$('manage-spaces').addEventListener('click', () => run(() => api.openSpacesApplet()));
 
 // ---------- Горячие клавиши ----------
 

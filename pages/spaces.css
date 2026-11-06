@@ -1,0 +1,17 @@
+.spaces-page main { max-width: 560px; margin: 0 auto; padding: 24px 20px; }
+.spaces-page h1 { margin: 0 0 4px; font-size: 20px; }
+.spaces-page .hint { margin: 0 0 14px; color: var(--muted); }
+.spaces-page .list { margin: 0 0 14px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.spaces-page .row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); cursor: default; }
+.spaces-page .row:hover { background: var(--hover); }
+.spaces-page .row.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.spaces-page .row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spaces-page .row .cnt { color: var(--muted); font-size: 12px; }
+.spaces-page .row input[type=text] { flex: 1; height: 28px; min-width: 0; }
+.spaces-page .row button { padding: 2px 8px; font-size: 12px; }
+.spaces-page .add { display: flex; gap: 8px; }
+.spaces-page .add input { flex: 1; min-width: 0; }
+body.popup main { max-width: none; padding: 12px; }
+body.popup h1 { font-size: 15px; }
+body.popup .hint { display: none; }
+body.popup .row { padding: 6px 8px; }

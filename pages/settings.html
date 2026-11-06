@@ -74,6 +74,10 @@
 				<label class="switch"><input type="checkbox" data-setting="bmOnlyIcons"><span></span></label>
 			</div>
 			<div class="setting">
+				<div class="what">Открывать закладки в новой вкладке</div>
+				<label class="switch"><input type="checkbox" data-setting="bmNewTab"><span></span></label>
+			</div>
+			<div class="setting">
 				<div class="what">Менеджер закладок</div>
 				<button id="open-bookmarks">Открыть менеджер закладок</button>
 			</div>
@@ -92,12 +96,24 @@
 					<label class="switch"><input type="checkbox" data-setting="tabsNewButton"><span></span></label>
 				</div>
 				<div class="setting">
+					<div class="what">Апплет «Пространства»</div>
+					<label class="switch"><input type="checkbox" data-setting="appSpaces"><span></span></label>
+				</div>
+				<div class="setting">
 					<div class="what">Кнопки взаимодействия с окном<small>Свернуть, развернуть, закрыть</small></div>
 					<label class="switch"><input type="checkbox" data-setting="winButtons"><span></span></label>
 				</div>
 			</details>
 			<details class="group">
 				<summary>Содержимое панели поиска</summary>
+				<div class="setting">
+					<div class="what">Апплет «Закладки»</div>
+					<label class="switch"><input type="checkbox" data-setting="appBookmarks"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Апплет «Таблица символов»</div>
+					<label class="switch"><input type="checkbox" data-setting="appChars"><span></span></label>
+				</div>
 				<div class="setting">
 					<div class="what">Апплет «Пароли»</div>
 					<label class="switch"><input type="checkbox" data-setting="appPasswords"><span></span></label>
@@ -119,6 +135,18 @@
 					<label class="switch"><input type="checkbox" data-setting="appUpdate"><span></span></label>
 				</div>
 			</details>
+		</section>
+
+		<section>
+			<h2>Пространства</h2>
+			<div class="setting">
+				<div class="what">Не показывать апплет пространств как отдельную вкладку<small>Апплет откроется всплывающей панелью</small></div>
+				<label class="switch"><input type="checkbox" data-setting="spacesPopup"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Пространства</div>
+				<button id="manage-spaces">Управлять пространствами</button>
+			</div>
 		</section>
 
 		<section>
