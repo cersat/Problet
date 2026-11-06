@@ -109,6 +109,7 @@ button:disabled {
 	padding: 0 6px 0 10px;
 	border-radius: 8px 8px 0 0;
 	container-type: inline-size;
+	position: relative;
 	color: var(--muted);
 	cursor: default;
 }
@@ -181,11 +182,14 @@ button:disabled {
 }
 
 .tab:not(.active) .close {
+	position: absolute;
+	right: 6px;
 	opacity: 0;
 }
 
 .tab:hover .close {
 	opacity: 1;
+	background: var(--hover);
 }
 
 @container (max-width: 56px) {
