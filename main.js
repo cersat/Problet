@@ -17,6 +17,29 @@ const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
 const { themePayload, accentList } = require('./theme');
 
+// ---------- Журнал: /tmp/problet/log (на Windows — в папке временных файлов) ----------
+
+const LOG_DIR = path.join(process.platform === 'win32' ? os.tmpdir() : '/tmp', 'problet');
+const LOG_FILE = path.join(LOG_DIR, 'log');
+
+function log(...parts) {
+	try {
+		const text = parts.map((p) => (p instanceof Error ? p.stack || String(p) : typeof p === 'string' ? p : JSON.stringify(p))).join(' ');
+		fs.mkdirSync(LOG_DIR, { recursive: true });
+		try {
+			if (fs.statSync(LOG_FILE).size > 2 * 1024 * 1024) fs.renameSync(LOG_FILE, LOG_FILE + '.old');
+		} catch (e) { /* файла ещё нет */ }
+		fs.appendFileSync(LOG_FILE, new Date().toISOString() + ' ' + text + '\n');
+	} catch (e) { /* журнал не должен ронять браузер */ }
+}
+
+// Неожиданная ошибка в главном процессе не должна ронять браузер и показывать окно с ошибкой: пишем её в журнал и работаем дальше
+process.on('uncaughtException', (err) => log('uncaughtException', err));
+process.on('unhandledRejection', (err) => log('unhandledRejection', err instanceof Error ? err : String(err)));
+log('запуск', app.getVersion(), process.platform, process.arch, 'electron', process.versions.electron);
+app.on('render-process-gone', (_e, wc, details) => log('render-process-gone', wc && !wc.isDestroyed() ? wc.getURL() : '', details));
+app.on('child-process-gone', (_e, details) => log('child-process-gone', details));
+
 const TABBAR_HEIGHT = 36;
 const TOOLBAR_HEIGHT = 44;
 const BMBAR_HEIGHT = 32;
@@ -378,12 +401,19 @@ function wireTab(tab) {
 		if (/^(https?|file):\/\//i.test(url)) createTab(url, { afterId: tab.id });
 		return { action: 'deny' };
 	});
+	// Страница закрыла себя сама (window.close(), например всплывающее окно входа через Google) — убираем её вкладку
+	wc.once('destroyed', () => {
+		if (tabs.includes(tab)) closeTab(tab.id);
+	});
 	wc.on('before-input-event', hotkeys);
 	wc.on('context-menu', (_e, params) => showPageMenu(tab, params));
 	wc.on('found-in-page', (_e, result) => {
 		if (tab.id === activeId && findOpen && findView) findView.webContents.send('find-result', { active: result.activeMatchOrdinal, total: result.matches });
 	});
 
+	wc.on('did-fail-load', (_e, code, desc, failedUrl, isMain) => {
+		if (isMain && code !== -3) log('ошибка загрузки', code, desc, failedUrl);
+	});
 	wc.on('did-start-loading', () => {
 		if (!alive()) return;
 		tab.loading = true;
@@ -503,6 +533,7 @@ function createTab(url, opts = {}) {
 	if (opts.lazy) tab.pendingUrl = url;
 	else if (url) view.webContents.loadURL(url).catch(() => {});
 
+	log('новая вкладка', tab.id, url, tab.hidden ? 'без панели' : '', 'пространство', tab.space);
 	if (opts.activate !== false) {
 		activateTab(tab.id);
 	} else {
@@ -515,6 +546,11 @@ function createTab(url, opts = {}) {
 function activateTab(id) {
 	const tab = tabs.find((t) => t.id === id);
 	if (!tab) return;
+	if (!tab.view.webContents || tab.view.webContents.isDestroyed()) {
+		log('вкладка с уничтоженной страницей убрана', id);
+		closeTab(id);
+		return;
+	}
 	hideSuggest();
 	if (tab.id !== activeId) { closeFind(); closePanel(); }
 	currentSpace = tab.space;
@@ -588,13 +624,15 @@ function reopenTab(index) {
 function closeTab(id) {
 	const index = tabs.findIndex((t) => t.id === id);
 	if (index < 0) return;
-	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
+	log('закрыта вкладка', id, tabs[index].url, tabs[index].view.webContents ? '' : '(страница уже уничтожена)');
+	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden && tabs[index].view.webContents && !tabs[index].view.webContents.isDestroyed()) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
 	const vIndex = tabs.filter((t) => t.space === tabs[index].space && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
 	win.contentView.removeChildView(tab.view);
-	tab.view.webContents.close();
+	const dying = tab.view.webContents;
+	if (dying && !dying.isDestroyed()) dying.close();
 	if (lastIncognito) wipeIncognito();
 	if (!tabs.length) {
 		win.close();
@@ -692,7 +730,7 @@ store.onChange((kind) => {
 		changedKinds.clear();
 		for (const t of tabs) {
 			const wc = t.view.webContents;
-			if (!wc.isDestroyed() && wc.getURL().startsWith('problet://')) wc.send('data-changed', kinds);
+			if (wc && !wc.isDestroyed() && wc.getURL().startsWith('problet://')) wc.send('data-changed', kinds);
 		}
 		if (panel && panelOpen) panel.webContents.send('data-changed', kinds);
 	}, 250);
@@ -1433,7 +1471,7 @@ function refreshIdentity() {
 	plainProfile = identity.build('problet', app.getVersion(), true);
 	session.defaultSession.setUserAgent(profile.userAgent);
 	if (incSession) incSession.setUserAgent(profile.userAgent);
-	for (const t of tabs) if (!t.view.webContents.isDestroyed()) t.view.webContents.setUserAgent(profile.userAgent);
+	for (const t of tabs) if (t.view.webContents && !t.view.webContents.isDestroyed()) t.view.webContents.setUserAgent(profile.userAgent);
 }
 
 function startIdentity(ses) {
@@ -1464,7 +1502,7 @@ function broadcastTheme() {
 	if (popup) popup.webContents.send('theme', payload);
 	if (findView) findView.webContents.send('theme', payload);
 	if (panel) panel.webContents.send('theme', payload);
-	for (const t of tabs) t.view.webContents.send('theme', payload);
+	for (const t of tabs) if (t.view.webContents && !t.view.webContents.isDestroyed()) t.view.webContents.send('theme', payload);
 }
 
 function applySettings() {
