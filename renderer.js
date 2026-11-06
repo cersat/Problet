@@ -202,7 +202,15 @@ tabsEl.addEventListener('dragend', () => {
 // Кнопка обновления видна, только когда есть что ставить
 let lastUpdate = null;
 const updateBtn = document.getElementById('update');
-updateBtn.addEventListener('click', () => api.updateApply());
+updateBtn.addEventListener('click', () => {
+	api.updateTip(null);
+	api.updateApply();
+});
+updateBtn.addEventListener('mouseenter', () => {
+	const b = updateBtn.getBoundingClientRect();
+	api.updateTip({ x: b.left, y: b.top, width: b.width, height: b.height });
+});
+updateBtn.addEventListener('mouseleave', () => api.updateTip(null));
 function showUpdate(st) {
 	lastUpdate = st;
 	const on = layoutState.appUpdate !== false && st && (st.status === 'ready' || st.status === 'downloading' || (st.status === 'available' && st.mode !== 'dev'));
@@ -213,7 +221,8 @@ function showUpdate(st) {
 		downloading: 'Скачивается обновление ' + st.version + ': ' + st.progress + '%',
 		available: 'Доступна версия ' + st.version + (st.mode === 'page' ? ': открыть страницу загрузки' : ': скачать и установить'),
 	};
-	updateBtn.title = titles[st.status];
+	updateBtn.removeAttribute('title'); // подсказку рисует главный процесс, она обновляется на лету
+	updateBtn.setAttribute('aria-label', titles[st.status]);
 	updateBtn.classList.toggle('busy', st.status === 'downloading');
 }
 api.onUpdate(showUpdate);

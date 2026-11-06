@@ -344,7 +344,7 @@ function persistable(url) {
 function saveSession() {
 	clearTimeout(sessionTimer);
 	sessionTimer = null;
-	const kept = tabs.filter((t) => !t.incognito && persistable(t.pendingUrl || t.url));
+	const kept = tabs.filter((t) => !t.hidden && !t.incognito && persistable(t.pendingUrl || t.url));
 	store.setSession({
 		tabs: kept.map((t) => ({ url: t.pendingUrl || t.url, title: t.title, icon: t.icon, pinned: t.pinned, space: t.space })),
 		active: Math.max(0, kept.findIndex((t) => t.id === activeId)),
@@ -461,7 +461,7 @@ function wireTab(tab) {
 
 // opts: activate (по умолчанию да), lazy (загрузить при первом открытии), afterId, title, icon
 function visibleTabs() {
-	return tabs.filter((t) => t.space === currentSpace);
+	return tabs.filter((t) => t.space === currentSpace && !t.hidden);
 }
 
 function spaceOf(opts) {
@@ -482,7 +482,7 @@ function createTab(url, opts = {}) {
 	view.setBackgroundColor(bgColor());
 	view.setVisible(false);
 	if (profile) view.webContents.setUserAgent(profile.userAgent);
-	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), created: Date.now() };
+	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now() };
 
 	let index = tabs.length;
 	if (opts.afterId) {
@@ -518,7 +518,8 @@ function activateTab(id) {
 	hideSuggest();
 	if (tab.id !== activeId) { closeFind(); closePanel(); }
 	currentSpace = tab.space;
-	spaceActive[tab.space] = tab.id;
+	if (!tab.hidden) spaceActive[tab.space] = tab.id;
+	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
 	const prev = activeTab();
 	if (prev && prev !== tab) prev.view.setVisible(false);
 	activeId = tab.id;
@@ -588,7 +589,7 @@ function closeTab(id) {
 	const index = tabs.findIndex((t) => t.id === id);
 	if (index < 0) return;
 	if (tabs.length > 1 && !tabs[index].incognito) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
-	const vIndex = tabs.filter((t) => t.space === tabs[index].space).indexOf(tabs[index]);
+	const vIndex = tabs.filter((t) => t.space === tabs[index].space && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
@@ -601,7 +602,7 @@ function closeTab(id) {
 	}
 	if (tab.id === activeId) {
 		activeId = null;
-		const same = tabs.filter((t) => t.space === tab.space);
+		const same = tabs.filter((t) => t.space === tab.space && !t.hidden);
 		if (same.length) activateTab(same[Math.min(vIndex, same.length - 1)].id);
 		else createTab(NEWTAB, { space: tab.space }); // пространство опустело — открываем в нём пустую вкладку
 	} else if (!visibleTabs().length) {
@@ -1596,6 +1597,63 @@ ipcMain.on('tab-close', (e, id) => fromToolbar(e) && closeTab(id));
 ipcMain.on('tab-menu', (e, id) => fromToolbar(e) && showTabMenu(id));
 ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 
+// ---------- Подсказка у иконки обновления ----------
+// Обычный title не обновляется, пока на него наведён курсор, поэтому рисуем свою маленькую панельку поверх страниц
+
+let tipView = null;
+let tipRect = null;
+let tipShown = '';
+
+function tipContent(st) {
+	if (!st) return null;
+	if (st.status === 'downloading') return { text: 'Скачивается версия ' + st.version + ': ' + st.progress + '%', progress: st.progress };
+	if (st.status === 'ready') return { text: 'Обновить до ' + st.version + ' и перезапустить' };
+	if (st.status === 'available') return { text: 'Доступна версия ' + st.version + (st.mode === 'page' ? ': открыть страницу загрузки' : ': скачать и установить') };
+	return null;
+}
+
+function ensureTip() {
+	if (tipView) return;
+	const t = themePayload(settings());
+	const html = '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden}'
+		+ 'body{box-sizing:border-box;padding:8px 12px;font:13px system-ui,sans-serif;background:' + (settings().darkTheme ? '#2c2c2f' : '#f0f0f5') + ';color:' + (settings().darkTheme ? '#ececf0' : '#222') + ';border:1px solid ' + (settings().darkTheme ? '#4a4a50' : '#c9c9d2') + ';border-radius:8px}'
+		+ '#b{height:4px;margin-top:6px;border-radius:2px;background:rgba(128,128,128,.3);overflow:hidden}#p{height:100%;width:0;background:' + t.accent + ';transition:width .3s}</style>'
+		+ '<div id="t"></div><div id="b"><div id="p"></div></div>';
+	tipView = new WebContentsView({ webPreferences: { contextIsolation: true, sandbox: true } });
+	tipView.setBackgroundColor('#00000000');
+	tipView.setVisible(false);
+	win.contentView.addChildView(tipView);
+	tipView.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+}
+
+function refreshTip() {
+	if (!tipRect || !win || win.isDestroyed()) return;
+	const c = tipContent(updater.getState());
+	if (!c) return hideTip();
+	ensureTip();
+	const [cw] = contentSize();
+	const w = 270;
+	const h = c.progress === undefined ? 34 : 50;
+	tipView.setBounds({ x: Math.round(Math.min(Math.max(8, tipRect.x + tipRect.width / 2 - w / 2), cw - w - 8)), y: Math.round(tipRect.y + tipRect.height + 6), width: w, height: h });
+	win.contentView.addChildView(tipView);
+	tipView.setVisible(true);
+	const js = 'document.getElementById("t").textContent=' + JSON.stringify(c.text) + ';document.getElementById("b").style.display=' + (c.progress === undefined ? '"none"' : '"block"') + ';document.getElementById("p").style.width="' + (c.progress || 0) + '%"';
+	tipView.webContents.executeJavaScript(js).catch(() => {});
+}
+
+function hideTip() {
+	tipRect = null;
+	if (tipView) tipView.setVisible(false);
+}
+
+ipcMain.on('update-tip', (e, rect) => {
+	if (!fromToolbar0(e)) return;
+	if (rect && Number.isFinite(rect.x) && Number.isFinite(rect.y)) {
+		tipRect = { x: rect.x, y: rect.y, width: Number(rect.width) || 0, height: Number(rect.height) || 0 };
+		refreshTip();
+	} else hideTip();
+});
+
 // ---------- Пространства и всплывающие апплеты ----------
 
 let panel = null;
@@ -1604,7 +1662,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { spaces: [560, 440], chars: [352, 400] };
+const PANEL_SIZE = { chars: [352, 400] };
 
 function ensurePanel() {
 	if (panel) return;
@@ -1660,14 +1718,16 @@ function openPanel(kind, rect) {
 
 ipcMain.on('applet-open', (e, kind, rect) => {
 	if (!fromToolbar0(e)) return;
-	if (kind === 'spaces') openSpacesApplet(rect);
+	if (kind === 'spaces') openSpacesApplet();
 	else openPanel(kind, rect);
 });
 
-// Апплет пространств: отдельной вкладкой или, если так выбрано в настройках, всплывающей панелью
-function openSpacesApplet(rect) {
-	if (settings().spacesPopup) openPanel('spaces', rect);
-	else openInternal('spaces');
+// Апплет пространств: страница; если так выбрано в настройках, у неё нет вкладки в панели
+function openSpacesApplet() {
+	const url = 'problet://spaces';
+	const existing = tabs.find((t) => (t.pendingUrl || t.url).startsWith(url));
+	if (existing) activateTab(existing.id);
+	else createTab(url, { hidden: settings().spacesPopup });
 }
 
 function spacesState() {
@@ -2111,6 +2171,7 @@ app.whenReady().then(() => {
 	createWindow();
 	updater.onChange((st) => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
+		refreshTip();
 	});
 	updater.schedule(() => settings().autoUpdate, () => settings().autoRestart);
 });

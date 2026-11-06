@@ -172,6 +172,9 @@ $('html-file').addEventListener('change', () => run(async () => {
 
 // ---------- Импорт из других браузеров ----------
 
+// Папки других браузеров читаем только по нажатию кнопки: на macOS система спрашивает разрешение на доступ к данным других приложений
+let sourcesFound = false;
+
 async function loadSources() {
 	const list = await api.importSources();
 	const sel = $('import-src');
@@ -182,17 +185,24 @@ async function loadSources() {
 		o.textContent = s.name;
 		sel.append(o);
 	}
-	const none = !list.length;
-	sel.disabled = none;
-	$('import-run').disabled = none;
-	if (none) {
+	if (!list.length) {
 		const o = document.createElement('option');
 		o.textContent = 'Ничего не найдено';
 		sel.append(o);
+		return false;
 	}
+	sel.disabled = false;
+	$('import-run').textContent = 'Импортировать';
+	return true;
 }
 
+$('import-src').disabled = true;
+$('import-run').textContent = 'Найти браузеры';
 $('import-run').addEventListener('click', () => run(async () => {
+	if (!sourcesFound) {
+		sourcesFound = await loadSources();
+		return;
+	}
 	const r = await api.importFrom($('import-src').value);
 	say(r.message);
 }));
@@ -239,7 +249,6 @@ $('clear').addEventListener('click', () => run(async () => {
 }));
 
 run(load);
-run(loadSources);
 run(loadExtensions);
 
 

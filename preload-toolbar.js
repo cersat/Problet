@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('api', {
 	onState: (cb) => ipcRenderer.on('state', (_e, state) => cb(state)),
 	pwOfferAccept: () => ipcRenderer.send('pw-offer-accept'),
 	zoomReset: () => ipcRenderer.send('zoom-reset'),
+	updateTip: (rect) => ipcRenderer.send('update-tip', rect),
 	updateApply: () => ipcRenderer.send('update-apply'),
 	updateState: () => ipcRenderer.sendSync('update-get'),
 	onUpdate: (cb) => ipcRenderer.on('update-state', (_e, st) => cb(st)),

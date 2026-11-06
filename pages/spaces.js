@@ -1,5 +1,4 @@
 const $ = (id) => document.getElementById(id);
-if (new URLSearchParams(location.search).has('popup')) document.body.classList.add('popup');
 let state = { spaces: [], current: '' };
 let editing = '';
 
@@ -53,10 +52,7 @@ function render() {
 			if (s.id !== 'main') li.append(button('Удалить', 'Удалить пространство: вкладки уйдут в «Основное»', () => api.spacesRemove(s.id).then(load), 'danger'));
 			li.addEventListener('click', () => {
 				if (s.id === state.current) return;
-				api.spacesSwitch(s.id).then(() => {
-					if (document.body.classList.contains('popup')) api.panelClose();
-					else load();
-				});
+				api.spacesSwitch(s.id).then(load);
 			});
 		}
 		list.append(li);
@@ -72,13 +68,9 @@ $('add').addEventListener('submit', async (e) => {
 	e.preventDefault();
 	await api.spacesAdd($('name').value);
 	$('name').value = '';
-	if (document.body.classList.contains('popup')) api.panelClose();
-	else load();
+	load();
 });
 
-document.addEventListener('keydown', (e) => {
-	if (e.key === 'Escape' && document.body.classList.contains('popup')) api.panelClose();
-});
 api.onChange((kinds) => {
 	if (kinds.includes('spaces') && !editing) load();
 });
