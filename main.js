@@ -1603,7 +1603,7 @@ let panelOpen = false;
 let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
-const PANEL_SIZE = { spaces: [300, 380], chars: [352, 400] };
+const PANEL_SIZE = { spaces: [560, 440], chars: [352, 400] };
 
 function ensurePanel() {
 	if (panel) return;

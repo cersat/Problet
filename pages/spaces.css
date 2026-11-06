@@ -11,7 +11,3 @@
 .spaces-page .row button { padding: 2px 8px; font-size: 12px; }
 .spaces-page .add { display: flex; gap: 8px; }
 .spaces-page .add input { flex: 1; min-width: 0; }
-body.popup main { max-width: none; padding: 12px; }
-body.popup h1 { font-size: 15px; }
-body.popup .hint { display: none; }
-body.popup .row { padding: 6px 8px; }

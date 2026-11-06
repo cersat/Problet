@@ -484,30 +484,25 @@ body[data-tabs="bottom"] .newtab {
 /* ---------- Пространства ---------- */
 
 .spaces {
+	width: auto;
 	height: 28px;
-	max-width: 140px;
-	margin-bottom: 3px;
-	padding: 0 10px;
+	margin-right: 4px;
+	padding: 0 12px;
 	border-radius: 14px;
-	font-size: 12px;
-	color: var(--muted);
+	font-size: 13px;
+	white-space: nowrap;
+	color: var(--text);
 	flex: none;
 }
 
-.spaces span {
-	display: block;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-body[data-tabs="bottom"] .spaces { margin: 3px 0 0; }
+body[data-tabs="bottom"] .spaces { margin-top: 3px; }
+body[data-tabs="top"] .spaces { margin-bottom: 3px; }
 
 body[data-tabs="left"] .spaces,
 body[data-tabs="right"] .spaces {
 	width: 100%;
-	max-width: none;
 	height: 30px;
-	margin: 0;
+	margin: 0 0 4px;
 	border-radius: 8px;
+	white-space: normal;
 }
