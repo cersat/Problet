@@ -553,7 +553,17 @@ function spaceOf(opts) {
 	return from ? from.space : currentSpace;
 }
 
+const sameUrl = (a, b) => a === b || a.replace(/\/$/, '') === b.replace(/\/$/, '');
+
 function createTab(url, opts = {}) {
+	// Свитч «Не открывать вторую идентичную вкладку»: вместо новой переходим в уже открытую с тем же адресом
+	if (settings().noDuplicateTabs && url && !opts.lazy && !opts.hidden && !opts.duplicate && !startingUp) {
+		const same = tabs.find((t) => !t.hidden && !!t.incognito === !!opts.incognito && sameUrl(t.pendingUrl || t.url, url));
+		if (same) {
+			activateTab(same.id);
+			return same;
+		}
+	}
 	// Вкладка, открытая из вкладки инкогнито, тоже инкогнито
 	if (opts.incognito === undefined && opts.afterId) {
 		const from = tabs.find((t) => t.id === opts.afterId);
@@ -725,6 +735,7 @@ function openInternal(name) {
 	navigate(url);
 }
 
+let startingUp = false;
 function openStartupTabs() {
 	const s = settings();
 	const arg = process.argv.slice(app.isPackaged ? 1 : 2).find((a) => !a.startsWith('-'));
@@ -758,6 +769,7 @@ function openStartupTabs() {
 	active = Math.min(Math.max(0, active), list.length - 1);
 
 	// Вкладки прошлой сессии, кроме открытой, подгружаются только когда на них перейдут
+	startingUp = true;
 	list.forEach((item, i) => createTab(item.url, {
 		activate: i === active,
 		lazy: !!item.restored && i !== active,
@@ -766,6 +778,7 @@ function openStartupTabs() {
 		pinned: !!item.pinned,
 		space: item.space,
 	}));
+	startingUp = false;
 }
 
 // ---------- Обновление открытых страниц браузера при изменении данных ----------
@@ -1382,7 +1395,7 @@ function showTabMenu(id) {
 	popupMenu([
 		{ label: tab.pinned ? 'Открепить вкладку' : 'Закрепить вкладку', click: () => setPinned(tab.id, !tab.pinned) },
 		{ label: 'Открыть закрытую вкладку', enabled: closedTabs.length > 0, click: () => reopenTab() },
-		{ label: 'Дублировать', click: () => createTab(tab.pendingUrl || tab.view.webContents.getURL() || tab.url, { afterId: tab.id, title: tab.title, icon: tab.icon }) },
+		{ label: 'Дублировать', click: () => createTab(tab.pendingUrl || tab.view.webContents.getURL() || tab.url, { duplicate: true, afterId: tab.id, title: tab.title, icon: tab.icon }) },
 		{ label: 'Обновить', click: () => tab.view.webContents.reload() },
 		{ type: 'separator' },
 		{ label: 'Закрыть вкладку', click: () => closeTab(tab.id) },

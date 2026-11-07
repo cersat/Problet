@@ -72,12 +72,13 @@ const SETTING_DEFAULTS = {
 	appSpaces: true,
 	spacesPopup: false,
 	spacesMerged: false,
+	noDuplicateTabs: false,
 	warnInsecure: false,
 	customBlock: '',
 	bmNewTab: false,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'spacesMerged', 'warnInsecure', 'bmNewTab'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'warnInsecure', 'bmNewTab'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
