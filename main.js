@@ -635,7 +635,7 @@ function activateTab(id) {
 		const url = tab.pendingUrl;
 		tab.pendingUrl = null;
 		tab.frozen = false;
-		tab.view.webContents.loadURL(url).catch(() => {});
+		if (!restoreFrozen(tab)) tab.view.webContents.loadURL(url).catch(() => {});
 	}
 	applySpaceFreeze();
 	setWindowTitle(tab);
@@ -695,6 +695,17 @@ function discardTab(tab) {
 	const old = tab.view;
 	const url = old.webContents.getURL() || tab.url;
 	if (!/^(https?|file):/i.test(url)) return; // внутренние страницы дёшевы, их не трогаем
+	// Состояние страницы (история, прокрутка, введённое в поля) уходит на диск и возвращается при открытии вкладки
+	try {
+		const nav = old.webContents.navigationHistory;
+		const dir = path.join(app.getPath('userData'), 'frozen');
+		fs.mkdirSync(dir, { recursive: true });
+		tab.frozenFile = path.join(dir, tab.id + '.json');
+		fs.writeFileSync(tab.frozenFile, JSON.stringify({ entries: nav.getAllEntries(), index: nav.getActiveIndex() }));
+	} catch (e) {
+		log('не удалось сохранить состояние вкладки', tab.id, e);
+		tab.frozenFile = '';
+	}
 	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
 	if (tab.incognito) prefs.session = incognitoSession();
 	const view = new WebContentsView({ webPreferences: prefs });
@@ -715,6 +726,27 @@ function discardTab(tab) {
 	if (!old.webContents.isDestroyed()) old.webContents.close();
 	log('вкладка выгружена', tab.id, url);
 	sendTabs();
+}
+
+function dropFrozenFile(tab) {
+	if (tab.frozenFile) fs.rm(tab.frozenFile, { force: true }, () => {});
+	tab.frozenFile = '';
+}
+
+// Возвращаем выгруженную страницу из файла: история и состояние страницы восстанавливаются, а не грузятся с нуля
+function restoreFrozen(tab) {
+	if (!tab.frozenFile) return false;
+	try {
+		const saved = JSON.parse(fs.readFileSync(tab.frozenFile, 'utf8'));
+		dropFrozenFile(tab);
+		if (!Array.isArray(saved.entries) || !saved.entries.length) return false;
+		tab.view.webContents.navigationHistory.restore({ entries: saved.entries, index: saved.index }).catch(() => {});
+		return true;
+	} catch (e) {
+		log('не удалось вернуть вкладку', tab.id, e);
+		dropFrozenFile(tab);
+		return false;
+	}
 }
 
 // Заморозка по пространствам: вкладки пространств, которые не открыты, замораживаются; у открытого размораживаются
@@ -790,6 +822,7 @@ function closeTab(id) {
 	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden && tabs[index].view.webContents && !tabs[index].view.webContents.isDestroyed()) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
 	const vIndex = tabs.filter((t) => (settings().spacesMerged || t.space === tabs[index].space) && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
+	dropFrozenFile(tab);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
 	win.contentView.removeChildView(tab.view);
@@ -836,6 +869,7 @@ function openInternal(name) {
 
 let startingUp = false;
 function openStartupTabs() {
+	fs.rmSync(path.join(app.getPath('userData'), 'frozen'), { recursive: true, force: true }); // файлы выгруженных вкладок живут только до перезапуска
 	const s = settings();
 	const arg = process.argv.slice(app.isPackaged ? 1 : 2).find((a) => !a.startsWith('-'));
 	const saved = store.getSession();
