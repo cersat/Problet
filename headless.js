@@ -58,7 +58,7 @@ async function sizeView(wc) {
 	const width = m ? Number(m[1]) : 1280;
 	const height = m ? Number(m[2]) : 800;
 	if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
-	await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+	await limit(wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false }), 10000, 'размер');
 	// Скрытое окно — «невидимая» страница: многие сайты в таком состоянии замирают, поэтому изображаем, что вкладка на виду
 	await wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true });
 	wc.setBackgroundThrottling(false);
@@ -70,7 +70,7 @@ async function capture(_ctx, wc) {
 	const attached = dbg.isAttached();
 	if (!attached) dbg.attach('1.3');
 	try {
-		const shot = await dbg.sendCommand('Page.captureScreenshot', { format: 'png' });
+		const shot = await limit(dbg.sendCommand('Page.captureScreenshot', { format: 'png' }), 15000, 'снимок');
 		return Buffer.from(shot.data, 'base64');
 	} finally {
 		if (!attached) dbg.detach();
@@ -88,6 +88,9 @@ function watchConsole(wc) {
 		}
 	});
 }
+
+// Страница может зависнуть (окно alert, тяжёлый скрипт): любое обращение к ней ограничено по времени, отчёт выходит всегда
+const limit = (p, ms, what) => Promise.race([p, new Promise((_r, rej) => setTimeout(() => rej(new Error('Страница не ответила за ' + ms / 1000 + ' с: ' + what)), ms))]);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -199,12 +202,16 @@ async function fetchMode(ctx, target, o) {
 			const r = await o.open(/^[a-z][a-z0-9+.-]*:/i.test(target) ? target : 'https://' + target, o.wait);
 			const wc = o.wcOf(r.id);
 			const run = { console: consoleLog.splice(0), loaded: r.loaded, loadMs: r.loadMs, title: r.title, finalUrl: r.url, hosts: summary() };
-			if (first && o.text) run.text = await wc.executeJavaScript('document.body ? document.body.innerText : ""');
+			if (first && o.text) run.text = await limit(wc.executeJavaScript('document.body ? document.body.innerText : ""'), 15000, 'текст').catch((e) => 'Ошибка: ' + e.message);
 			if (first && o.shot) {
-				fs.writeFileSync(o.shot, await capture(ctx, wc));
-				run.shot = o.shot;
+				try {
+					fs.writeFileSync(o.shot, await capture(ctx, wc));
+					run.shot = o.shot;
+				} catch (e) {
+					run.shotError = e.message;
+				}
 			}
-			if (first && o.evalJs) run.eval = await wc.executeJavaScript(o.evalJs).catch((e) => 'Ошибка: ' + e.message);
+			if (first && o.evalJs) run.eval = await limit(wc.executeJavaScript(o.evalJs), 15000, 'eval').catch((e) => 'Ошибка: ' + e.message);
 			report.runs.push(run);
 			ctx.closeTab(r.id);
 		}
