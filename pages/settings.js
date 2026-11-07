@@ -300,14 +300,14 @@ function renderUpdate(st) {
 		uptodate: 'Установлена последняя версия',
 		available: 'Доступна версия ' + st.version,
 		downloading: 'Скачиваю версию ' + st.version + ': ' + st.progress + '%',
-		ready: 'Версия ' + st.version + ' скачана, осталось перезапустить',
+		ready: st.mode === 'dmg' ? 'Версия ' + st.version + ' скачана в «Загрузки»' : 'Версия ' + st.version + ' скачана, осталось перезапустить',
 		error: 'Не удалось проверить: ' + st.message,
 	};
 	upStatus.textContent = (texts[st.status] || '') + (st.mode === 'dev' && st.status !== 'error' ? ' (в режиме разработки обновляться нечем)' : '');
 	const btn = $('update-apply');
 	const show = (st.status === 'available' && st.mode !== 'dev') || st.status === 'ready';
 	btn.classList.toggle('hidden', !show);
-	btn.textContent = st.status === 'ready' ? 'Перезапустить' : st.mode === 'page' ? 'Открыть страницу загрузки' : 'Скачать и установить';
+	btn.textContent = st.status === 'ready' ? (st.mode === 'dmg' ? 'Открыть установщик' : 'Перезапустить') : st.mode === 'page' ? 'Открыть страницу загрузки' : 'Скачать и установить';
 	$('update-check').disabled = st.status === 'checking' || st.status === 'downloading';
 	// Пока идёт работа, обновляем статус сами
 	if (st.status === 'checking' || st.status === 'downloading') {

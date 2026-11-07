@@ -217,7 +217,7 @@ function showUpdate(st) {
 	updateBtn.classList.toggle('hidden', !on);
 	if (!on) return;
 	const titles = {
-		ready: 'Обновить до ' + st.version + ' и перезапустить',
+		ready: st.mode === 'dmg' ? 'Версия ' + st.version + ' скачана: открыть установщик' : 'Обновить до ' + st.version + ' и перезапустить',
 		downloading: 'Скачивается обновление ' + st.version + ': ' + st.progress + '%',
 		available: 'Доступна версия ' + st.version + (st.mode === 'page' ? ': открыть страницу загрузки' : ': скачать и установить'),
 	};

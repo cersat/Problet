@@ -1697,7 +1697,7 @@ let tipShown = '';
 function tipContent(st) {
 	if (!st) return null;
 	if (st.status === 'downloading') return { text: 'Скачивается версия ' + st.version + ': ' + st.progress + '%', progress: st.progress };
-	if (st.status === 'ready') return { text: 'Обновить до ' + st.version + ' и перезапустить' };
+	if (st.status === 'ready') return { text: st.mode === 'dmg' ? 'Версия ' + st.version + ' скачана: открыть установщик' : 'Обновить до ' + st.version + ' и перезапустить' };
 	if (st.status === 'available') return { text: 'Доступна версия ' + st.version + (st.mode === 'page' ? ': открыть страницу загрузки' : ': скачать и установить') };
 	return null;
 }

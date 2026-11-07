@@ -1,6 +1,7 @@
 // Автообновление: смотрим релиз «latest» в GitHub, сравниваем версию из имён файлов с текущей.
 // Linux (AppImage): скачиваем новый файл и подменяем им запущенный, после перезапуска работает новая версия.
-// Windows: скачиваем установщик и запускаем его. macOS и остальные сборки: открываем страницу релиза (приложение не подписано, обновить себя оно не может).
+// Windows: скачиваем установщик и запускаем его. macOS: скачиваем .dmg в «Загрузки» и открываем его (приложение не подписано, заменить себя оно не может, перетащить в «Программы» нужно самому).
+// Остальные сборки: открываем страницу релиза.
 
 const fs = require('fs');
 const os = require('os');
@@ -27,6 +28,7 @@ function mode() {
 	if (!app.isPackaged) return 'dev';
 	if (process.platform === 'linux') return process.env.APPIMAGE ? 'appimage' : 'page';
 	if (process.platform === 'win32') return 'installer';
+	if (process.platform === 'darwin') return 'dmg';
 	return 'page';
 }
 
@@ -58,7 +60,7 @@ function isNewer(a, b) {
 
 // Подходящий файл релиза для этой системы
 function pickAsset(assets) {
-	const want = { appimage: /\.AppImage$/i, installer: /\.exe$/i, page: process.platform === 'darwin' ? /\.dmg$/i : /\.tar\.gz$/i }[mode()];
+	const want = { appimage: /\.AppImage$/i, installer: /\.exe$/i, dmg: /\.dmg$/i, page: /\.tar\.gz$/i }[mode()];
 	for (const a of assets) {
 		const m = /^Problet-(\d+\.\d+\.\d+)-([a-z]+)-([\w]+)\./i.exec(a.name);
 		if (!m || m[2] !== OS || !ARCH.includes(m[3])) continue;
@@ -145,7 +147,7 @@ async function prepare() {
 			fs.renameSync(tmp, target); // запущенный файл можно подменить: старый процесс продолжает работать с прежним inode
 			set({ status: 'ready', progress: 100 });
 		} else {
-			const file = path.join(os.tmpdir(), asset.name);
+			const file = path.join(mode() === 'dmg' ? app.getPath('downloads') : os.tmpdir(), asset.name);
 			await download(asset.url, file);
 			state.file = file;
 			set({ status: 'ready', progress: 100 });
@@ -185,7 +187,7 @@ async function apply() {
 		restartAppImage();
 	} else {
 		await shell.openPath(state.file);
-		app.quit();
+		app.quit(); // запущенное приложение нельзя заменить, поэтому выходим: в открывшемся окне перетащи Problet в «Программы»
 	}
 }
 
@@ -196,8 +198,8 @@ function schedule(enabled, restartWhenReady) {
 	const run = async () => {
 		if (!enabled() || busy || state.status === 'ready') return;
 		await check();
-		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer')) await prepare();
-		if (state.status === 'ready' && restartWhenReady && restartWhenReady()) await apply();
+		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer' || mode() === 'dmg')) await prepare();
+		if (state.status === 'ready' && mode() !== 'dmg' && restartWhenReady && restartWhenReady()) await apply(); // на macOS установщик сам не открываем: нужно перетащить приложение вручную
 	};
 	setTimeout(run, 60 * 1000);
 	timer = setInterval(run, CHECK_EVERY);
