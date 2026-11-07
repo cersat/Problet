@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
+<title>Ошибка Problet</title>
+<style>
+	:root { color-scheme: dark; }
+	* { box-sizing: border-box; }
+	body { margin: 0; height: 100vh; display: flex; flex-direction: column; padding: 18px 20px 16px; background: #1f1f23; color: #ececf0; font: 14px system-ui, sans-serif; }
+	h1 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+	h1::before { content: '!'; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #e5484d; color: #fff; font-size: 15px; font-weight: 700; }
+	p { margin: 0 0 12px; color: #a0a0aa; }
+	pre { flex: 1; margin: 0 0 14px; padding: 12px; overflow: auto; border: 1px solid #3a3a42; border-radius: 8px; background: #17171a; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; user-select: text; }
+	.row { display: flex; gap: 8px; justify-content: flex-end; }
+	button { height: 34px; padding: 0 16px; border: 1px solid #4a4a52; border-radius: 8px; background: #2c2c31; color: inherit; font: inherit; cursor: pointer; }
+	button:hover { background: #36363c; }
+	button.primary { border-color: #7a5af8; background: #7a5af8; color: #fff; }
+	button.primary:hover { background: #8b6ff9; }
+</style>
+</head>
+<body>
+	<h1 id="title">Ошибка</h1>
+	<p>Браузер продолжает работать. Если это повторяется, скопируй текст ошибки и отправь разработчику. Он также записан в журнал.</p>
+	<pre id="text"></pre>
+	<div class="row">
+		<button id="close">Закрыть</button>
+		<button id="copy" class="primary">Скопировать</button>
+	</div>
+	<script src="error.js"></script>
+</body>
+</html>

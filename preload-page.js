@@ -74,6 +74,7 @@ if (location.protocol === 'problet:') {
 		makeDefaultBrowser: () => call('default-browser:set'),
 		extList: () => call('ext:list'),
 		extAdd: () => call('ext:add'),
+		extStore: (input) => call('ext:store', input),
 		extRemove: (p) => call('ext:remove', p),
 		importBookmarkItems: (items) => call('bookmarks:import-items', items),
 		bookmarks: () => call('bookmarks:state'),

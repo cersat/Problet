@@ -43,6 +43,7 @@ const SETTING_DEFAULTS = {
 	saveHistory: true,
 	adblock: false,
 	adblockYoutube: true,
+	adblockStub: true,
 	calcSuggest: true,
 	searchSuggest: true,
 	dnt: false,
@@ -73,7 +74,7 @@ const SETTING_DEFAULTS = {
 	bmNewTab: false,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'bmNewTab'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'bmNewTab'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],

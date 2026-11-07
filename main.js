@@ -46,8 +46,47 @@ function log(...parts) {
 }
 
 // Неожиданная ошибка в главном процессе не должна ронять браузер и показывать окно с ошибкой: пишем её в журнал и работаем дальше
-process.on('uncaughtException', (err) => log('uncaughtException', err));
+process.on('uncaughtException', (err) => {
+	log('uncaughtException', err);
+	showError('Ошибка в главном процессе', err instanceof Error ? err.stack || String(err) : String(err));
+});
 process.on('unhandledRejection', (err) => log('unhandledRejection', err instanceof Error ? err : String(err)));
+// На Linux каждое новое окно (инструменты разработчика, окно ошибки) без своей иконки получает шестерёнку — задаём всем нашу
+app.on('browser-window-created', (_e, w) => {
+	try {
+		w.setIcon(path.join(__dirname, 'icon.png'));
+	} catch (e) { /* иконка не критична */ }
+});
+
+// Окно ошибки вместо стандартного: с текстом, который можно скопировать
+const errorWindows = new Map(); // id окна -> { title, text }
+let lastError = { text: '', at: 0 };
+
+function showError(title, text) {
+	try {
+		if (!app.isReady()) return;
+		if (text === lastError.text && Date.now() - lastError.at < 10000) return; // одна и та же ошибка подряд — одно окно
+		lastError = { text, at: Date.now() };
+		if (errorWindows.size >= 3) return;
+		const w = new BrowserWindow({
+			width: 620,
+			height: 420,
+			minWidth: 380,
+			minHeight: 260,
+			backgroundColor: '#1f1f23',
+			title: 'Ошибка Problet',
+			autoHideMenuBar: true,
+			icon: path.join(__dirname, 'icon.png'),
+			webPreferences: { preload: path.join(__dirname, 'preload-error.js'), contextIsolation: true, sandbox: true },
+		});
+		w.removeMenu();
+		const id = w.webContents.id;
+		errorWindows.set(id, { title, text });
+		w.on('closed', () => errorWindows.delete(id));
+		w.loadFile('error.html');
+	} catch (e) { /* показать ошибку не вышло — она всё равно в журнале */ }
+}
+
 log('запуск', app.getVersion(), process.platform, process.arch, 'electron', process.versions.electron);
 app.on('render-process-gone', (_e, wc, details) => log('render-process-gone', wc && !wc.isDestroyed() ? wc.getURL() : '', details));
 app.on('child-process-gone', (_e, details) => log('child-process-gone', details));
@@ -1904,6 +1943,13 @@ handle('page:open-tab', (name) => {
 	createTab('problet://' + name);
 });
 
+ipcMain.handle('error:get', (e) => errorWindows.get(e.sender.id) || { title: 'Ошибка', text: '' });
+ipcMain.handle('error:copy', (e) => {
+	const info = errorWindows.get(e.sender.id);
+	if (info) clipboard.writeText(info.title + '\n' + info.text + '\n\nProblet ' + app.getVersion() + ', ' + process.platform + ' ' + process.arch + ', Electron ' + process.versions.electron);
+});
+ipcMain.on('error:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+
 handle('default-browser:set', async () => {
 	if (!app.isPackaged) return { ok: false, message: 'Работает только в установленной версии Problet' };
 	const run = (cmd, args) => new Promise((resolve) => require('child_process').execFile(cmd, args, { timeout: 8000 }, (err, out) => resolve(err ? null : String(out).trim())));
@@ -2038,6 +2084,10 @@ handle('ext:add', async () => {
 	}
 	const e = await extensions.add(dir);
 	return { message: 'Расширение «' + e.name + '» добавлено' };
+});
+handle('ext:store', async (input) => {
+	const e = await extensions.installFromStore(String(input || ''), process.versions.chrome);
+	return { message: 'Расширение «' + e.name + '» установлено' };
 });
 handle('ext:remove', (p) => extensions.remove(String(p)));
 

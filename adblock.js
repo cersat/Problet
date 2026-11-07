@@ -126,7 +126,7 @@ function start(session, store) {
 			blocked++;
 			store.addBlocked();
 			const url = replacement(details.resourceType);
-			callback(url ? { redirectURL: url } : { cancel: true });
+			callback(url && s.adblockStub ? { redirectURL: url } : { cancel: true });
 		} else {
 			callback({});
 		}

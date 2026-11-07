@@ -192,6 +192,10 @@
 				<label class="switch"><input type="checkbox" data-setting="adblock"><span></span></label>
 			</div>
 			<div class="setting">
+				<div class="what">Отправлять заглушку вместо заблокированной рекламы<small>Страница получает пустую картинку, скрипт или фрейм и не ломается. Если выключить, запрос просто обрывается</small></div>
+				<label class="switch"><input type="checkbox" data-setting="adblockStub"><span></span></label>
+			</div>
+			<div class="setting">
 				<div class="what">Блокировать рекламу на YouTube<small>YouTube считает блокировку рекламы нарушением своих правил и может приостановить воспроизведение. Если выключить, на YouTube реклама не блокируется</small></div>
 				<label class="switch"><input type="checkbox" data-setting="adblockYoutube"><span></span></label>
 			</div>
@@ -333,6 +337,11 @@
 			<div class="data-row">
 				<div class="what"><b>Расширения Chrome</b><span>Выбери папку с распакованным расширением (где лежит manifest.json). Поддерживаются не все возможности: сложные расширения могут работать не полностью.</span></div>
 				<button id="ext-add">Добавить</button>
+			</div>
+			<div class="data-row">
+				<div class="what"><b>Из Chrome Web Store</b><span>Вставь ссылку на страницу расширения или его идентификатор</span></div>
+				<input type="text" id="ext-store-input" placeholder="https://chromewebstore.google.com/detail/…" autocomplete="off">
+				<button id="ext-store">Установить</button>
 			</div>
 			<div id="ext-list"></div>
 		</section>

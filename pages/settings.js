@@ -235,6 +235,16 @@ async function loadExtensions() {
 	}
 }
 
+$('ext-store').addEventListener('click', () => run(async () => {
+	const input = $('ext-store-input').value.trim();
+	if (!input) throw new Error('Вставь ссылку или идентификатор расширения');
+	say('Скачиваю…');
+	const r = await api.extStore(input);
+	$('ext-store-input').value = '';
+	say(r.message);
+	await loadExtensions();
+}));
+
 $('ext-add').addEventListener('click', () => run(async () => {
 	const r = await api.extAdd();
 	if (r && r.message) say(r.message);
@@ -392,7 +402,7 @@ function stopRecording() {
 	if (!recording) return;
 	const { id, button } = recording;
 	recording = null;
-	button.classList.remove('recording');
+	button.classList.remove('recording', 'conflict');
 	button.textContent = effectiveKey(id) || 'Отключено';
 	api.captureHotkeys(false);
 }
@@ -408,6 +418,7 @@ document.addEventListener('keydown', (e) => {
 	if (!recording) return;
 	e.preventDefault();
 	e.stopPropagation();
+	recording.button.classList.remove('conflict');
 	const combo = accel.fromEvent({ key: e.key, ctrl: e.ctrlKey, meta: e.metaKey, alt: e.altKey, shift: e.shiftKey });
 	if (!combo) return; // нажаты одни модификаторы
 	const { id } = recording;
@@ -418,12 +429,16 @@ document.addEventListener('keydown', (e) => {
 	const bare = combo === 'Delete' || combo === 'Backspace';
 	if (!bare && !/^(Ctrl|Alt)\+/.test(combo) && !/^(Shift\+)?F([1-9]|1[0-2])$/.test(combo)) {
 		say('Нужна Ctrl, Alt или клавиша F1–F12', true);
+		recording.button.classList.add('conflict');
 		return;
 	}
 	const value = bare ? '' : combo;
 	const owner = accel.ACTIONS.find((a) => a.id !== id && value && effectiveKey(a.id) === value);
 	if (owner) {
 		say('«' + value + '» уже занято: ' + owner.label, true);
+		recording.button.classList.add('conflict'); // поле с клавишей краснеет, пока не нажмёшь другое сочетание
+		recording.button.textContent = 'Занято: ' + owner.label;
+		recording.button.title = '«' + value + '» уже используется: ' + owner.label;
 		return;
 	}
 	stopRecording();
