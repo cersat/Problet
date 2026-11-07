@@ -109,11 +109,20 @@ function replacement(type) {
 	return null;
 }
 
+let observer = null;
+const observe = (fn) => { observer = fn; }; // сообщает о каждом запросе и о том, заблокирован ли он (режим без окна)
+
 function start(session, store) {
 	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
 		const s = store.getSettings();
-		if (s.adblock && isBlocked(details) && (s.adblockYoutube || !fromYoutube(details))) {
+		const block = s.adblock && isBlocked(details) && (s.adblockYoutube || !fromYoutube(details));
+		if (observer) {
+			try {
+				observer({ host: new URL(details.url).hostname, type: details.resourceType, blocked: !!block });
+			} catch (e) { /* адрес не разобрался */ }
+		}
+		if (block) {
 			blocked++;
 			store.addBlocked();
 			const url = replacement(details.resourceType);
@@ -133,4 +142,4 @@ const COSMETIC_CSS = [
 
 const blockedCount = () => blocked;
 
-module.exports = { isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { observe, isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };

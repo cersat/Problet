@@ -16,6 +16,18 @@ const vault = require('./vault');
 const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
 const { themePayload, accentList } = require('./theme');
+const headless = require('./headless');
+
+// Режим без окна: одноразовый профиль, если папка профиля не задана явно
+if (headless.enabled && !process.argv.some((a) => a.startsWith('--user-data-dir='))) {
+	const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'problet-headless-'));
+	app.setPath('userData', tmpProfile);
+	process.on('exit', () => {
+		try {
+			fs.rmSync(tmpProfile, { recursive: true, force: true });
+		} catch (e) { /* не страшно: папка во временных файлах */ }
+	});
+}
 
 // ---------- Журнал: /tmp/problet/log (на Windows — в папке временных файлов) ----------
 
@@ -403,7 +415,7 @@ function wireTab(tab) {
 	});
 	// Страница закрыла себя сама (window.close(), например всплывающее окно входа через Google) — убираем её вкладку
 	wc.once('destroyed', () => {
-		if (tabs.includes(tab)) closeTab(tab.id);
+		if (win && !win.isDestroyed() && tabs.includes(tab)) closeTab(tab.id);
 	});
 	wc.on('before-input-event', hotkeys);
 	wc.on('context-menu', (_e, params) => showPageMenu(tab, params));
@@ -2120,6 +2132,7 @@ function createWindow() {
 		minWidth: 480,
 		minHeight: 320,
 		backgroundColor: bgColor(),
+		show: !headless.enabled,
 		icon: path.join(__dirname, 'icon.png'),
 		autoHideMenuBar: true,
 		frame: false, // заголовок окна рисуем сами: панель вкладок и кнопки окна лежат в нём
@@ -2182,7 +2195,7 @@ function createWindow() {
 }
 
 // Второй запуск (например, «открыть ссылку в Problet» из системы) открывает адрес в новой вкладке уже запущенного окна
-const gotLock = app.requestSingleInstanceLock();
+const gotLock = headless.enabled || app.requestSingleInstanceLock(); // без окна можно запускать сколько угодно копий
 app.on('second-instance', (_e, argv) => {
 	if (!win) return;
 	if (win.isMinimized()) win.restore();
@@ -2208,11 +2221,41 @@ app.whenReady().then(() => {
 	setupDownloads(session.defaultSession);
 	extensions.init(session.defaultSession, app.getPath('userData')).catch(() => {});
 	createWindow();
+	if (headless.enabled) startHeadless();
 	updater.onChange((st) => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
 		refreshTip();
 	});
 	updater.schedule(() => settings().autoUpdate, () => settings().autoRestart);
 });
+function startHeadless() {
+	if (headless.flag('adblock')) store.setSettings({ adblock: true });
+	adblock.observe(headless.record);
+	win.webContents.once('did-finish-load', () => {
+		setTimeout(() => headless.start({
+			dir: LOG_DIR,
+			tabs: () => tabs,
+			createTab,
+			closeTab: (id) => {
+				if (tabs.length > 1) closeTab(id);
+			},
+			activeTab,
+			log,
+			quit: () => app.quit(),
+			readLog: (n) => {
+				try {
+					return fs.readFileSync(LOG_FILE, 'utf8').split('\n').slice(-n).join('\n');
+				} catch (e) {
+					return '';
+				}
+			},
+			clearSite: async () => {
+				await session.defaultSession.clearStorageData();
+				await session.defaultSession.clearCache();
+			},
+		}), 600); // стартовая вкладка успевает открыться
+	});
+}
+
 app.on('before-quit', () => store.flush());
 app.on('window-all-closed', () => app.quit());

@@ -63,3 +63,29 @@ npm run dist
 ## Данные
 
 Настройки, закладки, история и сессия лежат в `data.json`, пароли в `vault.json` (в папке данных приложения, её путь показан на странице `problet://version`).
+
+## Режим без окна
+
+`problet --headless` запускает браузер скрыто, без дисплея, с одноразовым профилем (он удаляется при выходе; свой профиль задаётся через `--user-data-dir=`). Можно запускать сколько угодно копий.
+
+Одноразовая загрузка с отчётом JSON в stdout:
+
+```
+problet --headless --fetch=https://example.com --runs=3 --wait=4000 --adblock --text --shot=page.png --eval="document.title"
+```
+
+В отчёте — заголовок, итоговый адрес, время загрузки и сводка запросов по хостам: сколько запросов и сколько из них заблокировано (`hosts`). `--runs` повторяет загрузку с чистого листа, `--size=1280x800` задаёт размер страницы.
+
+Управление по HTTP: `problet --headless [--control-port=N]` печатает в stdout строку `PROBLET_HEADLESS {url, port, token, pid}` и пишет то же в `/tmp/problet/headless.json`. Токен передаётся в заголовке `x-token`.
+
+| Запрос | Что делает |
+| --- | --- |
+| `GET /tabs` | список вкладок |
+| `POST /open {url, wait}` | открыть адрес в новой вкладке и дождаться загрузки |
+| `POST /eval {tab, js}` | выполнить JS на странице |
+| `GET /text?tab=` | текст страницы |
+| `GET /screenshot?tab=` | снимок PNG |
+| `GET /requests?clear=1` | сводка запросов по хостам |
+| `GET /log?lines=200` | хвост журнала `/tmp/problet/log` |
+| `POST /close {tab}` | закрыть вкладку |
+| `POST /quit` | выйти |
