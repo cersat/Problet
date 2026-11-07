@@ -40,7 +40,8 @@ if (location.protocol === 'problet:') {
 		pwRemove: (id) => call('pw:remove', id),
 		pwReveal: (id) => call('pw:reveal', id),
 		pwChangeMaster: (oldMaster, newMaster) => call('pw:change-master', oldMaster, newMaster),
-		pwFillRetry: () => call('pw:fill-retry'),
+		pwFillOptions: () => call('pw:fill-options'),
+		pwFillPick: (i) => call('pw:fill-pick', i),
 		pwOfferCurrent: () => call('pw:offer-current'),
 		pwPendingSave: (tabId) => call('pw:pending-save', tabId),
 		pwPendingDrop: (tabId) => call('pw:pending-drop', tabId),
@@ -176,43 +177,27 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		el.dispatchEvent(new Event('change', { bubbles: true }));
 	};
 
-	let asking = false;
 	let filled = ''; // пароль, который подставили мы: его отправка не повод предлагать сохранение
 	let lastField = null;
-	const tryFill = async (el) => {
+	const fieldsFor = (el) => {
 		const pass = el.type === 'password' ? el : [...document.querySelectorAll('input[type=password]')].find(visible);
-		if (!pass || !visible(pass)) return;
+		if (!pass || !visible(pass)) return null;
 		const login = loginFieldFor(pass);
-		if (el !== pass && el !== login) return;
-		asking = true;
-		try {
-			const found = await ipcRenderer.invoke('pw:lookup');
-			if (found && found.locked) {
-				lastField = el;
-				ipcRenderer.send('pw:need-unlock');
-				return;
-			}
-			if (!found.length) return;
-			const typed = login ? login.value : '';
-			const entry = found.find((f) => f.username === typed) || (typed ? null : found[0]);
-			if (!entry) return;
-			if (login && !login.value && entry.username) setValue(login, entry.username);
-			if (!pass.value) {
-				setValue(pass, entry.password);
-				filled = entry.password;
-			}
-		} catch (err) { /* хранилище закрыто */ } finally {
-			asking = false;
-		}
+		return el === pass || el === login ? { pass, login } : null;
 	};
-	ipcRenderer.on('pw:unlocked', () => {
-		if (lastField && document.contains(lastField)) tryFill(lastField);
+	ipcRenderer.on('pw:fill', (_e, entry) => {
+		const f = lastField && document.contains(lastField) && fieldsFor(lastField);
+		if (!f) return;
+		if (f.login && entry.username) setValue(f.login, entry.username);
+		setValue(f.pass, entry.password);
+		filled = entry.password;
 	});
 	const onUserFocus = (e) => {
 		const el = e.target;
 		// Только настоящее нажатие человека, не скрипт страницы
-		if (asking || !isField(el) || !e.isTrusted || !navigator.userActivation.isActive) return;
-		tryFill(el);
+		if (!isField(el) || !e.isTrusted || !navigator.userActivation.isActive || !fieldsFor(el)) return;
+		lastField = el;
+		ipcRenderer.send('pw:need-fill');
 	};
 	// click нужен для поля, которое уже в фокусе (например, autofocus): новое focusin тогда не придёт
 	document.addEventListener('focusin', onUserFocus, true);

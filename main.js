@@ -99,7 +99,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwunlock']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -891,32 +891,36 @@ ipcMain.on('pw:submit', (e, data) => {
 handle('pw:offer-current', () => {
 	const tab = activeTab();
 	const o = offerFor(tab);
-	return o ? { ...o, tabId: tab.id } : null;
+	return o ? { ...o, tabId: tab.id, exists: vault.exists(), min: vault.MIN_MASTER } : null;
 });
 
-// Страница просит подставить логин и пароль (только для её собственного адреса и только когда хранилище открыто)
-ipcMain.handle('pw:lookup', (e) => {
-	const origin = frameOrigin(e);
-	if (!origin || !tabOfSender(e) || !settings().pwFill) return [];
-	if (!vault.isUnlocked()) return vault.exists() ? { locked: true } : [];
-	return vault.forOrigin(origin);
-});
-
-// Хранилище закрыто, а человек нажал на поле входа: спрашиваем мастер-пароль (раз на страницу), после ввода страница подставит данные
-const unlockAsked = new Set();
-ipcMain.on('pw:need-unlock', (e) => {
+// Человек нажал на поле входа: показываем окно подстановки (с вводом мастер-пароля, если хранилище закрыто), раз на страницу
+const fillAsked = new Set();
+let fillCtx = null; // { tabId, origin }: для какой страницы открыто окно подстановки
+ipcMain.on('pw:need-fill', (e) => {
 	const tab = tabOfSender(e);
 	const origin = frameOrigin(e);
-	if (!tab || !origin || tab.id !== activeId || vault.isUnlocked() || !vault.exists() || panelOpen) return;
+	if (!tab || !origin || tab.id !== activeId || !settings().pwFill || !vault.exists() || panelOpen) return;
+	if (vault.isUnlocked() && !vault.forOrigin(origin).length) return;
 	const key = tab.id + '|' + e.senderFrame.url;
-	if (unlockAsked.has(key)) return;
-	unlockAsked.add(key);
-	openPanel('pwunlock', { x: contentSize()[0] - 12, y: insets().top - TOOLBAR_HEIGHT + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+	if (fillAsked.has(key)) return;
+	fillAsked.add(key);
+	fillCtx = { tabId: tab.id, origin };
+	openPanel('pwfill', { x: contentSize()[0] - 12, y: insets().top - TOOLBAR_HEIGHT + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
 });
-handle('pw:fill-retry', () => {
-	const tab = activeTab();
-	if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.send('pw:unlocked');
+handle('pw:fill-options', () => {
+	if (!fillCtx) return null;
+	const items = vault.isUnlocked() ? vault.forOrigin(fillCtx.origin).map((x, i) => ({ i, username: x.username })) : [];
+	return { host: new URL(fillCtx.origin).hostname, unlocked: vault.isUnlocked(), items };
 });
+handle('pw:fill-pick', (i) => {
+	const tab = fillCtx && tabs.find((t) => t.id === fillCtx.tabId);
+	if (!tab || tab.view.webContents.isDestroyed() || frameOriginOfUrl(tab.view.webContents.getURL()) !== fillCtx.origin) throw new Error('Страница уже другая');
+	const entry = vault.forOrigin(fillCtx.origin)[Number(i)];
+	if (!entry) throw new Error('Запись не найдена');
+	tab.view.webContents.send('pw:fill', { username: entry.username, password: entry.password });
+});
+
 
 function acceptOffer(tabId) {
 	const o = pwOffers.get(tabId);
@@ -1800,7 +1804,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 200], pwunlock: [320, 190] };
+const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260] };
 
 function ensurePanel() {
 	if (panel) return;

@@ -9,3 +9,6 @@
 .pwsave-page .row button { flex: 1; padding: 8px 14px; }
 .pwsave-page input[type=password] { height: 34px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); outline: none; }
 .pwsave-page input[type=password]:focus { border-color: var(--accent); }
+.pwsave-page .items { display: grid; gap: 6px; margin-bottom: 10px; max-height: 130px; overflow-y: auto; }
+.pwsave-page .items button { text-align: left; }
+.pwsave-page [hidden] { display: none; }

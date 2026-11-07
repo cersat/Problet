@@ -8,15 +8,29 @@ api.pwOfferCurrent().then((o) => {
 	$('site').textContent = new URL(o.origin).hostname;
 	$('user').textContent = o.username || 'без логина';
 	$('save').textContent = o.update ? 'Обновить' : 'Сохранить';
-	if (!o.unlocked) $('note').textContent = 'Хранилище закрыто: откроется менеджер паролей, там нужно ввести мастер-пароль';
+	if (!o.unlocked) {
+		$('master-box').hidden = false;
+		$('master2').hidden = o.exists;
+		$('master').placeholder = o.exists ? 'Мастер-пароль' : 'Придумай мастер-пароль (от ' + o.min + ' символов)';
+		$('master2').placeholder = 'Повтори мастер-пароль';
+		$('note').textContent = o.exists ? 'Хранилище закрыто: введи мастер-пароль' : 'Хранилища ещё нет: мастер-пароль защитит сохранённые пароли, забыв его, их не восстановить';
+	}
 }).catch(() => api.panelClose());
 
 $('save').addEventListener('click', async () => {
+	$('err').textContent = '';
 	try {
+		if (!offer.unlocked) {
+			if (offer.exists) await api.pwUnlock($('master').value);
+			else {
+				if ($('master').value !== $('master2').value) throw new Error('Пароли не совпадают');
+				await api.pwCreate($('master').value);
+			}
+		}
 		await api.pwPendingSave(offer.tabId);
+		api.panelClose();
 	} catch (e) {
-		await api.openInNewTab('passwords'); // хранилище закрыто: предложение остаётся ждать в менеджере паролей
+		$('err').textContent = offer.exists ? 'Неверный мастер-пароль' : String(e.message || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
 	}
-	api.panelClose();
 });
 $('later').addEventListener('click', () => api.panelClose()); // предложение остаётся: ключ в адресной строке
