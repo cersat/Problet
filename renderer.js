@@ -116,7 +116,19 @@ function makeTab(t, state) {
 	}
 	const text = document.createElement('span');
 	text.className = 'label';
-	text.textContent = label;
+	if (t.space && !t.pinned) {
+		text.classList.add('two');
+		const name = document.createElement('span');
+		name.className = 't';
+		name.textContent = label;
+		const sp = document.createElement('small');
+		sp.className = 'sp';
+		sp.textContent = t.space;
+		text.append(name, sp);
+		el.title = label + ' — ' + t.space;
+	} else {
+		text.textContent = label;
+	}
 	const close = document.createElement('button');
 	close.className = 'close';
 	close.dataset.close = t.id;
@@ -348,9 +360,10 @@ function applyLayout(l) {
 	document.getElementById('history').classList.toggle('off', !l.appHistory);
 	document.getElementById('settings').classList.toggle('off', !l.appSettings);
 	document.getElementById('downloads').classList.toggle('off', !l.appDownloads);
-	// Кнопки окна живут в самой верхней полосе: во вкладках, а если вкладки не сверху, то в панели инструментов
+	// Кнопки окна живут в самой верхней полосе: во вкладках, а если вкладки не сверху, то в отдельной узкой полосе над панелью инструментов
 	winctl.classList.toggle('hidden', !l.winButtons);
-	const slot = document.getElementById(l.tabsPos === 'top' ? 'slot-tab' : 'slot-tool');
+	document.body.dataset.title = l.winButtons && l.tabsPos !== 'top' ? 'on' : 'off';
+	const slot = document.getElementById(l.tabsPos === 'top' ? 'slot-tab' : 'titlebar');
 	if (winctl.parentElement !== slot) slot.append(winctl);
 	document.getElementById('win-max').title = l.maximized ? 'Восстановить' : 'Развернуть';
 	document.getElementById('win-max-icon').innerHTML = l.maximized

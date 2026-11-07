@@ -47,6 +47,7 @@ if (location.protocol === 'problet:') {
 		checkUpdate: () => call('update:check'),
 		applyUpdate: () => call('update:apply'),
 		search: (text) => call('search:run', text),
+		insecureProceed: (url) => call('insecure:proceed', url),
 		openInNewTab: (name) => call('page:open-tab', name),
 		spaces: () => call('spaces:state'),
 		spacesSwitch: (id) => call('spaces:switch', id),

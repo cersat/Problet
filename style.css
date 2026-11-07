@@ -17,23 +17,26 @@ html, body {
 body {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr) auto;
-	grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+	grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
 }
 
 .mid {
-	grid-row: 4;
+	grid-row: 5;
 	grid-column: 2;
 }
 
-.tabbar { grid-row: 1; grid-column: 1 / -1; }
-.toolbar { grid-row: 2; grid-column: 1 / -1; }
-.bmbar { grid-row: 3; grid-column: 1 / -1; }
-body[data-bm="bottom"] .bmbar { grid-row: 5; border-top: 1px solid var(--border); }
+.titlebar { grid-row: 1; grid-column: 1 / -1; display: none; justify-content: flex-end; align-items: stretch; height: 28px; background: var(--tabbar); -webkit-app-region: drag; }
+body[data-title="on"] .titlebar { display: flex; }
+.titlebar .winctl { margin-right: 0; }
+.tabbar { grid-row: 2; grid-column: 1 / -1; }
+.toolbar { grid-row: 3; grid-column: 1 / -1; }
+.bmbar { grid-row: 4; grid-column: 1 / -1; }
+body[data-bm="bottom"] .bmbar { grid-row: 6; border-top: 1px solid var(--border); }
 body[data-bm="top"] .bmbar { border-bottom: 1px solid var(--border); }
 body[data-bm="off"] .bmbar { display: none; }
-body[data-tabs="bottom"] .tabbar { grid-row: 6; align-items: flex-start; padding: 0 6px 4px; }
-body[data-tabs="left"] .tabbar { grid-row: 4; grid-column: 1; }
-body[data-tabs="right"] .tabbar { grid-row: 4; grid-column: 3; }
+body[data-tabs="bottom"] .tabbar { grid-row: 7; align-items: flex-start; padding: 0 6px 4px; }
+body[data-tabs="left"] .tabbar { grid-row: 5; grid-column: 1; }
+body[data-tabs="right"] .tabbar { grid-row: 5; grid-column: 3; }
 
 /* Перетаскивать окно можно за пустые места панелей */
 .tabbar, .toolbar { -webkit-app-region: drag; }
@@ -170,6 +173,23 @@ button:disabled {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.tab .label.two {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	line-height: 1.15;
+}
+
+.tab .label.two > * {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.tab .label .sp {
+	font-size: 10px;
+	opacity: 0.65;
 }
 
 .tab .close {

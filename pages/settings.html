@@ -144,6 +144,10 @@
 				<label class="switch"><input type="checkbox" data-setting="spacesPopup"><span></span></label>
 			</div>
 			<div class="setting">
+				<div class="what">Не разделять вкладки по пространствам<small>Показываются все вкладки, под названием каждой написано пространство. Апплет пространств выбирает, где создаются новые вкладки</small></div>
+				<label class="switch"><input type="checkbox" data-setting="spacesMerged"><span></span></label>
+			</div>
+			<div class="setting">
 				<div class="what">Пространства</div>
 				<button id="manage-spaces">Управлять пространствами</button>
 			</div>
@@ -198,6 +202,14 @@
 			<div class="setting">
 				<div class="what">Блокировать рекламу на YouTube<small>YouTube считает блокировку рекламы нарушением своих правил и может приостановить воспроизведение. Если выключить, на YouTube реклама не блокируется</small></div>
 				<label class="switch"><input type="checkbox" data-setting="adblockYoutube"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Свои домены в списке блокировки<small>Домены или адреса, которые блокировщик будет блокировать вдобавок к общему списку</small></div>
+				<button id="open-blocklist">Добавить свои домены в список блокировки</button>
+			</div>
+			<div class="setting">
+				<div class="what">Предупреждать при попытке небезопасного подключения<small>Перед открытием страницы по http:// (без шифрования) показывается предупреждение. Локальные адреса не затрагиваются</small></div>
+				<label class="switch"><input type="checkbox" data-setting="warnInsecure"><span></span></label>
 			</div>
 			<div class="setting">
 				<div class="what">Заблокировано рекламных запросов<small id="blocked-note"></small></div>

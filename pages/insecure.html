@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Небезопасное подключение</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="insecure.css">
+</head>
+<body class="insecure-page">
+	<main>
+		<h1>Небезопасное подключение</h1>
+		<p>Адрес <b id="host"></b> открывается по http://, без шифрования. Всё, что вы отправите на этот сайт или получите с него, могут прочитать или изменить по пути, поэтому не вводите здесь пароли и данные карт.</p>
+		<p class="url" id="url"></p>
+		<div class="row">
+			<button class="primary" id="back">Назад</button>
+			<button id="go">Всё равно открыть</button>
+		</div>
+	</main>
+	<script src="insecure.js"></script>
+</body>
+</html>

@@ -360,6 +360,7 @@ $('make-default').addEventListener('click', () => run(async () => {
 	const r = await api.makeDefaultBrowser();
 	say(r.message, !r.ok);
 }));
+$('open-blocklist').addEventListener('click', () => run(() => api.openInNewTab('blocklist')));
 $('manage-spaces').addEventListener('click', () => run(() => api.openSpacesApplet()));
 
 // ---------- Горячие клавиши ----------

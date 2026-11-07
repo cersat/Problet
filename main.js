@@ -92,13 +92,14 @@ app.on('render-process-gone', (_e, wc, details) => log('render-process-gone', wc
 app.on('child-process-gone', (_e, details) => log('child-process-gone', details));
 
 const TABBAR_HEIGHT = 36;
+const TITLEBAR_HEIGHT = 28;
 const TOOLBAR_HEIGHT = 44;
 const BMBAR_HEIGHT = 32;
 const SIDE_WIDTH = 220; // ширина вертикальной панели вкладок
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -306,7 +307,7 @@ function sendTabs() {
 		showIcons: s.showTabIcons,
 		overflow: s.tabOverflow,
 		space: spaces.find((x) => x.id === currentSpace) || spaces[0],
-		tabs: visibleTabs().map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, incognito: !!t.incognito })),
+		tabs: visibleTabs().map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, incognito: !!t.incognito, space: s.spacesMerged ? (spaces.find((x) => x.id === t.space) || {}).name || '' : '' })),
 		side: s.tabsPos === 'left' || s.tabsPos === 'right',
 	});
 }
@@ -380,6 +381,7 @@ function insets() {
 	const s = settings();
 	const i = { top: TOOLBAR_HEIGHT, bottom: 0, left: 0, right: 0 };
 	if (s.tabsPos === 'top') i.top += TABBAR_HEIGHT;
+	else if (s.winButtons) i.top += TITLEBAR_HEIGHT;
 	else if (s.tabsPos === 'bottom') i.bottom += TABBAR_HEIGHT;
 	else if (s.tabsPos === 'left') i.left = SIDE_WIDTH;
 	else i.right = SIDE_WIDTH;
@@ -542,12 +544,12 @@ function wireTab(tab) {
 
 // opts: activate (по умолчанию да), lazy (загрузить при первом открытии), afterId, title, icon
 function visibleTabs() {
-	return tabs.filter((t) => t.space === currentSpace && !t.hidden);
+	return tabs.filter((t) => (settings().spacesMerged || t.space === currentSpace) && !t.hidden);
 }
 
 function spaceOf(opts) {
 	if (opts.space && spaces.some((x) => x.id === opts.space)) return opts.space;
-	const from = opts.afterId && tabs.find((t) => t.id === opts.afterId);
+	const from = !settings().spacesMerged && opts.afterId && tabs.find((t) => t.id === opts.afterId);
 	return from ? from.space : currentSpace;
 }
 
@@ -604,7 +606,7 @@ function activateTab(id) {
 	}
 	hideSuggest();
 	if (tab.id !== activeId) { closeFind(); closePanel(); }
-	currentSpace = tab.space;
+	if (!settings().spacesMerged) currentSpace = tab.space;
 	if (!tab.hidden) spaceActive[tab.space] = tab.id;
 	const prev = activeTab();
 	if (prev && prev !== tab) prev.view.setVisible(false);
@@ -677,7 +679,7 @@ function closeTab(id) {
 	if (index < 0) return;
 	log('закрыта вкладка', id, tabs[index].url, tabs[index].view.webContents ? '' : '(страница уже уничтожена)');
 	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden && tabs[index].view.webContents && !tabs[index].view.webContents.isDestroyed()) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
-	const vIndex = tabs.filter((t) => t.space === tabs[index].space && !t.hidden).indexOf(tabs[index]);
+	const vIndex = tabs.filter((t) => (settings().spacesMerged || t.space === tabs[index].space) && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
@@ -691,8 +693,8 @@ function closeTab(id) {
 	}
 	if (tab.id === activeId) {
 		activeId = null;
-		const same = tabs.filter((t) => t.space === tab.space && !t.hidden);
-		const back = tab.hidden ? same.find((t) => t.id === spaceActive[tab.space]) : null;
+		const same = tabs.filter((t) => (settings().spacesMerged || t.space === tab.space) && !t.hidden);
+		const back = tab.hidden ? same.find((t) => t.id === spaceActive[tab.space]) || (settings().spacesMerged ? tabs.find((t) => t.id === spaceActive[tab.space]) : null) : null;
 		if (same.length) activateTab((back || same[Math.min(Math.max(0, vIndex), same.length - 1)]).id);
 		else createTab(NEWTAB, { space: tab.space }); // пространство опустело — открываем в нём пустую вкладку
 	} else if (!visibleTabs().length) {
@@ -715,7 +717,7 @@ function openInternal(name) {
 	if (!INTERNAL_PAGES.has(name)) return;
 	const url = 'problet://' + name;
 	if (name !== 'settings' || settings().settingsAsTab) {
-		const existing = tabs.find((t) => t.space === currentSpace && (t.pendingUrl || t.url).startsWith(url));
+		const existing = tabs.find((t) => (settings().spacesMerged || t.space === currentSpace) && (t.pendingUrl || t.url).startsWith(url));
 		if (existing) activateTab(existing.id);
 		else createTab(url);
 		return;
@@ -1556,6 +1558,7 @@ function broadcastTheme() {
 	for (const t of tabs) if (t.view.webContents && !t.view.webContents.isDestroyed()) t.view.webContents.send('theme', payload);
 }
 
+let mergedWas = null;
 function applySettings() {
 	const s = settings();
 	vault.setAutoLock(s.pwLock);
@@ -1566,6 +1569,12 @@ function applySettings() {
 	if (findView) findView.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
 	for (const t of tabs) t.view.setBackgroundColor(bgColor());
 	broadcastTheme();
+	if (mergedWas !== s.spacesMerged) {
+		mergedWas = s.spacesMerged;
+		const cur = activeTab();
+		if (!s.spacesMerged && cur && !cur.hidden) currentSpace = cur.space; // обычный режим: пространство — то, где лежит открытая вкладка
+		store.notify('spaces');
+	}
 	sendLayout();
 	layout();
 	sendTabs();
@@ -1815,7 +1824,7 @@ ipcMain.on('applet-open', (e, kind, rect) => {
 // Апплет пространств: страница; если так выбрано в настройках, у неё нет вкладки в панели
 function openSpacesApplet() {
 	const url = 'problet://spaces';
-	const existing = tabs.find((t) => t.space === currentSpace && (t.pendingUrl || t.url).startsWith(url));
+	const existing = tabs.find((t) => (settings().spacesMerged || t.space === currentSpace) && (t.pendingUrl || t.url).startsWith(url));
 	if (existing) activateTab(existing.id);
 	else createTab(url, { hidden: settings().spacesPopup });
 }
@@ -1832,6 +1841,13 @@ function spacesChanged() {
 
 function switchSpace(id) {
 	if (!spaces.some((x) => x.id === id) || id === currentSpace) return;
+	if (settings().spacesMerged) {
+		currentSpace = id; // вкладки видны все, пространство лишь выбирает, где создаются новые
+		sendTabs();
+		scheduleSession();
+		store.notify('spaces');
+		return;
+	}
 	const list = tabs.filter((t) => t.space === id);
 	const remembered = list.find((t) => t.id === spaceActive[id]);
 	if (remembered || list.length) activateTab((remembered || list[list.length - 1]).id);
@@ -1938,6 +1954,13 @@ ipcMain.handle('search:run', (e, text) => {
 });
 
 // Открыть внутреннюю страницу (историю, закладки…) в новой вкладке
+handle('insecure:proceed', (url) => {
+	const u = new URL(String(url));
+	if (u.protocol !== 'http:') throw new Error('Неверный адрес');
+	adblock.allowInsecure(u.hostname);
+	const tab = tabs.find((t) => t.id === activeId);
+	if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.loadURL(u.href);
+});
 handle('page:open-tab', (name) => {
 	if (!INTERNAL_PAGES.has(name) || name === 'newtab') throw new Error('Неизвестная страница');
 	createTab('problet://' + name);
@@ -1993,7 +2016,8 @@ handle('spaces:remove', (id) => {
 	for (const t of tabs) if (t.space === id) t.space = store.DEFAULT_SPACE; // вкладки удалённого пространства уходят в основное
 	spaces = spaces.filter((x) => x.id !== id);
 	delete spaceActive[id];
-	if (wasCurrent) {
+	if (wasCurrent && settings().spacesMerged) currentSpace = store.DEFAULT_SPACE;
+	else if (wasCurrent) {
 		currentSpace = null;
 		const list = tabs.filter((t) => t.space === store.DEFAULT_SPACE);
 		activateTab(list[list.length - 1].id);

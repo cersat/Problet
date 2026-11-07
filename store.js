@@ -71,10 +71,13 @@ const SETTING_DEFAULTS = {
 	appChars: true,
 	appSpaces: true,
 	spacesPopup: false,
+	spacesMerged: false,
+	warnInsecure: false,
+	customBlock: '',
 	bmNewTab: false,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'bmNewTab'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'spacesMerged', 'warnInsecure', 'bmNewTab'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -172,6 +175,7 @@ function sanitizeSettings(raw) {
 	}
 	out.hotkeys = cleanHotkeys(r.hotkeys);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
+	out.customBlock = str(r.customBlock, 200000);
 	out.downloadDir = typeof r.downloadDir === 'string' && r.downloadDir.length <= 1024 && path.isAbsolute(r.downloadDir) ? r.downloadDir : '';
 	if (!settingsReachableByKey(out.hotkeys)) out.appSettings = true;
 	out.customTemplate = validTemplate(r.customTemplate) ? r.customTemplate.trim() : '';
@@ -520,6 +524,10 @@ function setSettings(patch) {
 		const u = str(p.startupUrl, 2048).trim();
 		if (/^(javascript|vbscript):/i.test(u)) throw new Error('Некорректный адрес стартовой страницы');
 		next.startupUrl = u;
+	}
+	if (p.customBlock !== undefined) {
+		if (typeof p.customBlock !== 'string' || p.customBlock.length > 200000) throw new Error('Список слишком длинный');
+		next.customBlock = p.customBlock;
 	}
 	if (p.downloadDir !== undefined) {
 		if (typeof p.downloadDir !== 'string' || p.downloadDir.length > 1024 || (p.downloadDir && !path.isAbsolute(p.downloadDir))) throw new Error('Некорректная папка загрузок');

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Свой список блокировки</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="blocklist.css">
+</head>
+<body class="blocklist-page">
+	<main>
+		<h1>Свой список блокировки</h1>
+		<p class="hint">Один домен или адрес на строку. Домен блокирует и все его поддомены (<code>example.com</code>), с путём блокируются адреса, начинающиеся с него (<code>example.com/ads/</code>). Строки с <code>#</code> в начале — комментарии. Блокируются запросы, которые страницы подгружают сами; работает при включённой блокировке рекламы.</p>
+		<textarea id="list" spellcheck="false" autocomplete="off" placeholder="ads.example.com&#10;tracker.example.org/pixel"></textarea>
+		<div class="row">
+			<button class="primary" id="save">Сохранить</button>
+			<span id="note" class="note"></span>
+		</div>
+	</main>
+	<script src="blocklist.js"></script>
+</body>
+</html>

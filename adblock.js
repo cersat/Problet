@@ -115,6 +115,69 @@ function replacement(type) {
 	return null;
 }
 
+// Свои правила пользователя (настройка customBlock): домен блокирует и поддомены, адрес с путём — всё, что с него начинается
+let customText = null;
+let customDomains = new Set();
+let customPaths = [];
+
+function parseCustom(text) {
+	customText = text;
+	customDomains = new Set();
+	customPaths = [];
+	for (const raw of String(text).split('\n')) {
+		let line = raw.trim().toLowerCase();
+		if (!line || line.startsWith('#')) continue;
+		line = line.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/^\*\./, '').replace(/[?#].*$/, '');
+		const slash = line.indexOf('/');
+		const host = (slash < 0 ? line : line.slice(0, slash)).replace(/:\d+$/, '').replace(/\.$/, '');
+		const rest = slash < 0 ? '' : line.slice(slash);
+		if (!host) continue;
+		if (rest.length > 1) customPaths.push({ host, part: rest });
+		else customDomains.add(host);
+	}
+}
+
+function isCustomBlocked(url, text) {
+	if (text !== customText) parseCustom(text);
+	if (!customDomains.size && !customPaths.length) return false;
+	try {
+		const u = new URL(url);
+		const host = u.hostname.toLowerCase().replace(/\.$/, '');
+		const under = (rule) => host === rule || host.endsWith('.' + rule);
+		for (const d of customDomains) if (under(d)) return true;
+		const rest = u.pathname + u.search;
+		return customPaths.some((r) => under(r.host) && rest.startsWith(r.part));
+	} catch (e) {
+		return false;
+	}
+}
+
+// Предупреждение о http://: локальные адреса и частные сети не трогаем. Разрешённые вручную сайты запоминаются до закрытия программы
+const insecureOk = new Set();
+const allowInsecure = (host) => { insecureOk.add(String(host).toLowerCase()); };
+
+function isLocalHost(h) {
+	h = String(h).toLowerCase().replace(/^\[|\]$/g, '');
+	if (!h.includes('.') && !h.includes(':')) return true; // localhost и имена без точки
+	if (h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.lan') || h.endsWith('.internal')) return true;
+	if (h.includes(':')) return h === '::1' || /^f[cd]/.test(h) || /^fe80/.test(h);
+	const m = /^(\d+)\.(\d+)\.\d+\.\d+$/.exec(h);
+	if (!m) return false;
+	const a = Number(m[1]);
+	const b = Number(m[2]);
+	return a === 10 || a === 127 || a === 0 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127);
+}
+
+function insecureRedirect(details) {
+	try {
+		const u = new URL(details.url);
+		if (u.protocol !== 'http:' || isLocalHost(u.hostname) || insecureOk.has(u.hostname.toLowerCase())) return null;
+		return 'problet://insecure/?u=' + encodeURIComponent(u.href);
+	} catch (e) {
+		return null;
+	}
+}
+
 let observer = null;
 const observe = (fn) => { observer = fn; }; // сообщает о каждом запросе и о том, заблокирован ли он (режим без окна)
 
@@ -122,7 +185,14 @@ function start(session, store) {
 	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
 		const s = store.getSettings();
-		const block = s.adblock && isBlocked(details) && (s.adblockYoutube || !fromYoutube(details));
+		if (s.warnInsecure && details.resourceType === 'mainFrame') {
+			const to = insecureRedirect(details);
+			if (to) {
+				callback({ redirectURL: to });
+				return;
+			}
+		}
+		const block = s.adblock && details.resourceType !== 'mainFrame' && ((isBlocked(details) && (s.adblockYoutube || !fromYoutube(details))) || isCustomBlocked(details.url, s.customBlock));
 		let host = '';
 		try {
 			host = new URL(details.url).hostname;
@@ -160,4 +230,4 @@ const COSMETIC_CSS = [
 
 const blockedCount = () => blocked;
 
-module.exports = { observe, isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
