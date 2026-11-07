@@ -99,7 +99,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwunlock']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -484,7 +484,7 @@ function wireTab(tab) {
 	});
 	wc.on('did-navigate', () => {
 		const offer = pwOffers.get(tab.id);
-		if (offer && frameOriginOfUrl(wc.getURL()) !== offer.origin) pwOffers.delete(tab.id);
+		if (offer && Date.now() - offer.at > 120000) pwOffers.delete(tab.id); // после входа часто идут редиректы: предложение живёт, пока человек не ответит (но не вечно)
 		restoreZoom(wc);
 		// Страница без <title> (404, обычный текст): событие названия не придёт, берём то, что подобрал сам Chromium
 		if (!tab.title) tab.title = wc.getTitle();
@@ -880,7 +880,7 @@ ipcMain.on('pw:submit', (e, data) => {
 		pwOffers.delete(tab.id);
 	} else {
 		const update = vault.isUnlocked() && vault.hasLogin(origin, username);
-		pwOffers.set(tab.id, { origin, username, password, update });
+		pwOffers.set(tab.id, { origin, username, password, update, at: Date.now() });
 	}
 	if (tab.id === activeId) {
 		sendState();
@@ -898,7 +898,24 @@ handle('pw:offer-current', () => {
 ipcMain.handle('pw:lookup', (e) => {
 	const origin = frameOrigin(e);
 	if (!origin || !tabOfSender(e) || !settings().pwFill) return [];
+	if (!vault.isUnlocked()) return vault.exists() ? { locked: true } : [];
 	return vault.forOrigin(origin);
+});
+
+// Хранилище закрыто, а человек нажал на поле входа: спрашиваем мастер-пароль (раз на страницу), после ввода страница подставит данные
+const unlockAsked = new Set();
+ipcMain.on('pw:need-unlock', (e) => {
+	const tab = tabOfSender(e);
+	const origin = frameOrigin(e);
+	if (!tab || !origin || tab.id !== activeId || vault.isUnlocked() || !vault.exists() || panelOpen) return;
+	const key = tab.id + '|' + e.senderFrame.url;
+	if (unlockAsked.has(key)) return;
+	unlockAsked.add(key);
+	openPanel('pwunlock', { x: contentSize()[0] - 12, y: insets().top - TOOLBAR_HEIGHT + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+});
+handle('pw:fill-retry', () => {
+	const tab = activeTab();
+	if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.send('pw:unlocked');
 });
 
 function acceptOffer(tabId) {
@@ -1783,7 +1800,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 200] };
+const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 200], pwunlock: [320, 190] };
 
 function ensurePanel() {
 	if (panel) return;
@@ -1795,11 +1812,11 @@ function ensurePanel() {
 	win.contentView.addChildView(panel);
 	// Потеря фокуса закрывает панель, но не пока она грузится: при загрузке страницы фокус на миг сбрасывается
 	panel.webContents.on('blur', () => {
-		if (!panelOpen || panel.webContents.isLoading() || Date.now() - panelOpenedAt < 500) return;
+		if (!panelOpen || panel.webContents.isLoading() || Date.now() - panelOpenedAt < (panelKind === 'pwsave' ? 5000 : 500)) return; // предложение сохранить пережить редирект после входа
 		closePanel();
 	});
 	panel.webContents.on('did-finish-load', () => {
-		if (panelOpen) panel.webContents.focus();
+		if (panelOpen && panelKind !== 'pwsave') panel.webContents.focus();
 	});
 }
 
@@ -1834,7 +1851,7 @@ function openPanel(kind, rect) {
 	win.contentView.addChildView(panel);
 	panel.setVisible(true);
 	panel.webContents.loadURL('problet://' + kind + '/?popup=1').catch(() => {});
-	panel.webContents.focus();
+	if (kind !== 'pwsave') panel.webContents.focus();
 }
 
 ipcMain.on('applet-open', (e, kind, rect) => {

@@ -7,3 +7,5 @@
 .pwsave-page .note { margin: 0 0 12px; color: var(--muted); font-size: 12px; min-height: 1em; }
 .pwsave-page .row { display: flex; gap: 8px; }
 .pwsave-page .row button { flex: 1; padding: 8px 14px; }
+.pwsave-page input[type=password] { height: 34px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); outline: none; }
+.pwsave-page input[type=password]:focus { border-color: var(--accent); }

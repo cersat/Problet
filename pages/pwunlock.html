@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Менеджер паролей</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="pwsave.css">
+</head>
+<body class="pwsave-page">
+	<h1>Открыть менеджер паролей</h1>
+	<p class="note">Введи мастер-пароль, чтобы подставить сохранённый пароль</p>
+	<form id="f">
+		<input type="password" id="master" placeholder="Мастер-пароль" autocomplete="off" style="width:100%;margin-bottom:8px">
+		<p id="err" class="note" style="color:#d94b4b"></p>
+		<div class="row">
+			<button class="primary" type="submit">Открыть</button>
+			<button type="button" id="cancel">Отмена</button>
+		</div>
+	</form>
+	<script src="pwunlock.js"></script>
+</body>
+</html>
