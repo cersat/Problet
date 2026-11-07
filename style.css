@@ -526,3 +526,5 @@ body[data-tabs="right"] .spaces {
 	border-radius: 8px;
 	white-space: normal;
 }
+
+.tab.frozen:not(.active) .label, .tab.frozen:not(.active) .fav { opacity: 0.55; }

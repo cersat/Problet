@@ -307,7 +307,7 @@ function sendTabs() {
 		showIcons: s.showTabIcons,
 		overflow: s.tabOverflow,
 		space: spaces.find((x) => x.id === currentSpace) || spaces[0],
-		tabs: visibleTabs().map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, incognito: !!t.incognito, space: s.spacesMerged ? (spaces.find((x) => x.id === t.space) || {}).name || '' : '' })),
+		tabs: visibleTabs().map((t) => ({ id: t.id, title: tabTitle(t), url: t.pendingUrl || t.url, icon: internalIcon(t.pendingUrl || t.url) || t.icon, loading: t.loading, pinned: t.pinned, frozen: !!t.frozen, incognito: !!t.incognito, space: s.spacesMerged ? (spaces.find((x) => x.id === t.space) || {}).name || '' : '' })),
 		side: s.tabsPos === 'left' || s.tabsPos === 'right',
 	});
 }
@@ -448,7 +448,7 @@ function onNavigated(tab) {
 
 function wireTab(tab) {
 	const wc = tab.view.webContents;
-	const alive = () => tabs.includes(tab);
+	const alive = () => tabs.includes(tab) && tab.view.webContents === wc; // страница заменена при выгрузке: события старой не в счёт
 
 	wc.setWindowOpenHandler(({ url }) => {
 		if (/^(https?|file):\/\//i.test(url)) createTab(url, { afterId: tab.id });
@@ -456,7 +456,7 @@ function wireTab(tab) {
 	});
 	// Страница закрыла себя сама (window.close(), например всплывающее окно входа через Google) — убираем её вкладку
 	wc.once('destroyed', () => {
-		if (win && !win.isDestroyed() && tabs.includes(tab)) closeTab(tab.id);
+		if (win && !win.isDestroyed() && tabs.includes(tab) && tab.view.webContents === wc) closeTab(tab.id);
 	});
 	wc.on('before-input-event', hotkeys);
 	wc.on('context-menu', (_e, params) => showPageMenu(tab, params));
@@ -575,7 +575,7 @@ function createTab(url, opts = {}) {
 	view.setBackgroundColor(bgColor());
 	view.setVisible(false);
 	if (profile) view.webContents.setUserAgent(profile.userAgent);
-	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now() };
+	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now(), lastActive: Date.now(), frozen: false };
 
 	let index = tabs.length;
 	if (opts.afterId) {
@@ -593,7 +593,10 @@ function createTab(url, opts = {}) {
 	wireTab(tab);
 
 	if (!tab.incognito && tab.icon && originOf(tab.url)) iconByOrigin.set(originOf(tab.url), tab.icon);
-	if (opts.lazy) tab.pendingUrl = url;
+	if (opts.lazy) {
+		tab.pendingUrl = url;
+		tab.frozen = 'discarded';
+	}
 	else if (url) view.webContents.loadURL(url).catch(() => {});
 
 	log('новая вкладка', tab.id, url, tab.hidden ? 'без панели' : '', 'пространство', tab.space);
@@ -619,15 +622,22 @@ function activateTab(id) {
 	if (!settings().spacesMerged) currentSpace = tab.space;
 	if (!tab.hidden) spaceActive[tab.space] = tab.id;
 	const prev = activeTab();
-	if (prev && prev !== tab) prev.view.setVisible(false);
+	if (prev && prev !== tab) {
+		prev.view.setVisible(false);
+		prev.lastActive = Date.now();
+	}
+	tab.lastActive = Date.now();
+	if (tab.frozen === 'cdp') thawTab(tab);
 	activeId = tab.id;
 	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
 	tab.view.setVisible(true);
 	if (tab.pendingUrl) {
 		const url = tab.pendingUrl;
 		tab.pendingUrl = null;
+		tab.frozen = false;
 		tab.view.webContents.loadURL(url).catch(() => {});
 	}
+	applySpaceFreeze();
 	setWindowTitle(tab);
 	if (isNewTab(tab.view.webContents.getURL() || tab.url)) focusAddress();
 	else tab.view.webContents.focus();
@@ -635,6 +645,95 @@ function activateTab(id) {
 	sendState(true, true);
 	scheduleSession();
 }
+
+// ---------- Заморозка вкладок ----------
+// Замороженная вкладка либо приостановлена средствами Chromium (память занята, но скрипты не работают),
+// либо, если включена выгрузка, закрывает страницу и загружает её заново при открытии
+
+async function thawTab(tab) {
+	if (tab.frozen !== 'cdp') return;
+	tab.frozen = false;
+	tab.frozenBy = '';
+	const wc = tab.view.webContents;
+	try {
+		await wc.debugger.sendCommand('Page.setWebLifecycleState', { state: 'active' });
+	} catch (e) { /* страница уже ушла */ }
+	try {
+		wc.debugger.detach();
+	} catch (e) { /* не была подключена */ }
+	sendTabs();
+}
+
+function canFreeze(tab) {
+	const wc = tab.view.webContents;
+	return tab.id !== activeId && !tab.hidden && !tab.frozen && /^(https?|file):/i.test(tab.view.webContents.getURL()) && !!wc && !wc.isDestroyed() && !wc.isCurrentlyAudible() && !wc.isLoading() && !wc.debugger.isAttached();
+}
+
+async function freezeTab(tab, by) {
+	if (!canFreeze(tab)) return;
+	const wc = tab.view.webContents;
+	if (settings().freezeDiscard) {
+		discardTab(tab);
+		return;
+	}
+	try {
+		wc.debugger.attach('1.3');
+		await wc.debugger.sendCommand('Page.setWebLifecycleState', { state: 'frozen' });
+		tab.frozen = 'cdp';
+		tab.frozenBy = by;
+		log('вкладка заморожена', tab.id, by);
+	} catch (e) {
+		try {
+			wc.debugger.detach();
+		} catch (e2) { /* не подключалась */ }
+	}
+	sendTabs();
+}
+
+// Выгрузка: на месте страницы остаётся пустая, которая загрузит адрес при открытии вкладки (как у вкладок прошлой сессии)
+function discardTab(tab) {
+	const old = tab.view;
+	const url = old.webContents.getURL() || tab.url;
+	if (!/^(https?|file):/i.test(url)) return; // внутренние страницы дёшевы, их не трогаем
+	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
+	if (tab.incognito) prefs.session = incognitoSession();
+	const view = new WebContentsView({ webPreferences: prefs });
+	view.setBackgroundColor(bgColor());
+	view.setVisible(false);
+	if (profile) view.webContents.setUserAgent(profile.userAgent);
+	view.setBounds(pageBounds());
+	tab.view = view;
+	tab.pendingUrl = url;
+	tab.frozen = 'discarded';
+	tab.loading = false;
+	win.contentView.removeChildView(old);
+	win.contentView.addChildView(view);
+	win.contentView.addChildView(findView);
+	win.contentView.addChildView(popup);
+	if (panel) win.contentView.addChildView(panel);
+	wireTab(tab);
+	if (!old.webContents.isDestroyed()) old.webContents.close();
+	log('вкладка выгружена', tab.id, url);
+	sendTabs();
+}
+
+// Заморозка по пространствам: вкладки пространств, которые не открыты, замораживаются; у открытого размораживаются
+function applySpaceFreeze() {
+	const s = settings();
+	for (const t of tabs) {
+		if (s.freezeSpaces && !s.spacesMerged && t.space !== currentSpace) freezeTab(t, 'space');
+		else if (t.frozen === 'cdp' && t.frozenBy === 'space' && (!s.freezeSpaces || s.spacesMerged || t.space === currentSpace)) thawTab(t);
+	}
+}
+
+// Заморозка по времени: вкладку, которую давно не открывали
+function freezeIdle() {
+	const min = Number(settings().freezeAfter);
+	if (!min || !win || win.isDestroyed()) return;
+	const limit = Date.now() - min * 60000;
+	for (const t of tabs) if (t.lastActive < limit) freezeTab(t, 'idle');
+}
+setInterval(freezeIdle, 20000);
 
 function pinnedCount() {
 	return tabs.filter((t) => t.pinned).length;
@@ -772,7 +871,7 @@ function openStartupTabs() {
 	startingUp = true;
 	list.forEach((item, i) => createTab(item.url, {
 		activate: i === active,
-		lazy: !!item.restored && i !== active,
+		lazy: !!item.restored && i !== active && s.freezeStart,
 		title: item.title,
 		icon: item.icon,
 		pinned: !!item.pinned,
@@ -1618,6 +1717,7 @@ function applySettings() {
 		if (!s.spacesMerged && cur && !cur.hidden) currentSpace = cur.space; // обычный режим: пространство — то, где лежит открытая вкладка
 		store.notify('spaces');
 	}
+	applySpaceFreeze();
 	sendLayout();
 	layout();
 	sendTabs();
@@ -1898,6 +1998,7 @@ function switchSpace(id) {
 		currentSpace = id;
 		createTab(NEWTAB, { space: id });
 	}
+	applySpaceFreeze();
 	store.notify('spaces');
 }
 

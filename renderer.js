@@ -77,7 +77,7 @@ function tabLabel(t, showUrl) {
 
 function makeTab(t, state) {
 	const el = document.createElement('div');
-	el.className = 'tab' + (t.id === state.activeId ? ' active' : '') + (t.pinned ? ' pinned' : '') + (t.incognito ? ' incognito' : '');
+	el.className = 'tab' + (t.id === state.activeId ? ' active' : '') + (t.pinned ? ' pinned' : '') + (t.incognito ? ' incognito' : '') + (t.frozen ? ' frozen' : '');
 	el.draggable = true;
 	el.dataset.id = t.id;
 	const label = tabLabel(t, state.showUrl);
