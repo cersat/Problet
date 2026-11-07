@@ -63,3 +63,30 @@ $('check').addEventListener('click', async () => {
 load().catch((e) => {
 	$('status').textContent = String((e && e.message) || e);
 });
+
+// Меню отладки: открывается адресом problet://version/debug/ или семью нажатиями на версию
+function showDebug() {
+	$('debug').hidden = false;
+}
+if (/^\/debug\/?$/.test(location.pathname)) showDebug();
+let taps = 0;
+let tapTimer = null;
+$('ver').addEventListener('click', () => {
+	taps++;
+	clearTimeout(tapTimer);
+	tapTimer = setTimeout(() => { taps = 0; }, 2000);
+	if (taps >= 7) showDebug();
+});
+$('debug').addEventListener('click', async (e) => {
+	const b = e.target.closest('button[data-debug]');
+	if (!b) return;
+	b.disabled = true;
+	try {
+		const r = await api.debug(b.dataset.debug);
+		$('status').textContent = (r && r.message) || '';
+	} catch (err) {
+		$('status').textContent = String((err && err.message) || err);
+	} finally {
+		b.disabled = false;
+	}
+});

@@ -1907,6 +1907,70 @@ handle('hotkeys:capture', (on) => {
 	capturingHotkey = !!on;
 });
 ipcMain.on('zoom-reset', (e) => fromToolbar(e) && zoomReset());
+// Меню отладки на странице problet://version/: действия вызываются только оттуда
+const DEBUG_ASK = {
+	'reset-settings': 'Сбросить все настройки к значениям по умолчанию? Закладки, история и пароли останутся.',
+	'remove-extensions': 'Удалить все расширения вместе с их файлами?',
+	'clear-site-data': 'Удалить все данные сайтов (куки, локальные хранилища, базы, кеш сервис-воркеров)? Придётся входить на сайты заново.',
+	'clear-cookies': 'Удалить все куки? Придётся входить на сайты заново.',
+};
+const allSessions = () => [session.defaultSession, ...(incSession ? [incSession] : [])];
+ipcMain.handle('debug:run', async (e, action) => {
+	guard(e);
+	if (!e.senderFrame.url.startsWith('problet://version')) throw new Error('Доступ запрещён');
+	action = String(action);
+	if (DEBUG_ASK[action]) {
+		const r = await dialog.showMessageBox(win, { type: 'warning', message: DEBUG_ASK[action], buttons: ['Да', 'Отмена'], defaultId: 1, cancelId: 1 });
+		if (r.response !== 0) return { message: 'Отменено' };
+	}
+	switch (action) {
+		case 'force-update': {
+			const st = await updater.check(true);
+			if (st.status === 'error') throw new Error(st.message);
+			await updater.apply();
+			return { message: 'Последняя версия ' + st.version + ' ставится принудительно' + (st.mode === 'page' || st.mode === 'dev' ? ' (открыта страница релиза)' : '') };
+		}
+		case 'clear-cookies':
+			for (const s of allSessions()) await s.clearStorageData({ storages: ['cookies'] });
+			return { message: 'Куки удалены' };
+		case 'clear-site-data':
+			for (const s of allSessions()) await s.clearStorageData();
+			return { message: 'Данные сайтов удалены' };
+		case 'clear-cache':
+			await cache.clearNow();
+			return { message: 'Кеш очищен' };
+		case 'reset-settings':
+			store.resetSettings();
+			applySettings();
+			return { message: 'Настройки сброшены' };
+		case 'remove-extensions': {
+			const list = extensions.list();
+			for (const x of list) await extensions.remove(x.path);
+			return { message: 'Расширений удалено: ' + list.length };
+		}
+		case 'open-data':
+			await shell.openPath(app.getPath('userData'));
+			return { message: 'Папка открыта' };
+		case 'open-log':
+			if (fs.existsSync(LOG_FILE)) await shell.openPath(LOG_FILE);
+			else return { message: 'Журнал пока пуст' };
+			return { message: 'Журнал открыт' };
+		case 'devtools':
+			win.webContents.openDevTools({ mode: 'detach' });
+			return { message: 'Инструменты разработчика интерфейса открыты' };
+		case 'restart':
+			store.flush();
+			if (process.env.APPIMAGE) updater.restartAppImage();
+			else {
+				app.relaunch();
+				app.exit(0);
+			}
+			return { message: 'Перезапуск…' };
+		default:
+			throw new Error('Неизвестное действие');
+	}
+});
+
 handle('version:info', () => ({
 	name: 'Problet',
 	version: app.getVersion(),
@@ -2191,7 +2255,7 @@ function internalHandler(request) {
 		const url = new URL(request.url);
 		if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || new Response('Not found', { status: 404 });
 		if (!INTERNAL_PAGES.has(url.hostname)) return new Response('Not found', { status: 404 });
-		const name = url.pathname === '/' || url.pathname === '' ? url.hostname + '.html' : path.posix.basename(url.pathname);
+		const name = url.pathname === '/' || url.pathname === '' || (url.hostname === 'version' && /^\/debug\/?$/.test(url.pathname)) ? url.hostname + '.html' : path.posix.basename(url.pathname);
 		if (!/^[\w-]+\.(html|js|css)$/.test(name)) return new Response('Not found', { status: 404 });
 		const filePath = name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name); // тема общая для всех окон
 		if (!fs.existsSync(filePath)) return new Response('Not found', { status: 404 });

@@ -484,6 +484,13 @@ function setDownloads(list) {
 
 // ---------- Настройки и поиск ----------
 
+function resetSettings() {
+	data.settings = sanitizeSettings({});
+	scheduleSave();
+	changed('settings');
+	return getSettings();
+}
+
 function getSettings() {
 	return { ...data.settings };
 }
@@ -854,7 +861,7 @@ function importData(raw, mode) {
 
 module.exports = {
 	init, flush,
-	getSettings, setSettings, engineList, searchUrl,
+	getSettings, setSettings, resetSettings, engineList, searchUrl,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
 	addFolder, renameFolder, removeFolder, importBookmarkItems, exportBookmarksHtml,

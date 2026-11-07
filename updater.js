@@ -70,7 +70,7 @@ function pickAsset(assets) {
 	return null;
 }
 
-async function check() {
+async function check(force) {
 	if (busy) return state;
 	busy = true;
 	set({ status: 'checking', message: '' });
@@ -82,7 +82,7 @@ async function check() {
 		page = release.html_url || 'https://github.com/' + REPO + '/releases';
 		asset = pickAsset(release.assets || []);
 		if (!asset) throw new Error('Для этой системы в релизе нет подходящего файла');
-		if (isNewer(asset.version, app.getVersion())) set({ status: 'available', version: asset.version });
+		if (force || isNewer(asset.version, app.getVersion())) set({ status: 'available', version: asset.version });
 		else set({ status: 'uptodate', version: app.getVersion() });
 	} catch (e) {
 		set({ status: 'error', message: String((e && e.message) || e) });
