@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Отладка</title>
+	<link rel="stylesheet" href="/theme.css">
+	<link rel="stylesheet" href="/common.css">
+	<link rel="stylesheet" href="/debug.css">
+</head>
+<body class="debug-page">
+	<main>
+		<h1>Меню отладки</h1>
+		<p class="hint">Служебные действия. Опасные помечены красным и просят подтверждения.</p>
+
+		<h2>Обновление и перезапуск</h2>
+		<div class="items">
+			<div class="item"><div class="what">Принудительно обновить браузер<small>Скачать и поставить последнюю версию, даже если она не новее текущей</small></div><button data-debug="force-update">Обновить</button></div>
+			<div class="item"><div class="what">Перезапустить браузер</div><button data-debug="restart">Перезапустить</button></div>
+		</div>
+
+		<h2>Данные</h2>
+		<div class="items">
+			<div class="item"><div class="what">Очистить куки<small>Придётся входить на сайты заново</small></div><button class="danger" data-debug="clear-cookies">Очистить</button></div>
+			<div class="item"><div class="what">Очистить данные сайтов<small>Куки, локальные хранилища и базы</small></div><button class="danger" data-debug="clear-site-data">Очистить</button></div>
+			<div class="item"><div class="what">Очистить кеш</div><button data-debug="clear-cache">Очистить</button></div>
+			<div class="item"><div class="what">Сбросить настройки<small>Закладки, история и пароли остаются</small></div><button class="danger" data-debug="reset-settings">Сбросить</button></div>
+			<div class="item"><div class="what">Удалить все расширения<small>Вместе с их файлами</small></div><button class="danger" data-debug="remove-extensions">Удалить</button></div>
+		</div>
+
+		<h2>Разработка</h2>
+		<div class="items">
+			<div class="item"><div class="what">Папка с данными</div><button data-debug="open-data">Открыть</button></div>
+			<div class="item"><div class="what">Журнал</div><button data-debug="open-log">Открыть</button></div>
+			<div class="item"><div class="what">Инструменты разработчика интерфейса<small>DevTools самого окна браузера</small></div><button data-debug="devtools">Открыть</button></div>
+		</div>
+
+		<p id="status" class="status"></p>
+	</main>
+	<script src="/debug.js"></script>
+</body>
+</html>

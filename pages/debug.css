@@ -1,0 +1,11 @@
+.debug-page main { max-width: 640px; margin: 0 auto; padding: 28px 20px 48px; }
+.debug-page h1 { font-size: 24px; margin: 0 0 6px; }
+.debug-page .hint { color: var(--muted); margin: 0 0 8px; }
+.debug-page h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 26px 0 8px; font-weight: 600; }
+.debug-page .items { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--control); }
+.debug-page .item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; }
+.debug-page .item + .item { border-top: 1px solid var(--border); }
+.debug-page .what small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+.debug-page button { flex: none; min-width: 112px; }
+.debug-page button.danger { border-color: var(--danger-border, #d94b4b); color: var(--danger-border, #d94b4b); }
+.debug-page .status { min-height: 1.4em; margin-top: 18px; color: var(--muted); }

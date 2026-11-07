@@ -40,6 +40,7 @@ async function load() {
 		['Маскировка под браузер', MASKS[info.mask] || info.mask],
 	];
 	for (const [k, v] of items) row(k, v);
+	$('grid').firstElementChild.dataset.tap = ''; // карточка «Problet — версия»
 	row('User-Agent', info.userAgent, true);
 	row('Папка с данными', info.data, true);
 	text = items.map(([k, v]) => k + ': ' + v).join('\n') + '\nUser-Agent: ' + info.userAgent;
@@ -64,29 +65,14 @@ load().catch((e) => {
 	$('status').textContent = String((e && e.message) || e);
 });
 
-// Меню отладки: открывается адресом problet://version/debug/ или семью нажатиями на версию
-function showDebug() {
-	$('debug').hidden = false;
-}
-if (/^\/debug\/?$/.test(location.pathname)) showDebug();
+// Семь нажатий подряд на версию в карточке открывают меню отладки (оно же по адресу problet://version/debug/)
 let taps = 0;
 let tapTimer = null;
-$('ver').addEventListener('click', () => {
+$('grid').addEventListener('click', (e) => {
+	const cell = e.target.closest('.cell');
+	if (!cell || cell.dataset.tap === undefined) return;
 	taps++;
 	clearTimeout(tapTimer);
 	tapTimer = setTimeout(() => { taps = 0; }, 2000);
-	if (taps >= 7) showDebug();
-});
-$('debug').addEventListener('click', async (e) => {
-	const b = e.target.closest('button[data-debug]');
-	if (!b) return;
-	b.disabled = true;
-	try {
-		const r = await api.debug(b.dataset.debug);
-		$('status').textContent = (r && r.message) || '';
-	} catch (err) {
-		$('status').textContent = String((err && err.message) || err);
-	} finally {
-		b.disabled = false;
-	}
+	if (taps >= 7) location.assign('problet://version/debug/');
 });

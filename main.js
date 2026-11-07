@@ -2255,7 +2255,7 @@ function internalHandler(request) {
 		const url = new URL(request.url);
 		if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || new Response('Not found', { status: 404 });
 		if (!INTERNAL_PAGES.has(url.hostname)) return new Response('Not found', { status: 404 });
-		const name = url.pathname === '/' || url.pathname === '' || (url.hostname === 'version' && /^\/debug\/?$/.test(url.pathname)) ? url.hostname + '.html' : path.posix.basename(url.pathname);
+		const name = url.pathname === '/' || url.pathname === '' || (url.hostname === 'version' && /^\/debug\/?$/.test(url.pathname)) ? (url.pathname === '/' || url.pathname === '' ? url.hostname : 'debug') + '.html' : path.posix.basename(url.pathname);
 		if (!/^[\w-]+\.(html|js|css)$/.test(name)) return new Response('Not found', { status: 404 });
 		const filePath = name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name); // тема общая для всех окон
 		if (!fs.existsSync(filePath)) return new Response('Not found', { status: 404 });

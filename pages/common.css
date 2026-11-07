@@ -1010,6 +1010,4 @@ details.group > summary {
 	user-select: none;
 }
 
-body.version .debug { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
-body.version .debug[hidden] { display: none; }
-body.version .debug h2 { font-size: 16px; margin: 0 0 12px; }
+body.version .cell[data-tap] { user-select: none; -webkit-user-select: none; cursor: default; }
