@@ -1904,6 +1904,24 @@ handle('page:open-tab', (name) => {
 	createTab('problet://' + name);
 });
 
+handle('default-browser:set', async () => {
+	if (!app.isPackaged) return { ok: false, message: 'Работает только в установленной версии Problet' };
+	const run = (cmd, args) => new Promise((resolve) => require('child_process').execFile(cmd, args, { timeout: 8000 }, (err, out) => resolve(err ? null : String(out).trim())));
+	let ok;
+	if (process.platform === 'linux') {
+		await run('xdg-settings', ['set', 'default-web-browser', 'problet.desktop']);
+		ok = (await run('xdg-settings', ['get', 'default-web-browser'])) === 'problet.desktop';
+	} else {
+		app.setAsDefaultProtocolClient('http');
+		app.setAsDefaultProtocolClient('https');
+		ok = app.isDefaultProtocolClient('http') && app.isDefaultProtocolClient('https');
+	}
+	log('стандартный браузер', ok ? 'установлен' : 'не удалось');
+	if (ok) return { ok, message: 'Problet теперь стандартный браузер' };
+	return { ok, message: process.platform === 'win32' || process.platform === 'darwin'
+		? 'Система не применила изменение. Выбери Problet вручную в настройках системы: приложения по умолчанию'
+		: 'Не удалось. Если запускаешь из AppImage, установи его в меню приложений (например, через AppImageLauncher) и повтори' };
+});
 handle('spaces:state', () => spacesState());
 handle('spaces:switch', (id) => switchSpace(String(id)));
 handle('spaces:add', (name) => {

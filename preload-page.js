@@ -71,6 +71,7 @@ if (location.protocol === 'problet:') {
 		pickDownloadDir: () => call('dir:pick'),
 		importSources: () => call('import:detect'),
 		importFrom: (id) => call('import:run', id),
+		makeDefaultBrowser: () => call('default-browser:set'),
 		extList: () => call('ext:list'),
 		extAdd: () => call('ext:add'),
 		extRemove: (p) => call('ext:remove', p),
