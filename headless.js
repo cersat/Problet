@@ -15,6 +15,7 @@
 //   GET  /text?tab=                 текст страницы
 //   GET  /screenshot?tab=           PNG
 //   GET  /requests?clear=1          сводка запросов по хостам (blocked — заблокирован блокировщиком)
+//   GET  /console?clear=1           ошибки и предупреждения из консоли страниц
 //   GET  /log?lines=200             хвост журнала
 //   POST /close    {tab}            закрыть вкладку
 //   POST /quit                      выйти
@@ -58,6 +59,9 @@ async function sizeView(wc) {
 	const height = m ? Number(m[2]) : 800;
 	if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
 	await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+	// Скрытое окно — «невидимая» страница: многие сайты в таком состоянии замирают, поэтому изображаем, что вкладка на виду
+	await wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true });
+	wc.setBackgroundThrottling(false);
 }
 
 // Снимок через отладчик: работает и без окна, и без дисплея
@@ -71,6 +75,18 @@ async function capture(_ctx, wc) {
 	} finally {
 		if (!attached) dbg.detach();
 	}
+}
+
+// Сообщения консоли страниц (ошибки и предупреждения): последние 200
+const consoleLog = [];
+function watchConsole(wc) {
+	wc.on('console-message', (e) => {
+		const level = e.level !== undefined ? e.level : 'info';
+		if (level === 'error' || level === 'warning' || level === 2 || level === 3) {
+			consoleLog.push({ level: String(level), text: String(e.message || '').slice(0, 300), source: String(e.sourceId || '').slice(0, 120), line: e.lineNumber });
+			if (consoleLog.length > 200) consoleLog.shift();
+		}
+	});
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -101,6 +117,7 @@ function start(ctx) {
 	async function open(url, wait) {
 		const t = ctx.createTab('about:blank', { activate: true });
 		const wc = t.view.webContents;
+		watchConsole(wc);
 		await sizeView(wc);
 		wc.loadURL(url).catch(() => {});
 		const t0 = Date.now();
@@ -143,6 +160,11 @@ function start(ctx) {
 					if (url.searchParams.get('clear')) hosts.clear();
 					return send(200, out);
 				}
+				case 'GET /console': {
+					const out = consoleLog.slice();
+					if (url.searchParams.get('clear')) consoleLog.length = 0;
+					return send(200, out);
+				}
 				case 'GET /log': return send(200, ctx.readLog(Number(url.searchParams.get('lines')) || 200), 'text/plain; charset=utf-8');
 				case 'POST /close': ctx.closeTab(Number(tab)); return send(200, { ok: true });
 				case 'POST /quit': send(200, { ok: true }); setTimeout(ctx.quit, 50); return;
@@ -176,7 +198,7 @@ async function fetchMode(ctx, target, o) {
 			const first = i === 0;
 			const r = await o.open(/^[a-z][a-z0-9+.-]*:/i.test(target) ? target : 'https://' + target, o.wait);
 			const wc = o.wcOf(r.id);
-			const run = { loaded: r.loaded, loadMs: r.loadMs, title: r.title, finalUrl: r.url, hosts: summary() };
+			const run = { console: consoleLog.splice(0), loaded: r.loaded, loadMs: r.loadMs, title: r.title, finalUrl: r.url, hosts: summary() };
 			if (first && o.text) run.text = await wc.executeJavaScript('document.body ? document.body.innerText : ""');
 			if (first && o.shot) {
 				fs.writeFileSync(o.shot, await capture(ctx, wc));

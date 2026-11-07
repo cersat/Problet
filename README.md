@@ -86,6 +86,7 @@ problet --headless --fetch=https://example.com --runs=3 --wait=4000 --adblock --
 | `GET /text?tab=` | текст страницы |
 | `GET /screenshot?tab=` | снимок PNG |
 | `GET /requests?clear=1` | сводка запросов по хостам |
+| `GET /console?clear=1` | ошибки и предупреждения из консоли страниц (в `--fetch` — поле `console`) |
 | `GET /log?lines=200` | хвост журнала `/tmp/problet/log` |
 | `POST /close {tab}` | закрыть вкладку |
 | `POST /quit` | выйти |
