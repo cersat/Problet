@@ -1011,3 +1011,5 @@ details.group > summary {
 }
 
 body.version .cell[data-tap] { user-select: none; -webkit-user-select: none; cursor: default; }
+
+.setting[hidden] { display: none; }

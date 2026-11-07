@@ -17,7 +17,7 @@ const ARCH = { x64: ['x64', 'x86_64'], arm64: ['arm64', 'aarch64'] }[process.arc
 const OS = { linux: 'linux', win32: 'win', darwin: 'mac' }[process.platform];
 
 // state: idle | checking | uptodate | available | downloading | ready | error
-let state = { status: 'idle', version: '', progress: 0, message: '', mode: mode() };
+let state = { status: 'idle', version: '', progress: 0, message: '', changelog: '', mode: mode() };
 let listeners = [];
 let asset = null;
 let page = '';
@@ -70,6 +70,19 @@ function pickAsset(assets) {
 	return null;
 }
 
+// Название коммита, из которого собрана последняя версия: служит списком изменений
+async function commitTitle(ref) {
+	if (process.env.PROBLET_UPDATE_URL) return '';
+	try {
+		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/commits/' + encodeURIComponent(ref || 'main'), { headers: { Accept: 'application/vnd.github+json' } });
+		if (!res.ok) return '';
+		const data = await res.json();
+		return String((data.commit && data.commit.message) || '').split('\n')[0].trim().slice(0, 300);
+	} catch (e) {
+		return '';
+	}
+}
+
 async function check(force) {
 	if (busy) return state;
 	busy = true;
@@ -81,6 +94,7 @@ async function check(force) {
 		const release = await res.json();
 		page = release.html_url || 'https://github.com/' + REPO + '/releases';
 		asset = pickAsset(release.assets || []);
+		set({ changelog: await commitTitle('main') });
 		if (!asset) throw new Error('Для этой системы в релизе нет подходящего файла');
 		if (force || isNewer(asset.version, app.getVersion())) set({ status: 'available', version: asset.version });
 		else set({ status: 'uptodate', version: app.getVersion() });

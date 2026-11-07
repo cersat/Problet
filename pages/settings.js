@@ -304,6 +304,8 @@ function renderUpdate(st) {
 		error: 'Не удалось проверить: ' + st.message,
 	};
 	upStatus.textContent = (texts[st.status] || '') + (st.mode === 'dev' && st.status !== 'error' ? ' (в режиме разработки обновляться нечем)' : '');
+	$('changelog-row').hidden = !st.changelog;
+	$('changelog').textContent = st.changelog || '';
 	const btn = $('update-apply');
 	const show = (st.status === 'available' && st.mode !== 'dev') || st.status === 'ready';
 	btn.classList.toggle('hidden', !show);
