@@ -40,6 +40,7 @@ if (location.protocol === 'problet:') {
 		pwRemove: (id) => call('pw:remove', id),
 		pwReveal: (id) => call('pw:reveal', id),
 		pwChangeMaster: (oldMaster, newMaster) => call('pw:change-master', oldMaster, newMaster),
+		pwOfferCurrent: () => call('pw:offer-current'),
 		pwPendingSave: (tabId) => call('pw:pending-save', tabId),
 		pwPendingDrop: (tabId) => call('pw:pending-drop', tabId),
 		captureHotkeys: (on) => call('hotkeys:capture', on),

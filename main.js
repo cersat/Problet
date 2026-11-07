@@ -99,7 +99,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -882,7 +882,16 @@ ipcMain.on('pw:submit', (e, data) => {
 		const update = vault.isUnlocked() && vault.hasLogin(origin, username);
 		pwOffers.set(tab.id, { origin, username, password, update });
 	}
-	if (tab.id === activeId) sendState();
+	if (tab.id === activeId) {
+		sendState();
+		if (!panelOpen) openPanel('pwsave', { x: contentSize()[0] - 12, y: insets().top - TOOLBAR_HEIGHT + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+	}
+});
+
+handle('pw:offer-current', () => {
+	const tab = activeTab();
+	const o = offerFor(tab);
+	return o ? { ...o, tabId: tab.id } : null;
 });
 
 // Страница просит подставить логин и пароль (только для её собственного адреса и только когда хранилище открыто)
@@ -1774,7 +1783,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { chars: [352, 400] };
+const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 200] };
 
 function ensurePanel() {
 	if (panel) return;

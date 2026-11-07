@@ -1,0 +1,9 @@
+.pwsave-page { border: 1px solid var(--border-strong); padding: 16px 18px; height: 100vh; overflow: hidden; }
+.pwsave-page h1 { font-size: 17px; margin: 0 0 12px; }
+.pwsave-page .who { display: grid; gap: 6px; margin-bottom: 10px; }
+.pwsave-page .who div { display: flex; gap: 10px; }
+.pwsave-page .who span { width: 48px; color: var(--muted); }
+.pwsave-page .who b { font-weight: 600; word-break: break-all; }
+.pwsave-page .note { margin: 0 0 12px; color: var(--muted); font-size: 12px; min-height: 1em; }
+.pwsave-page .row { display: flex; gap: 8px; }
+.pwsave-page .row button { flex: 1; padding: 8px 14px; }
