@@ -89,7 +89,13 @@ const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" vi
 	+ '<text x="150" y="56" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#6b6b7b">' + TEXT + '</text></svg>';
 const FRAME = '<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;'
 	+ 'background:#ececf2;color:#6b6b7b;font:14px sans-serif;overflow:hidden">' + TEXT;
+// Загрузчик антиблокировщика Ad-Shield (html-load.com): настоящий возвращает рекламу, а без ответа сайт показывает окно «отключите блокировщик».
+// Подставляем скрипт, который только отвечает на проверку страницы («..._as_req» → «..._as_res»), и больше ничего не делает.
+const ADSHIELD_JS = "addEventListener('message',function(e){var d=e.data;if(typeof d==='string'&&d.slice(-7)==='_as_req')postMessage(d.slice(0,-7)+'_as_res','*')});";
+const isAdShieldHost = (h) => /(^|\.)html-load\.(com|cc)$/.test(String(h).toLowerCase());
+
 const BLOCKED = {
+	'adshield.js': ['text/javascript', ADSHIELD_JS],
 	'image.svg': ['image/svg+xml', SVG],
 	'frame.html': ['text/html; charset=utf-8', FRAME],
 	'empty.js': ['text/javascript', ''],
@@ -117,6 +123,18 @@ function start(session, store) {
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
 		const s = store.getSettings();
 		const block = s.adblock && isBlocked(details) && (s.adblockYoutube || !fromYoutube(details));
+		let host = '';
+		try {
+			host = new URL(details.url).hostname;
+		} catch (e) { /* адрес не разобрался */ }
+		if (s.adblock && isAdShieldHost(host)) {
+			if (observer) observer({ host, type: details.resourceType, blocked: true });
+			blocked++;
+			store.addBlocked();
+			const url = details.resourceType === 'script' ? 'problet://blocked/adshield.js' : replacement(details.resourceType);
+			callback(url ? { redirectURL: url } : { cancel: true });
+			return;
+		}
 		if (observer) {
 			try {
 				observer({ host: new URL(details.url).hostname, type: details.resourceType, blocked: !!block });
