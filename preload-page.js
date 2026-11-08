@@ -110,11 +110,14 @@ if (location.protocol !== 'problet:') {
 					};
 				}
 			}
+			// Для сайтов браузер вообще не знает ключей доступа: так они не предлагают этот способ первым
+			try {
+				delete window.PublicKeyCredential;
+			} catch (e) { /* останется отказ выше */ }
 			if (window.PublicKeyCredential) {
 				const no = () => Promise.resolve(false);
 				PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = no;
 				PublicKeyCredential.isConditionalMediationAvailable = no;
-				if (PublicKeyCredential.getClientCapabilities) PublicKeyCredential.getClientCapabilities = () => Promise.resolve({});
 			}
 		}.toString() + ')()');
 	} catch (e) { /* без этого сайт просто может зависнуть */ }
