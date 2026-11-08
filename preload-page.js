@@ -93,6 +93,33 @@ if (location.protocol === 'problet:') {
 	});
 }
 
+// Ключи доступа (WebAuthn) в Electron не работают: запрос ждёт окна системы, которого нет, и сайт зависает.
+// Говорим сайтам сразу, что такого способа входа нет, чтобы они предложили обычный пароль
+if (location.protocol !== 'problet:') {
+	try {
+		webFrame.executeJavaScript('(' + function () {
+			const fail = () => Promise.reject(new DOMException('Ключи доступа в этом браузере недоступны', 'NotAllowedError'));
+			const creds = navigator.credentials;
+			if (creds) {
+				for (const name of ['get', 'create']) {
+					const orig = creds[name] && creds[name].bind(creds);
+					if (!orig) continue;
+					creds[name] = function (options) {
+						if (options && options.publicKey) return fail();
+						return orig(options);
+					};
+				}
+			}
+			if (window.PublicKeyCredential) {
+				const no = () => Promise.resolve(false);
+				PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = no;
+				PublicKeyCredential.isConditionalMediationAvailable = no;
+				if (PublicKeyCredential.getClientCapabilities) PublicKeyCredential.getClientCapabilities = () => Promise.resolve({});
+			}
+		}.toString() + ')()');
+	} catch (e) { /* без этого сайт просто может зависнуть */ }
+}
+
 // Для внешних сайтов подменяем то, что видно из JavaScript: navigator.userAgentData, vendor и т.п., чтобы совпадало с выбранной маскировкой.
 // Заголовки (User-Agent, Sec-CH-UA, DNT) подменяет главный процесс. В iframe других сайтов эта подмена не действует.
 if (location.protocol !== 'problet:' && window === window.top) {
