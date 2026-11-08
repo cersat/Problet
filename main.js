@@ -1030,12 +1030,12 @@ handle('pw:offer-current', () => {
 // Человек нажал на поле входа: показываем окно подстановки (с вводом мастер-пароля, если хранилище закрыто), раз на страницу
 const fillAsked = new Set();
 let fillCtx = null; // { tabId, origin }: для какой страницы открыто окно подстановки
-ipcMain.on('pw:need-fill', (e) => {
+ipcMain.on('pw:need-fill', (e, hasPass) => {
 	const tab = tabOfSender(e);
 	const origin = frameOrigin(e);
 	if (!tab || !origin || tab.id !== activeId || !settings().pwFill || !vault.exists() || panelOpen) return;
 	if (vault.isUnlocked() && !vault.forOrigin(origin).length) return;
-	const key = tab.id + '|' + e.senderFrame.url;
+	const key = tab.id + '|' + e.senderFrame.url + '|' + !!hasPass; // на странице входа в два шага спросим ещё раз, когда появится пароль
 	if (fillAsked.has(key)) return;
 	fillAsked.add(key);
 	fillCtx = { tabId: tab.id, origin };

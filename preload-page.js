@@ -209,25 +209,37 @@ if (location.protocol !== 'problet:' && window === window.top) {
 
 	let filled = ''; // пароль, который подставили мы: его отправка не повод предлагать сохранение
 	let lastField = null;
+	const LOGINISH = /user|login|email|e-mail|mail|phone|account|acc|name|логин|почт|телефон/i;
 	const fieldsFor = (el) => {
-		const pass = el.type === 'password' ? el : [...document.querySelectorAll('input[type=password]')].find(visible);
-		if (!pass || !visible(pass)) return null;
-		const login = loginFieldFor(pass);
-		return el === pass || el === login ? { pass, login } : null;
+		const scope = el.form || document;
+		const pass = el.type === 'password' ? el : [...scope.querySelectorAll('input[type=password]')].find(visible) || null;
+		if (pass && !visible(pass)) return null;
+		if (el.type === 'password') return { pass, login: loginFieldFor(pass) };
+		if (!TEXT_TYPES.includes(el.type) || !visible(el) || el.disabled) return null;
+		if (pass) {
+			const login = loginFieldFor(pass);
+			return el === login ? { pass, login } : null;
+		}
+		// Вход в два шага: пароля на странице ещё нет, но поле похоже на логин
+		const hint = el.type + ' ' + el.autocomplete + ' ' + el.name + ' ' + el.id;
+		return el.type === 'email' || el.type === 'tel' || LOGINISH.test(hint) ? { pass: null, login: el } : null;
 	};
 	ipcRenderer.on('pw:fill', (_e, entry) => {
 		const f = lastField && document.contains(lastField) && fieldsFor(lastField);
 		if (!f) return;
 		if (f.login && entry.username) setValue(f.login, entry.username);
-		setValue(f.pass, entry.password);
-		filled = entry.password;
+		if (f.pass) {
+			setValue(f.pass, entry.password);
+			filled = entry.password;
+		}
 	});
 	const onUserFocus = (e) => {
 		const el = e.target;
 		// Только настоящее нажатие человека, не скрипт страницы
-		if (!isField(el) || !e.isTrusted || !navigator.userActivation.isActive || !fieldsFor(el)) return;
+		const f = isField(el) && e.isTrusted && navigator.userActivation.isActive ? fieldsFor(el) : null;
+		if (!f) return;
 		lastField = el;
-		ipcRenderer.send('pw:need-fill');
+		ipcRenderer.send('pw:need-fill', !!f.pass);
 	};
 	// click нужен для поля, которое уже в фокусе (например, autofocus): новое focusin тогда не придёт
 	document.addEventListener('focusin', onUserFocus, true);

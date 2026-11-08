@@ -217,7 +217,8 @@ function reveal(id) {
 function forOrigin(origin) {
 	if (!key) return [];
 	touch();
-	return items.filter((e) => e.origin === origin).sort((a, b) => b.updated - a.updated).map((e) => ({ username: e.username, password: e.password }));
+	const norm = (o) => String(o).replace('//www.', '//'); // www.сайт и сайт считаем одним сайтом
+	return items.filter((e) => norm(e.origin) === norm(origin)).sort((a, b) => b.updated - a.updated).map((e) => ({ username: e.username, password: e.password }));
 }
 
 // Уже есть такая запись с тем же паролем? Тогда сохранять незачем
