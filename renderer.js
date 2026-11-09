@@ -148,6 +148,9 @@ function setTabsRows() {
 	const two = !!(layoutState && layoutState.tabsTwoRows);
 	tabsEl.classList.toggle('two', two);
 	tabsEl.style.setProperty('--n', two ? Math.ceil(tabCount / 2) : tabCount);
+	// сколько строк помещается в названии вкладки, когда двух слоёв нет
+	const h = layoutState ? Math.round(layoutState.tabsBase.row * layoutState.tabsScale) - 4 : 32;
+	tabsEl.style.setProperty('--lines', Math.max(1, Math.floor(h / 17)));
 }
 
 let lastTabsState = null;

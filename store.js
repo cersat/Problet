@@ -286,7 +286,6 @@ function sanitizeSettings(raw) {
 		out.btnLayout = cleanButtons(r.btnLayout);
 	}
 	out.tabsScale = cleanScale(r.tabsScale);
-	if (out.tabsScale < TWO_ROWS_MIN) out.tabsTwoRows = false;
 	out.hotkeys = cleanHotkeys(r.hotkeys);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
@@ -645,7 +644,6 @@ function setSettings(patch) {
 	if (p.tabsScale !== undefined) {
 		if (typeof p.tabsScale !== 'number' || !Number.isFinite(p.tabsScale)) throw new Error('Некорректный размер панели вкладок');
 		next.tabsScale = cleanScale(p.tabsScale);
-		if (next.tabsScale < TWO_ROWS_MIN) next.tabsTwoRows = false;
 	}
 	if (p.tabsTwoRows && next.tabsScale < TWO_ROWS_MIN) throw new Error('Сначала растяни панель вкладок почти вдвое: потяни её за край');
 	if (p.panelOrder !== undefined) {

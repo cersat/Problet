@@ -271,6 +271,7 @@ function layoutPayload() {
 	const out = {};
 	for (const k of LAYOUT_KEYS) out[k] = s[k];
 	out.plan = panelPlan();
+	out.tabsTwoRows = s.tabsTwoRows && s.tabsScale >= store.TWO_ROWS_MIN; // выбор сохраняется, а действует, пока панель растянута
 	out.arrows = store.ARROWS[s.arrows];
 	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());

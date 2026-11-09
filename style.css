@@ -568,3 +568,13 @@ body[data-tabs="bottom"] .tabs.two .tab.active { box-shadow: inset 0 -2px 0 var(
 
 /* Переименование вкладки */
 .tab input.rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border: 1px solid var(--accent); border-radius: 4px; background: var(--surface); }
+
+/* Двух слоёв нет, а панель растянута: название вкладки (или адрес) переносится на несколько строк */
+.tabs:not(.two):not(.side) .tab .label:not(.two) {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: var(--lines, 1);
+	white-space: normal;
+	overflow-wrap: anywhere;
+	line-height: 1.2;
+}
