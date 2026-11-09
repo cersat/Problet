@@ -1,6 +1,6 @@
 // Автообновление: смотрим релиз «latest» в GitHub, сравниваем версию из имён файлов с текущей.
 // Linux (AppImage): скачиваем новый файл и подменяем им запущенный, после перезапуска работает новая версия.
-// Windows: скачиваем установщик и запускаем его. macOS: скачиваем .dmg в «Загрузки» и открываем его (приложение не подписано, заменить себя оно не может, перетащить в «Программы» нужно самому).
+// Windows: скачиваем установщик и запускаем его тихо поверх текущей версии (если программа из zip, открываем обычный мастер). macOS: скачиваем .dmg в «Загрузки» и открываем его (приложение не подписано, заменить себя оно не может, перетащить в «Программы» нужно самому).
 // Остальные сборки: открываем страницу релиза.
 
 const fs = require('fs');
@@ -246,6 +246,15 @@ function restartAppImage() {
 	app.exit(0);
 }
 
+// Windows: программа поставлена установщиком (рядом лежит деинсталлятор), а не распакована из zip. Только тогда установщик может заменить её тихо
+function installedWithSetup() {
+	try {
+		return fs.readdirSync(path.dirname(process.execPath)).some((f) => /^Uninstall .*\.exe$/i.test(f));
+	} catch (e) {
+		return false;
+	}
+}
+
 // Применить: перезапуск в новую версию (Linux), установщик (Windows) или страница релиза (остальные)
 async function apply() {
 	if (mode() === 'page' || mode() === 'dev') {
@@ -256,6 +265,11 @@ async function apply() {
 	if (state.status !== 'ready') return;
 	if (mode() === 'appimage') {
 		restartAppImage();
+	} else if (mode() === 'installer' && installedWithSetup()) {
+		// Тихая установка поверх текущей: без мастера, папка и данные те же, после установки Problet запускается сам.
+		// Файл скачан самим браузером, поэтому SmartScreen его не проверяет
+		spawn(state.file, ['--updated', '/S', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+		app.quit();
 	} else {
 		await shell.openPath(state.file);
 		app.quit(); // запущенное приложение нельзя заменить, поэтому выходим: в открывшемся окне перетащи Problet в «Программы»
