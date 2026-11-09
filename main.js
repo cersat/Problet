@@ -2244,6 +2244,15 @@ handle('svg:write', (p, text) => {
 	fs.writeFileSync(p, text, 'utf8');
 	return { path: p };
 });
+handle('svg:save-png', async (dataUrl, name) => {
+	const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl));
+	if (!m) throw new Error('Неверное изображение');
+	const r = await dialog.showSaveDialog(win, { defaultPath: String(name || 'image.png').replace(/[\\/]/g, '_'), filters: [{ name: 'PNG', extensions: ['png'] }] });
+	if (r.canceled || !r.filePath) return null;
+	const file = /\.png$/i.test(r.filePath) ? r.filePath : r.filePath + '.png';
+	fs.writeFileSync(file, Buffer.from(m[1], 'base64'));
+	return { path: file };
+});
 handle('svg:save-as', async (text) => {
 	const r = await dialog.showSaveDialog(win, { defaultPath: 'image.svg', filters: [{ name: 'SVG', extensions: ['svg'] }] });
 	if (r.canceled || !r.filePath) return null;

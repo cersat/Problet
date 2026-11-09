@@ -1,0 +1,15 @@
+:global(html), :global(body) { margin: 0; height: 100%; overflow: hidden; }
+:global(body) { background: var(--bg, #1e1e20); color: var(--text, #e4e4e8); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+:global(#root) { height: 100%; }
+.app { display: flex; flex-direction: column; height: 100vh; }
+.bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border, #38383c); background: var(--panel, #28282b); flex-wrap: wrap; }
+.file { flex: 1; min-width: 120px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.note { color: var(--muted, #a0a0a8); font-size: 13px; min-width: 100px; }
+.bar button, .bar select { height: 32px; padding: 0 12px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--control, #38383c); color: inherit; font: inherit; cursor: pointer; }
+.bar button:hover { background: var(--hover, #3a3a3e); }
+.bar button.primary { background: var(--accent, #7c9cf5); border-color: var(--accent, #7c9cf5); color: var(--on-accent, #1d1d1f); }
+.group { display: flex; gap: 0; }
+.group button { border-radius: 6px 0 0 6px; }
+.group select { border-radius: 0 6px 6px 0; border-left: 0; padding: 0 6px; }
+.error { padding: 8px 14px; background: var(--danger-bg, #4a2e32); color: var(--danger, #f2929a); font-size: 13px; }
+.editor { flex: 1; min-height: 0; overflow: hidden; }

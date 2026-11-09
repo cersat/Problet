@@ -54,6 +54,7 @@ if (location.protocol === 'problet:') {
 		filesList: (dir) => call('files:list', dir),
 		svgRead: (p) => call('svg:read', p),
 		svgWrite: (p, text) => call('svg:write', p, text),
+		svgSavePng: (dataUrl, name) => call('svg:save-png', dataUrl, name),
 		svgSaveAs: (text) => call('svg:save-as', text),
 		debug: (action) => call('debug:run', action),
 		insecureProceed: (url) => call('insecure:proceed', url),
