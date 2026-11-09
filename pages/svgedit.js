@@ -24,8 +24,17 @@ function parse(text) {
 	return { doc };
 }
 
+const TEMPLATE = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">\n  \n</svg>\n';
+
 function preview() {
 	const text = $('src').value;
+	if (!text.trim()) {
+		// Пустой файл: не ошибка, просто нечего показывать
+		$('err').hidden = true;
+		$('img').removeAttribute('src');
+		$('size').textContent = 'Пусто';
+		return;
+	}
 	const r = parse(text);
 	$('err').hidden = !r.error;
 	$('err').textContent = r.error || '';
@@ -158,9 +167,13 @@ $('zoom-fit').addEventListener('click', fit);
 
 api.svgRead(file).then((r) => {
 	saved = r.text;
-	$('src').value = r.text;
+	$('src').value = r.text.trim() ? r.text : TEMPLATE; // пустой файл начинаем с заготовки; в файл она попадёт только после сохранения
 	updateState();
 	preview();
+	if (!r.text.trim()) {
+		$('src').focus();
+		$('src').setSelectionRange(TEMPLATE.indexOf('\n') + 3, TEMPLATE.indexOf('\n') + 3);
+	}
 }).catch((e) => {
 	$('err').hidden = false;
 	$('err').textContent = 'Не удалось открыть файл: ' + String((e && e.message) || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
