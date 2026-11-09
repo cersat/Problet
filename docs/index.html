@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Problet</title>
+<link rel="icon" href="icon.png">
+<style>
+	:root { color-scheme: dark; --bg: #16161d; --card: #20202b; --line: #34344a; --text: #e8e8f0; --dim: #9a9ab0; --accent: #a6b4ff; --on-accent: #16161d; }
+	* { box-sizing: border-box; }
+	body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, sans-serif; }
+	main { max-width: 720px; margin: 0 auto; padding: 56px 20px 72px; }
+	header { display: flex; align-items: center; gap: 18px; margin-bottom: 8px; }
+	header img { width: 72px; height: 72px; }
+	h1 { margin: 0; font-size: 40px; }
+	p.lead { color: var(--dim); font-size: 18px; margin: 12px 0 32px; }
+	h2 { font-size: 20px; margin: 40px 0 14px; }
+	.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+	.dl a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; color: var(--text); text-decoration: none; }
+	.dl a:hover { border-color: var(--accent); }
+	.dl b { display: block; font-size: 18px; }
+	.dl small { color: var(--dim); }
+	.note { color: var(--dim); font-size: 14px; margin-top: 14px; }
+	ul { padding-left: 20px; }
+	li { margin: 6px 0; }
+	a { color: var(--accent); }
+	footer { margin-top: 48px; color: var(--dim); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+	<header>
+		<img src="icon.png" alt="">
+		<h1>Problet</h1>
+	</header>
+	<p class="lead">Браузер, написанный с нуля на Electron. Свои панели и кнопки, пространства, заморозка вкладок, блокировщик рекламы, менеджер паролей и встроенные инструменты вместо расширений.</p>
+
+	<h2>Скачать</h2>
+	<div class="dl" id="dl">
+		<a data-os="linux" href="https://github.com/cersat/Problet/releases/tag/latest"><b>Linux</b><small>AppImage или tar.gz</small></a>
+		<a data-os="win" href="https://github.com/cersat/Problet/releases/tag/latest"><b>Windows</b><small>установщик или zip</small></a>
+		<a data-os="mac" href="https://github.com/cersat/Problet/releases/tag/latest"><b>macOS</b><small>dmg или zip</small></a>
+	</div>
+	<p class="note" id="ver">Все сборки: <a href="https://github.com/cersat/Problet/releases">Releases</a>. Linux: после скачивания сделай AppImage исполняемым (<code>chmod +x</code>). macOS: приложение не подписано, при первом запуске открой его через контекстное меню → «Открыть». Обновляться можно прямо в браузере: «Настройки» → «Обновления».</p>
+
+	<h2>Что внутри</h2>
+	<ul>
+		<li>Панели вкладок, инструментов и закладок переставляются как угодно, каждая кнопка живёт на любой панели</li>
+		<li>Пространства, заморозка и выгрузка вкладок, режим инкогнито</li>
+		<li>Блокировщик рекламы и трекеров, в том числе на YouTube</li>
+		<li>Зашифрованный менеджер паролей, закладки с импортом из других браузеров</li>
+		<li>Встроенный SVG-редактор, таблица символов, калькулятор в адресной строке</li>
+	</ul>
+
+	<footer><a href="https://github.com/cersat/Problet">Исходный код на GitHub</a></footer>
+</main>
+<script>
+	// Прямые ссылки на файлы последней сборки; если GitHub не ответил, остаются ссылки на страницу релиза
+	fetch('https://api.github.com/repos/cersat/Problet/releases/tags/latest').then((r) => (r.ok ? r.json() : null)).then((rel) => {
+		if (!rel) return;
+		const find = (re) => rel.assets.find((x) => re.test(x.name));
+		const set = (os, asset) => { if (asset) document.querySelector('#dl a[data-os="' + os + '"]').href = asset.browser_download_url; };
+		set('linux', find(/\.AppImage$/));
+		set('win', find(/-win-.*\.exe$/));
+		set('mac', find(/-mac-arm64\.dmg$/));
+		const intel = find(/-mac-x64\.dmg$/);
+		if (intel) document.querySelector('#dl a[data-os="mac"] small').innerHTML = 'dmg для Apple Silicon · <span data-href="' + intel.browser_download_url + '">для Intel</span>';
+		const span = document.querySelector('#dl a[data-os="mac"] span');
+		if (span) span.addEventListener('click', (e) => { e.preventDefault(); location.href = span.dataset.href; });
+	}).catch(() => {});
+</script>
+</body>
+</html>
