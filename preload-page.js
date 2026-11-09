@@ -177,13 +177,67 @@ if (location.protocol !== 'problet:' && window === window.top) {
 }
 
 // Реклама YouTube приходит с тех же адресов, что и видео, поэтому по доменам её не отрезать: вырезаем её из ответов плеера, прячем рекламные блоки и пропускаем то, что всё же показалось
-if (/^https?:$/.test(location.protocol) && /(^|\.)youtube(-nocookie)?\.com$/.test(location.hostname) && ipcRenderer.sendSync('adblock:youtube')) {
+let yt = null;
+if (/^https?:$/.test(location.protocol) && /(^|\.)youtube(-nocookie)?\.com$/.test(location.hostname) && (yt = ipcRenderer.sendSync('adblock:youtube'))) {
 	try {
-		webFrame.executeJavaScript('(' + function () {
+		webFrame.executeJavaScript('(' + function (stubB64) {
 			const KEYS = ['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams'];
+			// Вместо вырезанной рекламы плеер на секунду показывает «Реклама заблокирована» (видео из страницы, сети оно не касается)
+			let stubUrl = null;
+			let lastStub = 0;
+			const showStub = (tries) => {
+				if (!stubB64) return;
+				const player = document.querySelector('.html5-video-player');
+				const main = player && player.querySelector('video.html5-main-video');
+				if (!main) {
+					if (tries < 40) setTimeout(() => showStub(tries + 1), 250);
+					return;
+				}
+				if (main.currentTime > 1 || Date.now() - lastStub < 3000) return; // только начало ролика, и не чаще раза в 3 секунды
+				lastStub = Date.now();
+				if (!stubUrl) {
+					const bin = atob(stubB64);
+					const bytes = new Uint8Array(bin.length);
+					for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+					stubUrl = URL.createObjectURL(new Blob([bytes], { type: 'video/webm' }));
+				}
+				// Играющее видео ставим на паузу и потом продолжаем; ещё не начавшее играть не трогаем (пауза отменила бы его автозапуск), а только глушим на время заставки
+				const wasPlaying = !main.paused;
+				const wasMuted = main.muted;
+				main.muted = true;
+				if (wasPlaying) main.pause();
+				const box = document.createElement('div');
+				box.id = 'problet-adstub';
+				box.style.cssText = 'position:absolute;inset:0;z-index:60;background:#16161d;display:flex;align-items:center;justify-content:center';
+				const v = document.createElement('video');
+				v.muted = true;
+				v.playsInline = true;
+				v.src = stubUrl;
+				v.style.cssText = 'width:100%;height:100%;object-fit:contain';
+				box.appendChild(v);
+				player.appendChild(box);
+				let done = false;
+				const finish = () => {
+					if (done) return;
+					done = true;
+					box.remove();
+					main.muted = wasMuted;
+					if (wasPlaying) main.play().catch(() => {});
+				};
+				v.addEventListener('ended', finish);
+				v.addEventListener('error', finish);
+				setTimeout(finish, 1800);
+				v.play().catch(finish);
+			};
 			const strip = (o) => {
 				if (o && typeof o === 'object') {
-					for (const k of KEYS) if (k in o) delete o[k];
+					for (const k of KEYS) {
+						if (!(k in o)) continue;
+						if (k === 'adPlacements' || k === 'playerAds') {
+							if (Array.isArray(o[k]) ? o[k].length : o[k]) showStub(0);
+						}
+						delete o[k];
+					}
 					if (o.playerResponse) strip(o.playerResponse);
 					if (o.response) strip(o.response);
 					if (Array.isArray(o)) o.forEach(strip);
@@ -222,7 +276,7 @@ if (/^https?:$/.test(location.protocol) && /(^|\.)youtube(-nocookie)?\.com$/.tes
 			const put = () => (document.head || document.documentElement).appendChild(css);
 			if (document.documentElement) put();
 			else document.addEventListener('readystatechange', put, { once: true });
-		}.toString() + ')()');
+		}.toString() + ')(' + JSON.stringify(yt.stub) + ')');
 	} catch (e) { /* без этого реклама просто останется */ }
 }
 

@@ -1774,7 +1774,22 @@ function attachIdentity(ses, withCache) {
 	});
 }
 
-ipcMain.on('adblock:youtube', (e) => { e.returnValue = !!(settings().adblock && settings().adblockYoutube); });
+// Заглушка вместо рекламы YouTube: односекундное видео «Реклама заблокирована» (pages/adstub.webm). Страница создаёт из него blob:, поэтому отдаём байты
+let adStubB64 = null;
+ipcMain.on('adblock:youtube', (e) => {
+	if (!(settings().adblock && settings().adblockYoutube)) {
+		e.returnValue = null;
+		return;
+	}
+	if (adStubB64 === null) {
+		try {
+			adStubB64 = fs.readFileSync(path.join(__dirname, 'pages', 'adstub.webm')).toString('base64');
+		} catch (err) {
+			adStubB64 = '';
+		}
+	}
+	e.returnValue = { stub: adStubB64 };
+});
 
 ipcMain.on('identity:get', (e) => {
 	e.returnValue = identity.pagePayload(profileFor((e.senderFrame && e.senderFrame.url) || e.sender.getURL()) || identity.build('problet', app.getVersion()), settings().dnt);
