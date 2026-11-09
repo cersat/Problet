@@ -998,16 +998,50 @@ body.version .actions {
 }
 
 /* Раскрывающиеся группы настроек */
-details.group {
-	margin-top: 10px;
-	border-top: 1px solid var(--border);
+.settings h3 {
+	margin: 26px 0 4px;
+	font-size: 15px;
+	color: var(--text-strong);
 }
 
-details.group > summary {
-	padding: 12px 0;
-	color: var(--text-strong);
-	cursor: pointer;
-	user-select: none;
+.plist-title {
+	margin: 8px 0 6px;
+	color: var(--muted);
+}
+
+.plist-title small { display: block; color: var(--faint); font-size: 12px; }
+
+.plist-head {
+	margin: 14px 0 4px;
+	color: var(--muted);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.plist {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.prow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	padding: 4px 10px;
+}
+
+.prow + .prow { border-top: 1px solid var(--border); }
+.prow.muted { color: var(--faint); background: var(--hover); }
+.prow .pname { flex: 1; min-width: 0; }
+.prow select { width: 200px; }
+
+button.move {
+	width: 32px;
+	padding: 6px 0;
+	font-size: 12px;
 }
 
 body.version .cell[data-tap] { user-select: none; -webkit-user-select: none; cursor: default; }

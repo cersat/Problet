@@ -13,6 +13,57 @@ const ENGINES = {
 	bing: { name: 'Bing', url: 'https://www.bing.com/search?q=%s' },
 	yandex: { name: 'Яндекс', url: 'https://yandex.com/search/?text=%s' },
 };
+// Стрелки «назад» и «вперёд» (в панели, в настройках перемещения кнопок)
+const ARROWS = { tri: ['◀', '▶'], arrow: ['←', '→'], angle: ['‹', '›'], heavy: ['❮', '❯'], double: ['«', '»'] };
+
+// Панели в порядке сверху вниз; page — окно со страницей. Всё, что выше page, находится над страницей, ниже — под ней
+const PANELS = ['tabs', 'toolbar', 'bmbar'];
+const DEFAULT_ORDER = ['tabs', 'toolbar', 'bmbar', 'page'];
+// Кнопки на панелях. m:… — главный элемент панели (вкладки, адресная строка, закладки): его нельзя убрать или переселить, он нужен только как точка отсчёта
+const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmbar' };
+const BUTTONS = ['spaces', 'newtab', 'winctl', 'back', 'forward', 'reload', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
+function defaultButtons() {
+	return {
+		tabs: ['spaces', 'm:tabs', 'newtab', 'winctl'],
+		toolbar: ['back', 'forward', 'reload', 'm:address', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'],
+		bmbar: ['m:bookmarks'],
+		hidden: [],
+	};
+}
+
+// Порядок панелей: перестановка из tabs, toolbar, bmbar, page; что угодно другое — порядок по умолчанию
+function cleanOrder(raw) {
+	if (Array.isArray(raw) && raw.length === DEFAULT_ORDER.length && DEFAULT_ORDER.every((k) => raw.includes(k))) return [...raw];
+	return [...DEFAULT_ORDER];
+}
+
+// Расположение кнопок: каждая кнопка ровно в одной панели (или в hidden), главные элементы на своих панелях
+function cleanButtons(raw) {
+	const def = defaultButtons();
+	const r = raw && typeof raw === 'object' ? raw : {};
+	const out = { tabs: [], toolbar: [], bmbar: [], hidden: [] };
+	const seen = new Set();
+	for (const key of [...PANELS, 'hidden']) {
+		if (!Array.isArray(r[key])) continue;
+		for (const id of r[key]) {
+			if (typeof id !== 'string' || seen.has(id)) continue;
+			if (Object.hasOwn(MAIN_OF, id) ? MAIN_OF[id] !== key : !BUTTONS.includes(id)) continue;
+			seen.add(id);
+			out[key].push(id);
+		}
+	}
+	// чего не хватает — на своё место по умолчанию (главные элементы в начале панели, если пропали)
+	for (const key of PANELS) {
+		for (const id of def[key]) {
+			if (seen.has(id)) continue;
+			seen.add(id);
+			if (Object.hasOwn(MAIN_OF, id)) out[key].unshift(id);
+			else out[key].push(id);
+		}
+	}
+	return out;
+}
+
 const DEFAULT_SPACE = 'main';
 const SPACES_LIMIT = 30;
 const HISTORY_LIMIT = 500;
@@ -58,20 +109,12 @@ const SETTING_DEFAULTS = {
 	urlSuggest: true,
 	incognitoAsk: true,
 	downloadDir: '',
-	tabsPos: 'top',
-	bmPos: 'top',
+	tabsPos: 'row',
+	panelOrder: [...DEFAULT_ORDER],
+	btnLayout: defaultButtons(),
+	arrows: 'tri',
 	bmOnlyIcons: false,
 	bookmarksBar: true,
-	tabsNewButton: true,
-	winButtons: true,
-	appPasswords: true,
-	appHistory: true,
-	appSettings: true,
-	appDownloads: true,
-	appUpdate: true,
-	appBookmarks: true,
-	appChars: true,
-	appSpaces: true,
 	spacesPopup: false,
 	spacesMerged: false,
 	noDuplicateTabs: false,
@@ -84,15 +127,15 @@ const SETTING_DEFAULTS = {
 	bmNewTab: false,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
 	accent: Object.keys(ACCENTS),
 	cacheKeep: ['always', 'month', 'week', 'day', 'hour', 'restart'],
 	maskAs: ['chrome', 'problet', 'firefox'],
-	tabsPos: ['top', 'bottom', 'left', 'right'],
-	bmPos: ['top', 'bottom'],
+	tabsPos: ['row', 'left', 'right'], // row — панель вкладок в ряду остальных панелей, left/right — сбоку от страницы
+	arrows: Object.keys(ARROWS),
 	freezeAfter: ['1', '2', '5', '10', '30', '60', '120', '300', '600', '1440', '0'], // через сколько минут без просмотра вкладка замораживается; 0 — никогда
 	updateEvery: ['15', '30', '60', '180', '360', '720', '1440'], // период авто-проверки обновлений в минутах
 	pwLock: ['5', '15', '60', '0'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
@@ -173,6 +216,12 @@ function settingsReachableByKey(hotkeys) {
 	return !!(Object.hasOwn(h, 'settings') ? h.settings : accel.ACTIONS.find((a) => a.id === 'settings').key);
 }
 
+// Кнопку настроек нельзя скрыть, пока у настроек нет горячей клавиши: иначе до них не добраться
+function keepSettingsButton(st) {
+	if (settingsReachableByKey(st.hotkeys) || !st.btnLayout.hidden.includes('settings')) return;
+	st.btnLayout = { ...st.btnLayout, hidden: st.btnLayout.hidden.filter((x) => x !== 'settings'), toolbar: [...st.btnLayout.toolbar, 'settings'] };
+}
+
 function sanitizeSettings(raw) {
 	const r = raw && typeof raw === 'object' ? raw : {};
 	const out = { ...SETTING_DEFAULTS };
@@ -182,11 +231,31 @@ function sanitizeSettings(raw) {
 	for (const [key, values] of Object.entries(ENUM_SETTINGS)) {
 		if (values.includes(r[key])) out[key] = r[key];
 	}
+	// Файлы старых версий: положение вкладок и закладок и переключатели кнопок
+	const legacy = !Object.hasOwn(r, 'btnLayout') && !Object.hasOwn(r, 'panelOrder');
+	if (legacy) {
+		if (r.tabsPos === 'left' || r.tabsPos === 'right') out.tabsPos = r.tabsPos;
+		const tabsBottom = r.tabsPos === 'bottom';
+		const bmBottom = r.bmPos === 'bottom';
+		const rest = bmBottom ? ['toolbar', 'page', 'bmbar'] : ['toolbar', 'bmbar', 'page'];
+		out.panelOrder = tabsBottom ? [...rest, 'tabs'] : ['tabs', ...rest];
+		const hide = [['appSpaces', 'spaces'], ['tabsNewButton', 'newtab'], ['winButtons', 'winctl'], ['appUpdate', 'update'], ['appChars', 'chars'], ['appBookmarks', 'bookmarks'], ['appPasswords', 'passwords'], ['appHistory', 'history'], ['appDownloads', 'downloads'], ['appSettings', 'settings']];
+		const b = defaultButtons();
+		for (const [old, id] of hide) {
+			if (r[old] !== false) continue;
+			for (const key of PANELS) b[key] = b[key].filter((x) => x !== id);
+			b.hidden.push(id);
+		}
+		out.btnLayout = cleanButtons(b);
+	} else {
+		out.panelOrder = cleanOrder(r.panelOrder);
+		out.btnLayout = cleanButtons(r.btnLayout);
+	}
 	out.hotkeys = cleanHotkeys(r.hotkeys);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
 	out.downloadDir = typeof r.downloadDir === 'string' && r.downloadDir.length <= 1024 && path.isAbsolute(r.downloadDir) ? r.downloadDir : '';
-	if (!settingsReachableByKey(out.hotkeys)) out.appSettings = true;
+	keepSettingsButton(out);
 	out.customTemplate = validTemplate(r.customTemplate) ? r.customTemplate.trim() : '';
 	let engine = typeof r.engine === 'string' ? r.engine : 'duckduckgo';
 	if (engine === 'custom' ? !out.customTemplate : !Object.hasOwn(ENGINES, engine)) engine = 'duckduckgo';
@@ -536,6 +605,16 @@ function setSettings(patch) {
 		if (given.some((k) => !Object.hasOwn(clean, k))) throw new Error('Такое сочетание уже занято или записано неверно');
 		next.hotkeys = clean;
 	}
+	if (p.panelOrder !== undefined) {
+		if (cleanOrder(p.panelOrder).join() !== (Array.isArray(p.panelOrder) ? p.panelOrder.join() : null)) throw new Error('Некорректный порядок панелей');
+		next.panelOrder = [...p.panelOrder];
+	}
+	if (p.btnLayout !== undefined) {
+		const clean = cleanButtons(p.btnLayout);
+		const same = p.btnLayout && typeof p.btnLayout === 'object' && Object.keys(clean).every((k) => Array.isArray(p.btnLayout[k]) && p.btnLayout[k].join() === clean[k].join());
+		if (!same) throw new Error('Некорректное расположение кнопок');
+		next.btnLayout = clean;
+	}
 	if (p.startupUrl !== undefined) {
 		const u = str(p.startupUrl, 2048).trim();
 		if (/^(javascript|vbscript):/i.test(u)) throw new Error('Некорректный адрес стартовой страницы');
@@ -551,7 +630,7 @@ function setSettings(patch) {
 	}
 	if (next.engine === 'custom' && !next.customTemplate) throw new Error('Укажи шаблон адреса для своего поисковика');
 	// Панель настроек нельзя убрать, пока у настроек нет горячей клавиши: иначе до них не добраться
-	if (!settingsReachableByKey(next.hotkeys)) next.appSettings = true;
+	keepSettingsButton(next);
 	data.settings = next;
 	scheduleSave();
 	changed('settings');
@@ -869,7 +948,7 @@ function importData(raw, mode) {
 
 module.exports = {
 	init, flush,
-	getSettings, setSettings, resetSettings, engineList, searchUrl,
+	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
 	addFolder, renameFolder, removeFolder, importBookmarkItems, exportBookmarksHtml,

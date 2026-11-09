@@ -225,7 +225,7 @@ updateBtn.addEventListener('mouseenter', () => {
 updateBtn.addEventListener('mouseleave', () => api.updateTip(null));
 function showUpdate(st) {
 	lastUpdate = st;
-	const on = layoutState.appUpdate !== false && st && (st.status === 'ready' || st.status === 'downloading' || (st.status === 'available' && st.mode !== 'dev'));
+	const on = st && (st.status === 'ready' || st.status === 'downloading' || (st.status === 'available' && st.mode !== 'dev'));
 	updateBtn.classList.toggle('hidden', !on);
 	if (!on) return;
 	const titles = {
@@ -346,25 +346,67 @@ api.onSuggestVisible((visible) => {
 // ---------- Раскладка: положение панелей и их содержимое ----------
 
 const bmbar = document.getElementById('bmbar');
+const bmlist = document.getElementById('bmlist');
 const winctl = document.getElementById('winctl');
+const $id = (id) => document.getElementById(id);
+const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar };
+// Главный элемент каждой панели: вокруг него расставляются кнопки
+const MAIN_EL = { 'm:tabs': 'tabs', 'm:address': 'address-box', 'm:bookmarks': 'bmlist' };
 
 function applyLayout(l) {
 	layoutState = l;
-	document.body.dataset.tabs = l.tabsPos;
-	document.body.dataset.bm = l.bookmarksBar ? l.bmPos : 'off';
-	document.getElementById('newtab').classList.toggle('off', !l.tabsNewButton);
-	document.getElementById('passwords').classList.toggle('off', !l.appPasswords);
-	document.getElementById('bookmarks').classList.toggle('off', !l.appBookmarks);
-	document.getElementById('chars').classList.toggle('off', !l.appChars);
-	document.getElementById('spaces').classList.toggle('off', !l.appSpaces);
-	document.getElementById('history').classList.toggle('off', !l.appHistory);
-	document.getElementById('settings').classList.toggle('off', !l.appSettings);
-	document.getElementById('downloads').classList.toggle('off', !l.appDownloads);
-	// Кнопки окна живут в самой верхней полосе: во вкладках, а если вкладки не сверху, то в отдельной узкой полосе над панелью инструментов
-	winctl.classList.toggle('hidden', !l.winButtons);
-	document.body.dataset.title = l.winButtons && l.tabsPos !== 'top' ? 'on' : 'off';
-	const slot = document.getElementById(l.tabsPos === 'top' ? 'slot-tab' : 'titlebar');
-	if (winctl.parentElement !== slot) slot.append(winctl);
+	const p = l.plan;
+	// Строки сетки: полоса заголовка, панели над страницей, страница, панели под ней
+	const rows = [];
+	if (p.strip) rows.push('titlebar');
+	rows.push(...p.before, 'page', ...p.after);
+	const rowEl = { titlebar: $id('titlebar'), page: document.querySelector('.mid'), ...PANEL_EL };
+	for (const el of Object.values(rowEl)) {
+		el.style.gridRow = '';
+		el.style.gridColumn = '';
+	}
+	rows.forEach((r, i) => { rowEl[r].style.gridRow = String(i + 1); });
+	if (p.side) {
+		PANEL_EL.tabs.style.gridRow = String(rows.indexOf('page') + 1);
+		PANEL_EL.tabs.style.gridColumn = p.side === 'left' ? '1' : '3';
+	}
+	document.body.style.gridTemplateRows = rows.map((r) => (r === 'page' ? 'minmax(0, 1fr)' : 'auto')).join(' ');
+	document.body.dataset.tabs = p.side || (p.before.includes('tabs') ? 'top' : 'bottom');
+	document.body.dataset.bm = l.bookmarksBar ? (p.after.includes('bmbar') ? 'bottom' : 'top') : 'off';
+	document.body.dataset.title = p.strip ? 'on' : 'off';
+	PANEL_EL.toolbar.classList.toggle('edge-b', p.before.includes('toolbar'));
+	PANEL_EL.toolbar.classList.toggle('edge-t', p.after.includes('toolbar'));
+	bmbar.classList.toggle('edge-b', p.before.includes('bmbar'));
+	bmbar.classList.toggle('edge-t', p.after.includes('bmbar'));
+	// Кнопки: каждая в своей панели в заданном порядке; кнопки окна на панели вкладок могут уйти в полосу заголовка
+	const L = l.btnLayout;
+	for (const key of Object.keys(PANEL_EL)) {
+		const host = PANEL_EL[key];
+		const main = Object.keys(MAIN_EL).find((m) => L[key].includes(m));
+		let afterMain = false;
+		for (const id of L[key]) {
+			if (id === main) {
+				afterMain = true;
+				host.append($id(MAIN_EL[id]));
+				continue;
+			}
+			const el = $id(id);
+			if (id === 'winctl') {
+				el.classList.toggle('end', afterMain);
+				if (key === 'tabs' && p.strip) {
+					$id('titlebar').append(el);
+					el.classList.remove('end');
+					el.classList.remove('off');
+					continue;
+				}
+			}
+			el.classList.remove('off');
+			host.append(el);
+		}
+	}
+	for (const id of L.hidden) $id(id).classList.add('off');
+	$id('back').textContent = l.arrows[0];
+	$id('forward').textContent = l.arrows[1];
 	document.getElementById('win-max').title = l.maximized ? 'Восстановить' : 'Развернуть';
 	document.getElementById('win-max-icon').innerHTML = l.maximized
 		? '<rect x="2.2" y="3.8" width="6" height="6"/><path d="M4 3.8V2.2h5.8v5.8H8.2"/>'
@@ -375,7 +417,7 @@ function applyLayout(l) {
 }
 
 function renderBar() {
-	bmbar.textContent = '';
+	bmlist.textContent = '';
 	const only = !!layoutState.bmOnlyIcons;
 	const folderIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>';
 	for (const f of barData.folders) {
@@ -390,7 +432,7 @@ function renderBar() {
 			b.append(n);
 		}
 		b.addEventListener('click', () => api.barFolder(f.id));
-		bmbar.append(b);
+		bmlist.append(b);
 	}
 	for (const m of barData.bookmarks.filter((x) => !x.folder)) {
 		const b = document.createElement('button');
@@ -424,13 +466,13 @@ function renderBar() {
 			e.preventDefault();
 			api.barOpen(m.id, true);
 		});
-		bmbar.append(b);
+		bmlist.append(b);
 	}
-	if (!bmbar.children.length) {
+	if (!bmlist.children.length) {
 		const hint = document.createElement('span');
 		hint.className = 'empty';
 		hint.textContent = 'Закладок пока нет: нажми ☆ в адресной строке';
-		bmbar.append(hint);
+		bmlist.append(hint);
 	}
 }
 

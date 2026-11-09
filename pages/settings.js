@@ -24,10 +24,12 @@ function showCustom(on) {
 }
 
 async function load() {
-	const { settings, engines, accents, searchCount, version } = await api.getSettings();
+	const { settings, engines, accents, searchCount, version, arrowSets } = await api.getSettings();
+	arrows = arrowSets;
 	$('app-version').textContent = version;
 	current = settings;
 	renderHotkeys();
+	renderPanels();
 	const select = $('engine');
 	select.textContent = '';
 	for (const e of engines) {
@@ -48,7 +50,6 @@ async function load() {
 	}
 	$('startup-url').value = settings.startupUrl;
 	showDownloadDir();
-	syncAppSettings();
 	$('startup-url-row').classList.toggle('hidden', settings.startup !== 'url');
 
 	const box = $('swatches');
@@ -65,12 +66,112 @@ async function load() {
 }
 
 let current = {};
+let arrows = {};
+
+// ---------- Панели и кнопки ----------
+
+const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', page: 'Окно вкладки' };
+const BTN_NAMES = { spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
+const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
+
+function moveButton(text, title, disabled, onClick) {
+	const b = document.createElement('button');
+	b.className = 'move';
+	b.textContent = text;
+	b.title = title;
+	b.disabled = disabled;
+	b.addEventListener('click', onClick);
+	return b;
+}
+
+function listRow(name, muted) {
+	const row = document.createElement('div');
+	row.className = 'prow' + (muted ? ' muted' : '');
+	const label = document.createElement('span');
+	label.className = 'pname';
+	label.textContent = name;
+	row.append(label);
+	return row;
+}
+
+function saveLayout(patch, after) {
+	run(async () => {
+		current = await api.setSettings(patch);
+		renderPanels();
+		if (after) after();
+		else say('Сохранено');
+	});
+}
+
+function renderPanels() {
+	const glyphs = arrows[current.arrows] || ['◀', '▶'];
+	const order = current.panelOrder;
+	const box = $('panel-order');
+	box.textContent = '';
+	order.forEach((k, i) => {
+		const note = k === 'tabs' && current.tabsPos !== 'row' ? ' (сбоку)' : k === 'bmbar' && !current.bookmarksBar ? ' (выключена)' : '';
+		const row = listRow(PANEL_NAMES[k] + note, k === 'page');
+		const swap = (d) => {
+			const next = [...order];
+			[next[i], next[i + d]] = [next[i + d], next[i]];
+			saveLayout({ panelOrder: next });
+		};
+		row.append(moveButton('▲', 'Выше', i === 0, () => swap(-1)), moveButton('▼', 'Ниже', i === order.length - 1, () => swap(1)));
+		box.append(row);
+	});
+	const lists = $('btn-lists');
+	lists.textContent = '';
+	const L = current.btnLayout;
+	for (const key of ['tabs', 'toolbar', 'bmbar', 'hidden']) {
+		const head = document.createElement('div');
+		head.className = 'plist-head';
+		head.textContent = key === 'hidden' ? 'Скрытые' : PANEL_NAMES[key];
+		lists.append(head);
+		const group = document.createElement('div');
+		group.className = 'plist';
+		if (!L[key].length) group.append(listRow('Пусто', true));
+		L[key].forEach((id, i) => {
+			if (MAIN_NAMES[id]) {
+				group.append(listRow(MAIN_NAMES[id], true));
+				return;
+			}
+			const row = listRow(BTN_NAMES[id]);
+			const sel = document.createElement('select');
+			for (const p of ['tabs', 'toolbar', 'bmbar']) sel.append(new Option(PANEL_NAMES[p], p));
+			sel.append(new Option('Скрыть', 'hidden'));
+			sel.value = key;
+			sel.addEventListener('change', () => {
+				const next = {};
+				for (const k of Object.keys(L)) next[k] = L[k].filter((x) => x !== id);
+				next[sel.value].push(id);
+				saveLayout({ btnLayout: next }, () => {
+					say(sel.value === 'hidden' && current.btnLayout.hidden.indexOf(id) < 0 ? 'Нельзя скрыть: для настроек не назначено сочетание клавиш' : 'Сохранено', sel.value === 'hidden' && current.btnLayout.hidden.indexOf(id) < 0);
+				});
+			});
+			row.append(sel);
+			if (key !== 'hidden') {
+				const swap = (d) => {
+					const next = JSON.parse(JSON.stringify(L));
+					[next[key][i], next[key][i + d]] = [next[key][i + d], next[key][i]];
+					saveLayout({ btnLayout: next });
+				};
+				row.append(moveButton(glyphs[0], 'Назад по панели', i === 0, () => swap(-1)), moveButton(glyphs[1], 'Вперёд по панели', i === L[key].length - 1, () => swap(1)));
+			}
+			group.append(row);
+		});
+		lists.append(group);
+	}
+}
 
 // Переключатели и списки с data-setting сохраняются сразу
 for (const el of document.querySelectorAll('[data-setting]')) {
 	el.addEventListener('change', () => run(async () => {
 		const value = el.type === 'checkbox' ? el.checked : el.value;
 		await api.setSettings({ [el.dataset.setting]: value });
+		if (el.dataset.setting === 'tabsPos' || el.dataset.setting === 'arrows') {
+			current = { ...current, [el.dataset.setting]: value };
+			renderPanels();
+		}
 		if (el.dataset.setting === 'startup') $('startup-url-row').classList.toggle('hidden', value !== 'url');
 		say('Сохранено');
 	}));
@@ -332,14 +433,6 @@ run(async () => renderUpdate(await api.updateState()));
 
 
 // Апплет «Настройки» нельзя убрать, пока у настроек нет горячей клавиши: иначе до них не добраться
-function syncAppSettings() {
-	const box = document.querySelector('[data-setting="appSettings"]');
-	const hasKey = !!effectiveKey('settings');
-	if (!hasKey) box.checked = true;
-	box.disabled = !hasKey;
-	$('app-settings-note').textContent = hasKey ? '' : 'Нельзя выключить: для настроек не назначено сочетание клавиш';
-}
-
 function showDownloadDir() {
 	$('download-dir').textContent = current.downloadDir || 'Папка «Загрузки» в системе';
 }
@@ -415,7 +508,6 @@ async function saveHotkeys(next) {
 	const r = await api.setSettings({ hotkeys: next });
 	current = r || current;
 	renderHotkeys();
-	syncAppSettings();
 }
 
 document.addEventListener('keydown', (e) => {

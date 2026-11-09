@@ -228,15 +228,46 @@ function internalIcon(url) {
 	return INTERNAL_ICONS[m[1]] || '';
 }
 
-const LAYOUT_KEYS = ['tabsPos', 'bmPos', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces'];
+const PANEL_HEIGHTS = { tabs: TABBAR_HEIGHT, toolbar: TOOLBAR_HEIGHT, bmbar: BMBAR_HEIGHT };
+
+// Где что стоит: какие панели над страницей, какие под ней, нужна ли узкая полоса заголовка для кнопок окна.
+// Тот же план получает окно с панелями (renderer.js), а высоты и ширины заданы и в style.css
+function panelPlan() {
+	const s = settings();
+	const side = s.tabsPos === 'left' || s.tabsPos === 'right' ? s.tabsPos : '';
+	const order = s.panelOrder.filter((k) => (k === 'tabs' ? !side : k !== 'bmbar' || s.bookmarksBar));
+	const at = order.indexOf('page');
+	const before = order.slice(0, at);
+	const after = order.slice(at + 1);
+	// Кнопки окна на панели вкладок живут в самой верхней полосе: если панель вкладок не первая сверху или стоит сбоку, для них есть отдельная узкая полоса
+	const strip = s.btnLayout.tabs.includes('winctl') && (!!side || before[0] !== 'tabs');
+	return { side, before, after, strip };
+}
+
+function panelsHeight(list) {
+	return list.reduce((n, k) => n + PANEL_HEIGHTS[k], 0);
+}
+
+// Верхний край панели инструментов в окне; null, если она под страницей
+function toolbarTop() {
+	const p = panelPlan();
+	const at = p.before.indexOf('toolbar');
+	if (at < 0) return null;
+	return (p.strip ? TITLEBAR_HEIGHT : 0) + panelsHeight(p.before.slice(0, at));
+}
+
+const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout'];
 
 function layoutPayload() {
 	const s = settings();
 	const out = {};
 	for (const k of LAYOUT_KEYS) out[k] = s[k];
+	out.plan = panelPlan();
+	out.arrows = store.ARROWS[s.arrows];
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
 	return out;
 }
+
 
 function sendLayout() {
 	if (win && !win.isDestroyed()) win.webContents.send('layout', layoutPayload());
@@ -378,18 +409,19 @@ function contentSize() {
 
 // Сколько места вокруг страницы занимают панели. Те же числа заданы в style.css
 function insets() {
-	const s = settings();
-	const i = { top: TOOLBAR_HEIGHT, bottom: 0, left: 0, right: 0 };
-	if (s.tabsPos === 'top') i.top += TABBAR_HEIGHT;
-	else if (s.winButtons) i.top += TITLEBAR_HEIGHT;
-	else if (s.tabsPos === 'bottom') i.bottom += TABBAR_HEIGHT;
-	else if (s.tabsPos === 'left') i.left = SIDE_WIDTH;
-	else i.right = SIDE_WIDTH;
-	if (s.bookmarksBar) {
-		if (s.bmPos === 'bottom') i.bottom += BMBAR_HEIGHT;
-		else i.top += BMBAR_HEIGHT;
-	}
-	return i;
+	const p = panelPlan();
+	return {
+		top: (p.strip ? TITLEBAR_HEIGHT : 0) + panelsHeight(p.before),
+		bottom: panelsHeight(p.after),
+		left: p.side === 'left' ? SIDE_WIDTH : 0,
+		right: p.side === 'right' ? SIDE_WIDTH : 0,
+	};
+}
+
+// Верхний край панели инструментов; если она под страницей — её положение от верха окна
+function toolbarY() {
+	const top = toolbarTop();
+	return top !== null ? top : contentSize()[1] - panelsHeight(panelPlan().after.slice(panelPlan().after.indexOf('toolbar')));
 }
 
 function pageBounds() {
@@ -1017,7 +1049,7 @@ ipcMain.on('pw:submit', (e, data) => {
 	}
 	if (tab.id === activeId) {
 		sendState();
-		if (!panelOpen) openPanel('pwsave', { x: contentSize()[0] - 12, y: insets().top - TOOLBAR_HEIGHT + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+		if (!panelOpen) openPanel('pwsave', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
 	}
 });
 
@@ -1039,7 +1071,7 @@ ipcMain.on('pw:need-fill', (e, hasPass) => {
 	if (fillAsked.has(key)) return;
 	fillAsked.add(key);
 	fillCtx = { tabId: tab.id, origin };
-	openPanel('pwfill', { x: contentSize()[0] - 12, y: insets().top - TOOLBAR_HEIGHT + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
 });
 handle('pw:fill-options', () => {
 	if (!fillCtx) return null;
@@ -1782,11 +1814,12 @@ function renderSuggest() {
 		hideSuggest();
 		return;
 	}
+	const height = sug.items.length * ROW_HEIGHT + POPUP_PADDING * 2;
 	popup.setBounds({
 		x: sug.x,
-		y: (settings().tabsPos === 'top' ? TABBAR_HEIGHT : 0) + TOOLBAR_HEIGHT - 2, // сразу под адресной строкой
+		y: toolbarTop() !== null ? toolbarTop() + TOOLBAR_HEIGHT - 2 : toolbarY() - height + 2, // сразу под адресной строкой, а если панель инструментов под страницей — над ней
 		width: sug.width,
-		height: sug.items.length * ROW_HEIGHT + POPUP_PADDING * 2,
+		height,
 	});
 	popup.setVisible(true);
 	popup.webContents.send('render', { items: sug.items, selected: sug.selected });
@@ -2163,6 +2196,7 @@ handle('settings:get', () => ({
 	settings: store.getSettings(),
 	engines: store.engineList(),
 	accents: accentList(),
+	arrowSets: store.ARROWS,
 	searchCount: store.searchCount(),
 	version: app.getVersion(),
 }));

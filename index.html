@@ -13,12 +13,10 @@
 		<button id="spaces" class="spaces" title="Пространства"><span id="space-name"></span></button>
 		<div id="tabs" class="tabs"></div>
 		<button id="newtab" class="newtab" title="Новая вкладка (Ctrl+T). Правая кнопка: вкладка инкогнито">+</button>
-		<div class="grow"></div>
-		<div id="slot-tab" class="slot"></div>
 	</div>
-	<div class="toolbar">
-		<button id="back" title="Назад (Alt+←)" disabled>←</button>
-		<button id="forward" title="Вперёд (Alt+→)" disabled>→</button>
+	<div class="toolbar" id="toolbar">
+		<button id="back" title="Назад (Alt+←)" disabled>◀</button>
+		<button id="forward" title="Вперёд (Alt+→)" disabled>▶</button>
 		<button id="reload" title="Обновить (Ctrl+R)">⟳</button>
 		<div class="address" id="address-box">
 			<input id="address" type="text" spellcheck="false" autocomplete="off"
@@ -52,9 +50,8 @@
 		<button id="settings" title="Настройки (Ctrl+,)">
 			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg>
 		</button>
-		<div id="slot-tool" class="slot"></div>
 	</div>
-	<div class="bmbar" id="bmbar"></div>
+	<div class="bmbar" id="bmbar"><div class="bmlist" id="bmlist"></div></div>
 	<div class="mid"></div>
 	<div id="winctl" class="winctl">
 		<button id="win-min" title="Свернуть"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 6h8"/></svg></button>

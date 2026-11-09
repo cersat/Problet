@@ -34,10 +34,6 @@
 		<section>
 			<h2>Вкладки</h2>
 			<div class="setting">
-				<div class="what">Расположение панели вкладок</div>
-				<select data-setting="tabsPos"><option value="top">Сверху</option><option value="bottom">Снизу</option><option value="right">Справа</option><option value="left">Слева</option></select>
-			</div>
-			<div class="setting">
 				<div class="what">Показывать URL вместо названия страницы</div>
 				<label class="switch"><input type="checkbox" data-setting="showUrlInTabs"><span></span></label>
 			</div>
@@ -82,10 +78,6 @@
 		<section>
 			<h2>Закладки</h2>
 			<div class="setting">
-				<div class="what">Расположение панели закладок</div>
-				<select data-setting="bmPos"><option value="top">Сверху</option><option value="bottom">Снизу</option></select>
-			</div>
-			<div class="setting">
 				<div class="what">Показывать только иконку</div>
 				<label class="switch"><input type="checkbox" data-setting="bmOnlyIcons"><span></span></label>
 			</div>
@@ -105,52 +97,16 @@
 				<div class="what">Показывать панель закладок</div>
 				<label class="switch"><input type="checkbox" data-setting="bookmarksBar"><span></span></label>
 			</div>
-			<details class="group">
-				<summary>Содержимое панели со вкладками</summary>
-				<div class="setting">
-					<div class="what">Кнопка «Новая вкладка»</div>
-					<label class="switch"><input type="checkbox" data-setting="tabsNewButton"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Апплет «Пространства»</div>
-					<label class="switch"><input type="checkbox" data-setting="appSpaces"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Кнопки взаимодействия с окном<small>Свернуть, развернуть, закрыть</small></div>
-					<label class="switch"><input type="checkbox" data-setting="winButtons"><span></span></label>
-				</div>
-			</details>
-			<details class="group">
-				<summary>Содержимое панели поиска</summary>
-				<div class="setting">
-					<div class="what">Апплет «Закладки»</div>
-					<label class="switch"><input type="checkbox" data-setting="appBookmarks"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Апплет «Таблица символов»</div>
-					<label class="switch"><input type="checkbox" data-setting="appChars"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Апплет «Пароли»</div>
-					<label class="switch"><input type="checkbox" data-setting="appPasswords"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Апплет «История поиска»</div>
-					<label class="switch"><input type="checkbox" data-setting="appHistory"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Апплет «Настройки»<small id="app-settings-note"></small></div>
-					<label class="switch"><input type="checkbox" data-setting="appSettings"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Апплет «Загрузки»</div>
-					<label class="switch"><input type="checkbox" data-setting="appDownloads"><span></span></label>
-				</div>
-				<div class="setting">
-					<div class="what">Иконка обновления</div>
-					<label class="switch"><input type="checkbox" data-setting="appUpdate"><span></span></label>
-				</div>
-			</details>
+			<h3>Панели</h3>
+			<div class="setting">
+				<div class="what">Положение панели вкладок<small>Сбоку вкладки идут столбцом рядом со страницей и в порядок панелей ниже не входят</small></div>
+				<select data-setting="tabsPos"><option value="row">В ряду панелей</option><option value="left">Слева</option><option value="right">Справа</option></select>
+			</div>
+			<div class="what plist-title">Порядок сверху вниз<small>Панели над окном вкладки идут над страницей, под ним — под страницей</small></div>
+			<div id="panel-order" class="plist"></div>
+			<h3>Кнопки</h3>
+			<div class="what plist-title"><small>Для каждой кнопки можно выбрать панель или скрыть её, стрелками меняется порядок на панели. Серые строки — адресная строка, вкладки и закладки: они стоят на своих панелях и служат точкой отсчёта</small></div>
+			<div id="btn-lists"></div>
 		</section>
 
 		<section>
@@ -183,6 +139,10 @@
 				<div class="what">Акцентный цвет</div>
 			</div>
 			<div class="swatches" id="swatches"></div>
+			<div class="setting">
+				<div class="what">Стрелки «назад» и «вперёд»<small>В панели инструментов и в кнопках перемещения в настройках</small></div>
+				<select data-setting="arrows"><option value="tri">◀ ▶</option><option value="arrow">← →</option><option value="angle">‹ ›</option><option value="heavy">❮ ❯</option><option value="double">« »</option></select>
+			</div>
 		</section>
 
 		<section>
