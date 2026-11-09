@@ -69,16 +69,46 @@ function pickAsset(assets) {
 	return null;
 }
 
+// Лимит API GitHub без авторизации — 60 запросов в час на адрес, а одна проверка делает два (раньше — при частых проверках, пока идёт сборка).
+// Когда API отвечает отказом, те же сведения берём со страниц сайта: список файлов релиза и ленту коммитов
+const SITE = 'https://github.com/' + REPO;
+const decodeHtml = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+
+async function releaseFromSite() {
+	const res = await net.fetch(SITE + '/releases/expanded_assets/latest');
+	if (!res.ok) return null;
+	const html = await res.text();
+	const assets = [...html.matchAll(/href="([^"]*\/releases\/download\/latest\/([^"/]+))"/g)].map((m) => ({ name: decodeURIComponent(m[2]), browser_download_url: 'https://github.com' + m[1], size: 0 }));
+	return assets.length ? { html_url: SITE + '/releases/tag/latest', assets } : null;
+}
+
+async function headFromSite() {
+	const res = await net.fetch(SITE + '/commits/main.atom');
+	if (!res.ok) return null;
+	const m = /<entry>[\s\S]*?<title>\s*([\s\S]*?)\s*<\/title>/.exec(await res.text());
+	return m ? decodeHtml(m[1]).split('\n')[0].trim().slice(0, 300) : null;
+}
+
 // Последний коммит ветки main: его название служит списком изменений, а версия в package.json показывает, что скоро выйдет
 async function headInfo() {
 	if (process.env.PROBLET_UPDATE_URL) return null;
 	try {
 		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/commits/main', { headers: { Accept: 'application/vnd.github+json' } });
-		if (!res.ok) return null;
-		const data = await res.json();
-		const info = { title: String((data.commit && data.commit.message) || '').split('\n')[0].trim().slice(0, 300), version: '' };
+		let ref = 'main';
+		let title;
+		if (res.ok) {
+			const data = await res.json();
+			ref = data.sha;
+			title = String((data.commit && data.commit.message) || '').split('\n')[0].trim().slice(0, 300);
+		} else if (res.status === 403 || res.status === 429) {
+			title = await headFromSite();
+			if (title === null) return null;
+		} else {
+			return null;
+		}
+		const info = { title, version: '' };
 		try {
-			const pkg = await net.fetch('https://raw.githubusercontent.com/' + REPO + '/' + data.sha + '/package.json');
+			const pkg = await net.fetch('https://raw.githubusercontent.com/' + REPO + '/' + ref + '/package.json');
 			if (pkg.ok) info.version = String((await pkg.json()).version || '');
 		} catch (e) { /* без версии определим по названию релиза */ }
 		return info;
@@ -110,8 +140,9 @@ async function check(force) {
 	try {
 		const res = await net.fetch(API, { headers: { Accept: 'application/vnd.github+json' } });
 		if (res.status === 404) throw new Error('Релиз пока не опубликован');
-		if (!res.ok) throw new Error('GitHub ответил ' + res.status);
-		const release = await res.json();
+		let release = res.ok ? await res.json() : null;
+		if (!release && (res.status === 403 || res.status === 429)) release = await releaseFromSite();
+		if (!release) throw new Error('GitHub ответил ' + res.status);
 		page = release.html_url || 'https://github.com/' + REPO + '/releases';
 		asset = pickAsset(release.assets || []);
 		const head = await headInfo();
