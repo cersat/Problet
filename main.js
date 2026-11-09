@@ -1774,6 +1774,8 @@ function attachIdentity(ses, withCache) {
 	});
 }
 
+ipcMain.on('adblock:youtube', (e) => { e.returnValue = !!(settings().adblock && settings().adblockYoutube); });
+
 ipcMain.on('identity:get', (e) => {
 	e.returnValue = identity.pagePayload(profileFor((e.senderFrame && e.senderFrame.url) || e.sender.getURL()) || identity.build('problet', app.getVersion()), settings().dnt);
 });

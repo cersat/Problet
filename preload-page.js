@@ -176,6 +176,56 @@ if (location.protocol !== 'problet:' && window === window.top) {
 	} catch (e) { /* без подмены страница всё равно работает */ }
 }
 
+// Реклама YouTube приходит с тех же адресов, что и видео, поэтому по доменам её не отрезать: вырезаем её из ответов плеера, прячем рекламные блоки и пропускаем то, что всё же показалось
+if (/^https?:$/.test(location.protocol) && /(^|\.)youtube(-nocookie)?\.com$/.test(location.hostname) && ipcRenderer.sendSync('adblock:youtube')) {
+	try {
+		webFrame.executeJavaScript('(' + function () {
+			const KEYS = ['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams'];
+			const strip = (o) => {
+				if (o && typeof o === 'object') {
+					for (const k of KEYS) if (k in o) delete o[k];
+					if (o.playerResponse) strip(o.playerResponse);
+					if (o.response) strip(o.response);
+					if (Array.isArray(o)) o.forEach(strip);
+				}
+				return o;
+			};
+			// Первый ответ плеера лежит прямо в странице
+			let initial;
+			try {
+				Object.defineProperty(window, 'ytInitialPlayerResponse', { configurable: true, get: () => initial, set: (v) => { initial = strip(v); } });
+			} catch (e) { /* останется очистка ниже */ }
+			// Остальные приходят запросами и разбираются через JSON.parse / Response.json
+			const parse = JSON.parse;
+			JSON.parse = function () {
+				return strip(parse.apply(this, arguments));
+			};
+			const json = Response.prototype.json;
+			Response.prototype.json = function () {
+				return json.apply(this, arguments).then(strip);
+			};
+			// То, что всё же показалось: нажимаем «Пропустить» и домотываем ролик до конца
+			const skip = () => {
+				const player = document.querySelector('.html5-video-player.ad-showing');
+				if (!player) return;
+				const video = player.querySelector('video');
+				if (video && isFinite(video.duration) && video.duration > 0) {
+					video.muted = true;
+					video.currentTime = video.duration;
+				}
+				const btn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-overlay-close-button');
+				if (btn) btn.click();
+			};
+			setInterval(skip, 300);
+			const css = document.createElement('style');
+			css.textContent = '#masthead-ad, #player-ads, ytd-ad-slot-renderer, ytd-in-feed-ad-layout-renderer, ytd-display-ad-renderer, ytd-promoted-sparkles-web-renderer, ytd-banner-promo-renderer, ytd-statement-banner-renderer, .ytp-ad-overlay-container, .ytp-ad-module, ytd-merch-shelf-renderer, ytd-companion-slot-renderer { display: none !important; }';
+			const put = () => (document.head || document.documentElement).appendChild(css);
+			if (document.documentElement) put();
+			else document.addEventListener('readystatechange', put, { once: true });
+		}.toString() + ')()');
+	} catch (e) { /* без этого реклама просто останется */ }
+}
+
 // Пароли на обычных сайтах: замечаем отправку формы с паролем и подставляем сохранённое, когда на поле нажимает сам человек
 if (location.protocol !== 'problet:' && window === window.top) {
 	const isField = (el) => el instanceof HTMLInputElement;
