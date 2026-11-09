@@ -1,6 +1,6 @@
 // Автообновление: смотрим релиз «latest» в GitHub, сравниваем версию из имён файлов с текущей.
 // Linux (AppImage): скачиваем новый файл и подменяем им запущенный, после перезапуска работает новая версия.
-// Windows: скачиваем установщик и запускаем его тихо поверх текущей версии (если программа из zip, открываем обычный мастер). macOS: скачиваем .dmg в «Загрузки» и открываем его (приложение не подписано, заменить себя оно не может, перетащить в «Программы» нужно самому).
+// Windows: скачиваем установщик и запускаем его тихо поверх текущей версии (если программа из zip, распаковываем новый zip поверх неё). macOS: скачиваем .dmg в «Загрузки» и открываем его (приложение не подписано, заменить себя оно не может, перетащить в «Программы» нужно самому).
 // Остальные сборки: открываем страницу релиза.
 
 const fs = require('fs');
@@ -26,7 +26,7 @@ let busy = false;
 function mode() {
 	if (!app.isPackaged) return 'dev';
 	if (process.platform === 'linux') return process.env.APPIMAGE ? 'appimage' : 'page';
-	if (process.platform === 'win32') return 'installer';
+	if (process.platform === 'win32') return installedWithSetup() ? 'installer' : 'zip';
 	if (process.platform === 'darwin') return 'dmg';
 	return 'page';
 }
@@ -59,7 +59,7 @@ function isNewer(a, b) {
 
 // Подходящий файл релиза для этой системы
 function pickAsset(assets) {
-	const want = { appimage: /\.AppImage$/i, installer: /\.exe$/i, dmg: /\.dmg$/i, page: /\.tar\.gz$/i }[mode()];
+	const want = { appimage: /\.AppImage$/i, installer: /\.exe$/i, zip: /\.zip$/i, dmg: /\.dmg$/i, page: /\.tar\.gz$/i }[mode()];
 	for (const a of assets) {
 		const m = /^Problet-(\d+\.\d+\.\d+)-([a-z]+)-([\w]+)\./i.exec(a.name);
 		if (!m || m[2] !== OS || !ARCH.includes(m[3])) continue;
@@ -246,13 +246,38 @@ function restartAppImage() {
 	app.exit(0);
 }
 
-// Windows: программа поставлена установщиком (рядом лежит деинсталлятор), а не распакована из zip. Только тогда установщик может заменить её тихо
+// Windows: программа поставлена установщиком (рядом лежит деинсталлятор), а не распакована из zip
+let setupInstall = null;
 function installedWithSetup() {
-	try {
-		return fs.readdirSync(path.dirname(process.execPath)).some((f) => /^Uninstall .*\.exe$/i.test(f));
-	} catch (e) {
-		return false;
+	if (setupInstall === null) {
+		try {
+			setupInstall = fs.readdirSync(path.dirname(process.execPath)).some((f) => /^Uninstall .*\.exe$/i.test(f));
+		} catch (e) {
+			setupInstall = false;
+		}
 	}
+	return setupInstall;
+}
+
+// Программа из zip не может заменить себя сама: скрипт ждёт, пока она закроется, распаковывает архив поверх папки и запускает её снова
+function zipScript({ pid, zip, dir, exe }) {
+	const bat = (t) => String(t).replace(/%/g, '%%');
+	const ps = (t) => bat(t).replace(/'/g, "''");
+	return [
+		'@echo off',
+		'chcp 65001 >nul',
+		':wait',
+		'tasklist /FI "PID eq ' + Number(pid) + '" 2>nul | find "' + Number(pid) + '" >nul && (timeout /t 1 /nobreak >nul & goto wait)',
+		'set n=0',
+		':extract',
+		'set /a n+=1',
+		'where tar >nul 2>&1 && tar -xf "' + bat(zip) + '" -C "' + bat(dir) + '" || powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath \'' + ps(zip) + '\' -DestinationPath \'' + ps(dir) + '\' -Force"',
+		'if errorlevel 1 if %n% lss 5 (timeout /t 2 /nobreak >nul & goto extract)',
+		'start "" "' + bat(exe) + '"',
+		'del "' + bat(zip) + '" 2>nul',
+		'(goto) 2>nul & del "%~f0"',
+		'',
+	].join('\r\n');
 }
 
 // Применить: перезапуск в новую версию (Linux), установщик (Windows) или страница релиза (остальные)
@@ -265,10 +290,15 @@ async function apply() {
 	if (state.status !== 'ready') return;
 	if (mode() === 'appimage') {
 		restartAppImage();
-	} else if (mode() === 'installer' && installedWithSetup()) {
+	} else if (mode() === 'installer') {
 		// Тихая установка поверх текущей: без мастера, папка и данные те же, после установки Problet запускается сам.
 		// Файл скачан самим браузером, поэтому SmartScreen его не проверяет
 		spawn(state.file, ['--updated', '/S', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+		app.quit();
+	} else if (mode() === 'zip') {
+		const bat = path.join(os.tmpdir(), 'problet-update.bat');
+		fs.writeFileSync(bat, zipScript({ pid: process.pid, zip: state.file, dir: path.dirname(process.execPath), exe: process.execPath }), 'utf8');
+		spawn('cmd.exe', ['/c', bat], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
 		app.quit();
 	} else {
 		await shell.openPath(state.file);
@@ -296,7 +326,7 @@ function schedule(opts) {
 		last = Date.now();
 		await check();
 		if (!opts().enabled) return;
-		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer' || mode() === 'dmg')) await prepare();
+		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer' || mode() === 'zip' || mode() === 'dmg')) await prepare();
 		if (state.status === 'ready' && mode() !== 'dmg' && opts().restart) await apply(); // на macOS установщик сам не открываем: нужно перетащить приложение вручную
 	};
 	setTimeout(() => run(true), 4000);
