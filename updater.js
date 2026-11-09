@@ -11,7 +11,6 @@ const { app, net, shell } = require('electron');
 
 const REPO = 'cersat/Problet';
 const API = process.env.PROBLET_UPDATE_URL || 'https://api.github.com/repos/' + REPO + '/releases/tags/latest';
-const CHECK_EVERY = 6 * 60 * 60 * 1000;
 
 const ARCH = { x64: ['x64', 'x86_64'], arm64: ['arm64', 'aarch64'] }[process.arch] || [process.arch];
 const OS = { linux: 'linux', win32: 'win', darwin: 'mac' }[process.platform];
@@ -232,19 +231,31 @@ async function apply() {
 	}
 }
 
-// Проверка при запуске (через несколько секунд) и дальше раз в несколько часов; найденное обновление качается само
-function schedule(enabled, restartWhenReady) {
+// Проверка при запуске (через несколько секунд) и дальше по периоду из настроек (раз в минуту смотрим, не пора ли).
+// opts() -> { enabled, every: минут, restart, faster }
+// faster: пока релиз ещё собирается (status building), проверяем каждые 2 минуты
+const BUILDING_EVERY = 2;
+function schedule(opts) {
 	if (timer) clearInterval(timer);
 	loadCache();
+	let last = 0;
 	const run = async (startup) => {
-		if ((!startup && !enabled()) || busy || state.status === 'ready') return;
+		if (busy || state.status === 'ready') return;
+		const o = opts();
+		if (!startup) {
+			if (!o.enabled) return;
+			let every = Number(o.every);
+			if (state.status === 'building' && o.faster) every = Math.min(every, BUILDING_EVERY);
+			if (Date.now() - last < every * 60 * 1000) return;
+		}
+		last = Date.now();
 		await check();
-		if (!enabled()) return;
+		if (!opts().enabled) return;
 		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer' || mode() === 'dmg')) await prepare();
-		if (state.status === 'ready' && mode() !== 'dmg' && restartWhenReady && restartWhenReady()) await apply(); // на macOS установщик сам не открываем: нужно перетащить приложение вручную
+		if (state.status === 'ready' && mode() !== 'dmg' && opts().restart) await apply(); // на macOS установщик сам не открываем: нужно перетащить приложение вручную
 	};
 	setTimeout(() => run(true), 4000);
-	if (mode() !== 'dev') timer = setInterval(run, CHECK_EVERY);
+	if (mode() !== 'dev') timer = setInterval(run, 60 * 1000);
 }
 
 module.exports = { looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };

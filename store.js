@@ -48,6 +48,8 @@ const SETTING_DEFAULTS = {
 	searchSuggest: true,
 	dnt: false,
 	autoUpdate: true,
+	updateEvery: '360',
+	updateFaster: false,
 	autoRestart: false,
 	pwOffer: true,
 	pwFill: true,
@@ -82,7 +84,7 @@ const SETTING_DEFAULTS = {
 	bmNewTab: false,
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsNewButton', 'winButtons', 'appPasswords', 'appHistory', 'appSettings', 'appDownloads', 'appUpdate', 'appBookmarks', 'appChars', 'appSpaces', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -92,6 +94,7 @@ const ENUM_SETTINGS = {
 	tabsPos: ['top', 'bottom', 'left', 'right'],
 	bmPos: ['top', 'bottom'],
 	freezeAfter: ['1', '2', '5', '10', '30', '60', '120', '300', '600', '1440', '0'], // через сколько минут без просмотра вкладка замораживается; 0 — никогда
+	updateEvery: ['15', '30', '60', '180', '360', '720', '1440'], // период авто-проверки обновлений в минутах
 	pwLock: ['5', '15', '60', '0'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
 };
 

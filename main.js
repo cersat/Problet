@@ -2651,7 +2651,7 @@ app.whenReady().then(() => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
 		refreshTip();
 	});
-	updater.schedule(() => settings().autoUpdate, () => settings().autoRestart);
+	updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster }));
 });
 function startHeadless() {
 	if (headless.flag('adblock')) store.setSettings({ adblock: true });

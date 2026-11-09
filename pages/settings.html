@@ -313,8 +313,16 @@
 		<section>
 			<h2>Обновления</h2>
 			<div class="setting">
-				<div class="what">Обновлять автоматически<small>Раз в несколько часов Problet смотрит последний релиз на GitHub и сам скачивает новую версию. Установится она после перезапуска</small></div>
+				<div class="what">Обновлять автоматически<small>Problet по расписанию смотрит последний релиз на GitHub и сам скачивает новую версию. Установится она после перезапуска</small></div>
 				<label class="switch"><input type="checkbox" data-setting="autoUpdate"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Период авто-проверки на обновления<small>Как часто Problet проверяет, вышла ли новая версия. Работает при включённом автообновлении</small></div>
+				<select data-setting="updateEvery"><option value="15">15 минут</option><option value="30">30 минут</option><option value="60">1 час</option><option value="180">3 часа</option><option value="360">6 часов</option><option value="720">12 часов</option><option value="1440">24 часа</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Увеличивать частоту проверки, когда обновление собирается<small>Если новая версия уже закоммичена, но ещё не собрана, проверка идёт каждые 2 минуты. Работает при включённом автообновлении</small></div>
+				<label class="switch"><input type="checkbox" data-setting="updateFaster"><span></span></label>
 			</div>
 			<div class="setting">
 				<div class="what">Перезагружать автоматически<small>Когда новая версия скачана, Problet сам перезапускается. Открытые вкладки вернутся только если в настройках запуска выбрано восстановление сессии. Работает при включённом автообновлении</small></div>
