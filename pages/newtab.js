@@ -16,10 +16,10 @@ async function renderTiles() {
 		a.href = b.url;
 		a.title = b.url;
 		let fav;
-		if (b.icon) {
+		if (b.customIcon || b.icon) {
 			fav = document.createElement('img');
 			fav.className = 'fav';
-			fav.src = b.icon;
+			fav.src = b.customIcon || b.icon;
 			fav.addEventListener('error', () => {
 				const l = document.createElement('span');
 				l.className = 'fav letter';

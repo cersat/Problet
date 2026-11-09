@@ -53,6 +53,8 @@ if (location.protocol === 'problet:') {
 		filesOpen: (p, asIs) => call('files:open', p, asIs),
 		filesList: (dir) => call('files:list', dir),
 		svgRead: (p) => call('svg:read', p),
+		bmIconGet: (id) => call('bm:icon-get', id),
+		bmIconSet: (id, svg) => call('bm:icon-set', id, svg),
 		svgWrite: (p, text) => call('svg:write', p, text),
 		svgSavePng: (dataUrl, name) => call('svg:save-png', dataUrl, name),
 		svgSaveAs: (text) => call('svg:save-as', text),

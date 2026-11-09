@@ -67,8 +67,9 @@ button:disabled {
 	display: flex;
 	align-items: flex-end;
 	gap: 2px;
-	height: 36px;
+	height: var(--tabs-h, 36px);
 	flex: none;
+	position: relative;
 	padding: 4px 6px 0;
 	background: var(--tabbar);
 }
@@ -348,7 +349,7 @@ body[data-tabs="bottom"] .tab.active {
 
 body[data-tabs="left"] .tabbar,
 body[data-tabs="right"] .tabbar {
-	width: 220px;
+	width: var(--side-w, 220px);
 	height: auto;
 	flex-direction: column;
 	align-items: stretch;
@@ -413,7 +414,6 @@ body[data-tabs="bottom"] .tab.incognito.active { box-shadow: inset 0 -2px 0 #a68
 	margin-right: -6px;
 }
 
-.winctl.end { margin-left: auto; }
 .toolbar .winctl, .bmbar .winctl { margin-right: -8px; }
 
 .winctl button {
@@ -528,3 +528,43 @@ body[data-tabs="right"] .spaces {
 .tab.frozen:not(.active) .label, .tab.frozen:not(.active) .fav { opacity: 0.55; }
 
 #back, #forward { font-size: 12px; }
+
+/* ---------- Переменные промежутки и растягивание ---------- */
+
+/* Промежуток занимает свободное место на панели, сжимается первым и отталкивает соседей к краям */
+.spacer { flex: 1 1 0; min-width: 0; min-height: 0; align-self: stretch; }
+
+/* Нет промежутка: вкладки и закладки растягиваются до конца панели (адресная строка и так занимает всё свободное) */
+.tabbar:not(.has-sp) .tabs { flex: 1 1 0; }
+.tabbar:not(.has-sp) .tabs:not(.scroll):not(.side):not(.two) .tab { flex: 1 1 220px; max-width: none; }
+.bmbar:not(.has-sp) .bmlist .bm { flex: 1 1 auto; max-width: none; }
+/* Есть промежуток: адресная строка ужимается до текста в ней, закладки до своего размера */
+.toolbar.has-sp .address { flex: 0 1 auto; min-width: 120px; }
+.toolbar.has-sp .address input { field-sizing: content; flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.bmbar.has-sp .bmlist { flex: 0 1 auto; }
+.tabbar.has-sp .tabs.side { flex: 0 1 auto; }
+
+/* Ручка у края панели вкладок */
+.grip { position: absolute; z-index: 5; -webkit-app-region: no-drag; }
+.grip[data-edge="bottom"], .grip[data-edge="top"] { left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.grip[data-edge="bottom"] { bottom: -3px; }
+.grip[data-edge="top"] { top: -3px; }
+.grip[data-edge="left"], .grip[data-edge="right"] { top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.grip[data-edge="left"] { left: -3px; }
+.grip[data-edge="right"] { right: -3px; }
+.grip:hover { background: var(--accent-soft); }
+
+/* Вкладки в два слоя: сверху вниз по две в столбце, дальше столбцы вправо; сбоку — в два столбца */
+.tabs.two { flex-direction: column; flex-wrap: wrap; align-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+.tabs.two::-webkit-scrollbar { display: none; }
+.tabbar:has(.tabs.two):not(.side) { padding-bottom: 4px; }
+.tabs.two .tab,
+.tabbar:not(.has-sp) .tabs.two .tab { flex: 0 0 calc(50% - 1px); width: 190px; height: auto; min-width: 0; border-radius: 8px; }
+.tabs.side.two { flex-direction: row; overflow-x: hidden; overflow-y: auto; }
+.tabs.side.two .tab,
+.tabbar:not(.has-sp) .tabs.side.two .tab { flex: 0 0 calc(50% - 1px); width: auto; height: 34px; }
+.tabs.two .tab.active { box-shadow: inset 0 2px 0 var(--accent); }
+body[data-tabs="bottom"] .tabs.two .tab.active { box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* Переименование вкладки */
+.tab input.rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border: 1px solid var(--accent); border-radius: 4px; background: var(--surface); }

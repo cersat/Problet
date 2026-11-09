@@ -140,11 +140,24 @@ function makeTab(t, state) {
 
 let sideTabs = false;
 
-api.onTabs((state) => {
+let tabCount = 0;
+let renamingId = null; // пока вкладку переименовывают, список вкладок не перерисовывается
+let pendingTabs = null;
+
+function setTabsRows() {
+	const two = !!(layoutState && layoutState.tabsTwoRows);
+	tabsEl.classList.toggle('two', two);
+	tabsEl.style.setProperty('--n', two ? Math.ceil(tabCount / 2) : tabCount);
+}
+
+let lastTabsState = null;
+function renderTabs(state) {
+	lastTabsState = state;
 	sideTabs = !!state.side;
+	tabCount = state.tabs.length;
 	tabsEl.classList.toggle('side', sideTabs);
 	tabsEl.classList.toggle('scroll', state.overflow === 'scroll' && !sideTabs);
-	tabsEl.style.setProperty('--n', state.tabs.length);
+	setTabsRows();
 	if (state.space) {
 		document.getElementById('space-name').textContent = state.space.name;
 		document.getElementById('spaces').title = 'Пространство: ' + state.space.name;
@@ -153,6 +166,11 @@ api.onTabs((state) => {
 	for (const t of state.tabs) tabsEl.append(makeTab(t, state));
 	const active = tabsEl.querySelector('.tab.active');
 	if (active && (state.overflow === 'scroll' || sideTabs)) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+api.onTabs((state) => {
+	if (renamingId !== null) pendingTabs = state;
+	else renderTabs(state);
 });
 
 tabsEl.addEventListener('contextmenu', (e) => {
@@ -160,6 +178,38 @@ tabsEl.addEventListener('contextmenu', (e) => {
 	if (!tab) return;
 	e.preventDefault();
 	api.tabMenu(Number(tab.dataset.id));
+});
+
+// Переименование: поле ввода прямо на вкладке. Enter — применить, Esc — отмена, пустое имя возвращает название страницы
+api.onTabRename((id) => {
+	const tab = tabsEl.querySelector('.tab[data-id="' + id + '"]');
+	if (!tab || renamingId !== null) return;
+	const label = tab.querySelector('.label');
+	const input = document.createElement('input');
+	input.className = 'rename';
+	input.value = (tab.querySelector('.label .t') || label).textContent;
+	renamingId = id;
+	let done = false;
+	const finish = (apply) => {
+		if (done) return;
+		done = true;
+		if (apply) api.tabRename(id, input.value);
+		renamingId = null;
+		input.remove();
+		const s = pendingTabs || lastTabsState;
+		pendingTabs = null;
+		if (s) renderTabs(s);
+	};
+	input.addEventListener('keydown', (e) => {
+		e.stopPropagation();
+		if (e.key === 'Enter') finish(true);
+		else if (e.key === 'Escape') finish(false);
+	});
+	input.addEventListener('blur', () => finish(true));
+	for (const t of ['mousedown', 'click', 'dblclick', 'contextmenu']) input.addEventListener(t, (e) => e.stopPropagation());
+	label.replaceWith(input);
+	input.focus();
+	input.select();
 });
 
 // Перетаскивание вкладок. Позиция считается среди остальных вкладок (без перетаскиваемой)
@@ -351,6 +401,36 @@ const winctl = document.getElementById('winctl');
 const $id = (id) => document.getElementById(id);
 const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar };
 // Главный элемент каждой панели: вокруг него расставляются кнопки
+// Ручка растягивания панели вкладок: до двойного размера (по высоте, а сбоку по ширине)
+const grip = document.createElement('div');
+grip.className = 'grip';
+grip.title = 'Потяни, чтобы изменить размер панели вкладок';
+grip.addEventListener('pointerdown', (e) => {
+	if (e.button !== 0 || !layoutState) return;
+	e.preventDefault();
+	grip.setPointerCapture(e.pointerId);
+	const side = !!layoutState.plan.side;
+	const base = side ? layoutState.tabsBase.side : layoutState.tabsBase.row;
+	const start = { pos: side ? e.clientX : e.clientY, size: base * layoutState.tabsScale };
+	// куда растёт панель: вниз или вправо — когда ручка у нижнего/правого края панели, иначе в обратную сторону
+	const dir = grip.dataset.edge === 'bottom' || grip.dataset.edge === 'right' ? 1 : -1;
+	let frame = 0;
+	const move = (ev) => {
+		const size = start.size + dir * ((side ? ev.clientX : ev.clientY) - start.pos);
+		const scale = Math.round(Math.min(2, Math.max(1, size / base)) * 100) / 100;
+		cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(() => api.tabsScale(scale));
+	};
+	const up = () => {
+		grip.removeEventListener('pointermove', move);
+		grip.removeEventListener('pointerup', up);
+		grip.removeEventListener('pointercancel', up);
+	};
+	grip.addEventListener('pointermove', move);
+	grip.addEventListener('pointerup', up);
+	grip.addEventListener('pointercancel', up);
+});
+
 const MAIN_EL = { 'm:tabs': 'tabs', 'm:address': 'address-box', 'm:bookmarks': 'bmlist' };
 
 function applyLayout(l) {
@@ -383,28 +463,30 @@ function applyLayout(l) {
 	for (const key of Object.keys(PANEL_EL)) {
 		const host = PANEL_EL[key];
 		const main = Object.keys(MAIN_EL).find((m) => L[key].includes(m));
-		let afterMain = false;
+		// есть переменный промежуток — главный элемент панели не растягивается, свободное место занимает промежуток
+		host.classList.toggle('has-sp', L[key].some((id) => /^sp\d$/.test(id)));
+		const want = [];
 		for (const id of L[key]) {
-			if (id === main) {
-				afterMain = true;
-				host.append($id(MAIN_EL[id]));
+			const el = $id(id === main ? MAIN_EL[id] : id);
+			if (id === 'winctl' && key === 'tabs' && p.strip) {
+				$id('titlebar').append(el);
+				el.classList.remove('off');
 				continue;
 			}
-			const el = $id(id);
-			if (id === 'winctl') {
-				el.classList.toggle('end', afterMain);
-				if (key === 'tabs' && p.strip) {
-					$id('titlebar').append(el);
-					el.classList.remove('end');
-					el.classList.remove('off');
-					continue;
-				}
-			}
 			el.classList.remove('off');
-			host.append(el);
+			want.push(el);
 		}
+		if (key === 'tabs') want.push(grip);
+		// переставляем, только если порядок изменился: перенос ручки во время перетаскивания сбросил бы захват мыши
+		if (want.length !== host.children.length || want.some((el, i) => host.children[i] !== el)) host.append(...want);
 	}
 	for (const id of L.hidden) $id(id).classList.add('off');
+	// Размер панели вкладок и ручка, за которую её растягивают
+	const scale = l.tabsScale;
+	document.body.style.setProperty('--tabs-h', Math.round(l.tabsBase.row * scale) + 'px');
+	document.body.style.setProperty('--side-w', Math.round(l.tabsBase.side * scale) + 'px');
+	grip.dataset.edge = p.side ? (p.side === 'left' ? 'right' : 'left') : (p.before.includes('tabs') ? 'bottom' : 'top');
+	setTabsRows();
 	$id('back').textContent = l.arrows[0];
 	$id('forward').textContent = l.arrows[1];
 	document.getElementById('win-max').title = l.maximized ? 'Восстановить' : 'Развернуть';
@@ -445,10 +527,11 @@ function renderBar() {
 			l.textContent = (m.title.trim()[0] || '•').toUpperCase();
 			return l;
 		};
-		if (m.icon) {
+		b.dataset.id = m.id;
+		if (m.customIcon || m.icon) {
 			fav = document.createElement('img');
 			fav.className = 'fav';
-			fav.src = m.icon;
+			fav.src = m.customIcon || m.icon;
 			fav.addEventListener('error', () => fav.replaceWith(letter()));
 		} else {
 			fav = letter();
@@ -475,6 +558,13 @@ function renderBar() {
 		bmlist.append(hint);
 	}
 }
+
+bmlist.addEventListener('contextmenu', (e) => {
+	const b = e.target.closest('.bm[data-id]');
+	if (!b) return;
+	e.preventDefault();
+	api.barMenu(b.dataset.id);
+});
 
 api.onBar((data) => {
 	barData = data;

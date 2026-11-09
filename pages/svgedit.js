@@ -57228,7 +57228,9 @@ function entry_arrayLikeToArray(arr, len) { if (len == null || len > arr.length)
 Object(index_es["addLocaleData"])([].concat(_toConsumableArray(ru_default.a), _toConsumableArray(en_default.a)));
 var api = window.api;
 var file = new URLSearchParams(location.search).get('p') || '';
-var baseName = (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.svg$/i, '');
+var params = new URLSearchParams(location.search);
+var bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
+var baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.svg$/i, '');
 var store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /* combineReducers */])({
   intl: lib["intlReducer"],
   scratchPaint: scratch_paint_reducer
@@ -57242,6 +57244,11 @@ var store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /* combi
   }
 });
 var EMPTY = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360"></svg>';
+var EMPTY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"></svg>';
+// Пустой рисунок (ни одной фигуры) в закладке значит «своей иконки нет»
+var isEmptyDrawing = function isEmptyDrawing(svg) {
+  return !/<(path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b/.test(svg);
+};
 var clean = function clean(err) {
   return String(err && err.message || err).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
 };
@@ -57321,14 +57328,26 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
     _this.savedSvg = null; // что лежит в файле
     _this.bitmapCanvas = null;
     _this.n = 0;
-    document.title = baseName + '.svg — редактор';
+    _this.state.title = file;
+    document.title = (bm ? 'Иконка закладки' : baseName + '.svg') + ' — редактор';
     return _this;
   }
   entry_createClass(App, [{
     key: "componentDidMount",
     value: function componentDidMount() {
       var _this2 = this;
-      api.svgRead(file).then(function (r) {
+      (bm ? api.bmIconGet(bm).then(function (r) {
+        return {
+          text: r.svg,
+          title: r.title
+        };
+      }) : api.svgRead(file)).then(function (r) {
+        if (bm) {
+          _this2.setState({
+            title: 'Иконка закладки: ' + r.title
+          });
+          r.text = r.text || EMPTY_ICON;
+        }
         var text = r.text.trim() ? r.text : EMPTY;
         var size = sizeOf(text);
         _this2.svg = text;
@@ -57339,7 +57358,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
           imageId: String(++_this2.n),
           width: size ? Math.max(Math.ceil(size.w), 32) : 480,
           height: size ? Math.max(Math.ceil(size.h), 32) : 360,
-          dirty: !r.text.trim(),
+          dirty: !bm && !r.text.trim(),
           error: size || !r.text.trim() ? '' : 'Не удалось разобрать svg: рисунок может открыться пустым'
         });
       }).catch(function (e) {
@@ -57393,25 +57412,35 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
               return _context.abrupt("return", this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG'));
             case 2:
               _context.prev = 2;
-              _context.next = 5;
+              if (!bm) {
+                _context.next = 8;
+                break;
+              }
+              _context.next = 6;
+              return api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
+            case 6:
+              _context.next = 10;
+              break;
+            case 8:
+              _context.next = 10;
               return api.svgWrite(file, this.svg);
-            case 5:
+            case 10:
               this.savedSvg = this.svg;
               this.setState({
                 dirty: false
               });
               this.say('Сохранено');
-              _context.next = 13;
+              _context.next = 18;
               break;
-            case 10:
-              _context.prev = 10;
+            case 15:
+              _context.prev = 15;
               _context.t0 = _context["catch"](2);
               this.say('Не удалось сохранить: ' + clean(_context.t0));
-            case 13:
+            case 18:
             case "end":
               return _context.stop();
           }
-        }, _callee, this, [[2, 10]]);
+        }, _callee, this, [[2, 15]]);
       }));
       function save() {
         return _save.apply(this, arguments);
@@ -57569,7 +57598,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       }, /*#__PURE__*/react_default.a.createElement("div", {
         className: entry_default.a.file,
         title: file
-      }, file, dirty ? ' •' : ''), /*#__PURE__*/react_default.a.createElement("span", {
+      }, this.state.title, dirty ? ' •' : ''), /*#__PURE__*/react_default.a.createElement("span", {
         className: entry_default.a.note
       }, note || (bitmap ? 'Растровый режим' : dirty ? 'Не сохранено' : 'Сохранено')), /*#__PURE__*/react_default.a.createElement("button", {
         className: entry_default.a.primary,
@@ -57577,7 +57606,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
           return _this5.save();
         },
         title: "Ctrl+S"
-      }, 'Сохранить'), /*#__PURE__*/react_default.a.createElement("button", {
+      }, 'Сохранить'), bm ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
           return _this5.saveAs();
         }
@@ -57607,7 +57636,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         onClick: function onClick() {
           return _this5.copyCode();
         }
-      }, 'Копировать код'), /*#__PURE__*/react_default.a.createElement("button", {
+      }, 'Копировать код'), bm ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
           return api.filesOpen(file, true);
         }

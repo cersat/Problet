@@ -16,7 +16,9 @@ addLocaleData([...ruData, ...enData]);
 
 const api = window.api;
 const file = new URLSearchParams(location.search).get('p') || '';
-const baseName = (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.svg$/i, '');
+const params = new URLSearchParams(location.search);
+const bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
+const baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.svg$/i, '');
 
 const store = createStore(
     combineReducers({intl: intlReducer, scratchPaint: ScratchPaintReducer}),
@@ -24,6 +26,9 @@ const store = createStore(
 );
 
 const EMPTY = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360"></svg>';
+const EMPTY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"></svg>';
+// Пустой рисунок (ни одной фигуры) в закладке значит «своей иконки нет»
+const isEmptyDrawing = svg => !/<(path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b/.test(svg);
 const clean = err => String((err && err.message) || err).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
 
 // Scratch дописывает в конец svg служебный комментарий с центром вращения; в файле он не нужен
@@ -59,10 +64,15 @@ class App extends React.Component {
         this.savedSvg = null; // что лежит в файле
         this.bitmapCanvas = null;
         this.n = 0;
-        document.title = baseName + '.svg — редактор';
+        this.state.title = file;
+        document.title = (bm ? 'Иконка закладки' : baseName + '.svg') + ' — редактор';
     }
     componentDidMount () {
-        api.svgRead(file).then(r => {
+        (bm ? api.bmIconGet(bm).then(r => ({text: r.svg, title: r.title})) : api.svgRead(file)).then(r => {
+            if (bm) {
+                this.setState({title: 'Иконка закладки: ' + r.title});
+                r.text = r.text || EMPTY_ICON;
+            }
             const text = r.text.trim() ? r.text : EMPTY;
             const size = sizeOf(text);
             this.svg = text;
@@ -70,7 +80,7 @@ class App extends React.Component {
             this.setState({
                 loaded: true, image: text, imageId: String(++this.n),
                 width: size ? Math.max(Math.ceil(size.w), 32) : 480, height: size ? Math.max(Math.ceil(size.h), 32) : 360,
-                dirty: !r.text.trim(), error: size || !r.text.trim() ? '' : 'Не удалось разобрать svg: рисунок может открыться пустым'
+                dirty: !bm && !r.text.trim(), error: size || !r.text.trim() ? '' : 'Не удалось разобрать svg: рисунок может открыться пустым'
             });
         }).catch(e => this.setState({loaded: true, error: 'Не удалось открыть файл: ' + clean(e)}));
         this.observer = new MutationObserver(() => this.setState({theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}));
@@ -110,7 +120,8 @@ class App extends React.Component {
     async save () {
         if (this.state.bitmap) return this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG');
         try {
-            await api.svgWrite(file, this.svg);
+            if (bm) await api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
+            else await api.svgWrite(file, this.svg);
             this.savedSvg = this.svg;
             this.setState({dirty: false});
             this.say('Сохранено');
@@ -167,10 +178,10 @@ class App extends React.Component {
         return (
             <div className={styles.app}>
                 <header className={styles.bar}>
-                    <div className={styles.file} title={file}>{file}{dirty ? ' •' : ''}</div>
+                    <div className={styles.file} title={file}>{this.state.title}{dirty ? ' •' : ''}</div>
                     <span className={styles.note}>{note || (bitmap ? 'Растровый режим' : dirty ? 'Не сохранено' : 'Сохранено')}</span>
                     <button className={styles.primary} onClick={() => this.save()} title="Ctrl+S">{'Сохранить'}</button>
-                    <button onClick={() => this.saveAs()}>{'Сохранить как…'}</button>
+                    {bm ? null : <button onClick={() => this.saveAs()}>{'Сохранить как…'}</button>}
                     <span className={styles.group}>
                         <button onClick={() => this.exportPng()}>{'Выгрузить PNG'}</button>
                         <select value={this.state.scale} onChange={e => this.setState({scale: e.target.value})} title="Масштаб PNG">
@@ -181,7 +192,7 @@ class App extends React.Component {
                         </select>
                     </span>
                     <button onClick={() => this.copyCode()}>{'Копировать код'}</button>
-                    <button onClick={() => api.filesOpen(file, true)}>{'Открыть как есть'}</button>
+                    {bm ? null : <button onClick={() => api.filesOpen(file, true)}>{'Открыть как есть'}</button>}
                 </header>
                 {error ? <div className={styles.error}>{error}</div> : null}
                 <div className={styles.editor}>

@@ -48,6 +48,7 @@ async function load() {
 		if (el.type === 'checkbox') el.checked = !!v;
 		else el.value = v;
 	}
+	$('two-rows').disabled = settings.tabsScale < 1.8 && !settings.tabsTwoRows;
 	$('startup-url').value = settings.startupUrl;
 	showDownloadDir();
 	$('startup-url-row').classList.toggle('hidden', settings.startup !== 'url');
@@ -71,7 +72,7 @@ let arrows = {};
 // ---------- Панели и кнопки ----------
 
 const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', page: 'Окно вкладки' };
-const BTN_NAMES = { spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
+const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
 const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
 
 function moveButton(text, title, disabled, onClick) {
@@ -141,6 +142,11 @@ function renderPanels() {
 			sel.append(new Option('Скрыть', 'hidden'));
 			sel.value = key;
 			sel.addEventListener('change', () => {
+				if (/^sp\d$/.test(id) && sel.value !== 'hidden' && L[sel.value].some((x) => /^sp\d$/.test(x))) {
+					sel.value = key;
+					say('На панели уже есть переменный промежуток: на одной панели он может быть только один', true);
+					return;
+				}
 				const next = {};
 				for (const k of Object.keys(L)) next[k] = L[k].filter((x) => x !== id);
 				next[sel.value].push(id);
@@ -167,7 +173,14 @@ function renderPanels() {
 for (const el of document.querySelectorAll('[data-setting]')) {
 	el.addEventListener('change', () => run(async () => {
 		const value = el.type === 'checkbox' ? el.checked : el.value;
-		await api.setSettings({ [el.dataset.setting]: value });
+		try {
+			await api.setSettings({ [el.dataset.setting]: value });
+		} catch (e) {
+			if (el.type === 'checkbox') el.checked = !!current[el.dataset.setting];
+			else el.value = current[el.dataset.setting];
+			throw e;
+		}
+		current[el.dataset.setting] = value;
 		if (el.dataset.setting === 'tabsPos' || el.dataset.setting === 'arrows') {
 			current = { ...current, [el.dataset.setting]: value };
 			renderPanels();
@@ -582,3 +595,14 @@ refreshBlocked().catch(() => {});
 setInterval(() => {
 	if (document.visibilityState === 'visible') refreshBlocked().catch(() => {});
 }, 2000);
+
+// Панель вкладок растягивают в окне браузера, а не здесь: при возвращении на страницу обновляем доступность «2 слоёв»
+document.addEventListener('visibilitychange', () => {
+	if (document.hidden) return;
+	run(async () => {
+		const { settings } = await api.getSettings();
+		current = { ...current, tabsScale: settings.tabsScale, tabsTwoRows: settings.tabsTwoRows };
+		$('two-rows').checked = settings.tabsTwoRows;
+		$('two-rows').disabled = settings.tabsScale < 1.8 && !settings.tabsTwoRows;
+	});
+});

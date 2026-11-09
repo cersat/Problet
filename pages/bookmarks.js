@@ -134,9 +134,10 @@ function renderNav() {
 
 function favicon(b) {
 	const letter = () => el('div', 'fav letter', (b.title.trim()[0] || '?').toUpperCase());
-	if (!b.icon) return letter();
+	const src = b.customIcon || b.icon;
+	if (!src) return letter();
 	const img = el('img', 'fav');
-	img.src = b.icon;
+	img.src = src;
 	img.alt = '';
 	img.addEventListener('error', () => img.replaceWith(letter()));
 	return img;
@@ -295,7 +296,12 @@ $('sort').addEventListener('change', (e) => {
 	renderList();
 });
 
-act(() => api.bookmarks());
+// problet://bookmarks/?edit=<id> — сразу открыть окно изменения закладки (так открывает пункт меню панели закладок)
+act(() => api.bookmarks()).then(() => {
+	const id = new URLSearchParams(location.search).get('edit');
+	const target = id && state && state.bookmarks.find((x) => x.id === id);
+	if (target) openEdit(target);
+});
 
 // Закладки могли измениться в другой вкладке: перечитываем, если человек сейчас не вводит что-то в окне
 api.onChange((kinds) => {

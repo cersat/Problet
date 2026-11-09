@@ -201,6 +201,7 @@ function isBookmarkable(url) {
 }
 
 function tabTitle(t) {
+	if (t.customTitle) return t.customTitle; // переименованная вкладка держит своё имя до закрытия
 	if (t.url.startsWith('data:') && t.title.startsWith('data:')) return 'HTML-страница';
 	return t.title;
 }
@@ -228,7 +229,14 @@ function internalIcon(url) {
 	return INTERNAL_ICONS[m[1]] || '';
 }
 
-const PANEL_HEIGHTS = { tabs: TABBAR_HEIGHT, toolbar: TOOLBAR_HEIGHT, bmbar: BMBAR_HEIGHT };
+// Панель вкладок можно растянуть до двойного размера (tabsScale от 1 до 2)
+function panelHeight(k) {
+	return k === 'tabs' ? Math.round(TABBAR_HEIGHT * settings().tabsScale) : k === 'toolbar' ? TOOLBAR_HEIGHT : BMBAR_HEIGHT;
+}
+
+function sideWidth() {
+	return Math.round(SIDE_WIDTH * settings().tabsScale);
+}
 
 // Где что стоит: какие панели над страницей, какие под ней, нужна ли узкая полоса заголовка для кнопок окна.
 // Тот же план получает окно с панелями (renderer.js), а высоты и ширины заданы и в style.css
@@ -245,7 +253,7 @@ function panelPlan() {
 }
 
 function panelsHeight(list) {
-	return list.reduce((n, k) => n + PANEL_HEIGHTS[k], 0);
+	return list.reduce((n, k) => n + panelHeight(k), 0);
 }
 
 // Верхний край панели инструментов в окне; null, если она под страницей
@@ -256,7 +264,7 @@ function toolbarTop() {
 	return (p.strip ? TITLEBAR_HEIGHT : 0) + panelsHeight(p.before.slice(0, at));
 }
 
-const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout'];
+const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'tabsScale', 'tabsTwoRows'];
 
 function layoutPayload() {
 	const s = settings();
@@ -264,6 +272,7 @@ function layoutPayload() {
 	for (const k of LAYOUT_KEYS) out[k] = s[k];
 	out.plan = panelPlan();
 	out.arrows = store.ARROWS[s.arrows];
+	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
 	return out;
 }
@@ -296,7 +305,7 @@ ipcMain.on('win:close', (e) => fromToolbar0(e) && win.close());
 // Панель закладок: папки и закладки целиком, рисует их окно тулбара
 function barPayload() {
 	const st = store.bookmarksState();
-	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, folder: b.folder })) };
+	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, customIcon: b.customIcon, folder: b.folder })) };
 }
 
 function sendBar() {
@@ -319,6 +328,17 @@ ipcMain.on('bar:open', (e, id, newTab) => {
 	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
 	if (!b) return;
 	openBookmarkUrl(b.url, newTab);
+});
+ipcMain.on('bar:menu', (e, id) => {
+	if (!fromToolbar0(e)) return;
+	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
+	if (!b) return;
+	popupMenu([
+		{ label: 'Изменить закладку', click: () => createTab('problet://bookmarks/?edit=' + encodeURIComponent(b.id), { activate: true }) },
+		{ label: 'Добавить кастомную иконку', click: () => createTab('problet://svgedit/?bm=' + encodeURIComponent(b.id), { activate: true }) },
+		{ type: 'separator' },
+		{ label: 'Удалить закладку', click: () => store.removeBookmark(b.id) },
+	]);
 });
 ipcMain.on('bar:folder', (e, folderId) => {
 	if (!fromToolbar0(e)) return;
@@ -413,8 +433,8 @@ function insets() {
 	return {
 		top: (p.strip ? TITLEBAR_HEIGHT : 0) + panelsHeight(p.before),
 		bottom: panelsHeight(p.after),
-		left: p.side === 'left' ? SIDE_WIDTH : 0,
-		right: p.side === 'right' ? SIDE_WIDTH : 0,
+		left: p.side === 'left' ? sideWidth() : 0,
+		right: p.side === 'right' ? sideWidth() : 0,
 	};
 }
 
@@ -1592,6 +1612,7 @@ function showTabMenu(id) {
 		{ label: 'Открыть закрытую вкладку', enabled: closedTabs.length > 0, click: () => reopenTab() },
 		{ label: 'Дублировать', click: () => createTab(tab.pendingUrl || tab.view.webContents.getURL() || tab.url, { duplicate: true, afterId: tab.id, title: tab.title, icon: tab.icon }) },
 		{ label: 'Обновить', click: () => tab.view.webContents.reload() },
+		{ label: 'Переименовать вкладку', click: () => win.webContents.send('tab-rename', tab.id) },
 		{ type: 'separator' },
 		{ label: 'Закрыть вкладку', click: () => closeTab(tab.id) },
 		{ label: 'Закрыть вкладки справа', enabled: vis.slice(index + 1).some((x) => !x.pinned), click: () => vis.slice(index + 1).filter((x) => !x.pinned).forEach((x) => closeTab(x.id)) },
@@ -1904,6 +1925,21 @@ ipcMain.on('tab-new', (e) => fromToolbar(e) && createTab(NEWTAB));
 ipcMain.on('tab-activate', (e, id) => fromToolbar(e) && activateTab(id));
 ipcMain.on('tab-close', (e, id) => fromToolbar(e) && closeTab(id));
 ipcMain.on('tab-menu', (e, id) => fromToolbar(e) && showTabMenu(id));
+ipcMain.on('tab-rename', (e, id, name) => {
+	if (!fromToolbar(e)) return;
+	const tab = tabs.find((x) => x.id === id);
+	if (!tab) return;
+	tab.customTitle = typeof name === 'string' ? name.trim().slice(0, 300) : ''; // пустое имя возвращает название страницы
+	sendTabs();
+});
+// Растягивание панели вкладок мышью
+ipcMain.on('tabs-scale', (e, v) => {
+	if (!fromToolbar(e) || typeof v !== 'number') return;
+	try {
+		store.setSettings({ tabsScale: v });
+		applySettings();
+	} catch (err) { /* значение вне допустимого — оставляем как есть */ }
+});
 ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 
 // ---------- Подсказка у иконки обновления ----------
@@ -2277,6 +2313,17 @@ handle('svg:write', (p, text) => {
 	if (typeof text !== 'string' || text.length > 10 * 1024 * 1024) throw new Error('Слишком большой файл');
 	fs.writeFileSync(p, text, 'utf8');
 	return { path: p };
+});
+// Своя иконка закладки: svg из редактора превращается в data-адрес и показывается вместо значка сайта
+handle('bm:icon-get', (id) => {
+	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
+	if (!b) throw new Error('Закладка не найдена');
+	const url = b.customIcon || '';
+	return { title: b.title, svg: url ? decodeURIComponent(url.slice(url.indexOf(',') + 1)) : '' };
+});
+handle('bm:icon-set', (id, svg) => {
+	if (typeof svg !== 'string' || svg.length > 200000) throw new Error('Иконка слишком большая');
+	store.updateBookmark(id, { customIcon: svg ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) : '' });
 });
 handle('svg:save-png', async (dataUrl, name) => {
 	const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl));
