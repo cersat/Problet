@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: file:; style-src 'self' 'unsafe-inline'">
+	<title>Проводник</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="files.css">
+</head>
+<body class="files-page">
+	<header>
+		<button id="up" title="Вверх" aria-label="Вверх">↑</button>
+		<button id="home" title="Домашняя папка" aria-label="Домашняя папка">⌂</button>
+		<nav id="crumbs" aria-label="Путь"></nav>
+		<input type="search" id="filter" placeholder="Фильтр" autocomplete="off">
+		<label class="check"><input type="checkbox" id="hidden"> Скрытые</label>
+	</header>
+	<div class="cols head">
+		<button data-sort="name" class="c-name">Имя</button>
+		<button data-sort="size" class="c-size">Размер</button>
+		<button data-sort="mtime" class="c-date">Изменён</button>
+	</div>
+	<main id="list" role="list"></main>
+	<footer id="info"></footer>
+	<script src="files.js"></script>
+</body>
+</html>

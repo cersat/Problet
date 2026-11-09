@@ -299,6 +299,7 @@ function renderUpdate(st) {
 		checking: 'Проверяю…',
 		uptodate: 'Установлена последняя версия',
 		available: 'Доступна версия ' + st.version,
+		building: 'Версия ' + st.version + ' ещё не готова к установке: идёт сборка',
 		downloading: 'Скачиваю версию ' + st.version + ': ' + st.progress + '%',
 		ready: st.mode === 'dmg' ? 'Версия ' + st.version + ' скачана в «Загрузки»' : 'Версия ' + st.version + ' скачана, осталось перезапустить',
 		error: 'Не удалось проверить: ' + st.message,

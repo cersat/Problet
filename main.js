@@ -99,7 +99,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -2196,6 +2196,62 @@ ipcMain.handle('search:run', (e, text) => {
 });
 
 // Открыть внутреннюю страницу (историю, закладки…) в новой вкладке
+// Проводник: список папки для страницы problet://files
+handle('files:list', (dir) => {
+	dir = path.resolve(String(dir || os.homedir()));
+	const names = fs.readdirSync(dir);
+	const entries = [];
+	for (const name of names.slice(0, 5000)) {
+		const full = path.join(dir, name);
+		let st;
+		try {
+			st = fs.statSync(full);
+		} catch (e) {
+			try {
+				st = fs.lstatSync(full); // битая ссылка
+			} catch (e2) {
+				continue;
+			}
+		}
+		entries.push({ name, dir: st.isDirectory(), size: st.isDirectory() ? 0 : st.size, mtime: st.mtimeMs, hidden: name.startsWith('.'), path: full, url: pathToFileURL(full).href });
+	}
+	const parent = path.dirname(dir);
+	return { path: dir, parent: parent === dir ? '' : parent, home: os.homedir(), truncated: names.length > 5000, entries };
+});
+
+// Страница problet:// не может сама перейти на file://, поэтому открываем файл в её вкладке отсюда
+handle('files:open', (p, asIs) => {
+	const tab = tabs.find((t) => t.id === activeId);
+	if (!tab || tab.view.webContents.isDestroyed()) return;
+	const url = pathToFileURL(path.resolve(String(p))).href + (asIs ? '?view' : '');
+	tab.view.webContents.loadURL(url).catch(() => {});
+});
+
+// Редактор svg: чтение и запись файла по полному пути
+const svgPath = (p) => {
+	p = path.resolve(String(p));
+	if (!/\.svg$/i.test(p)) throw new Error('Это не svg-файл');
+	return p;
+};
+handle('svg:read', (p) => {
+	p = svgPath(p);
+	if (fs.statSync(p).size > 5 * 1024 * 1024) throw new Error('Файл больше 5 МБ');
+	return { path: p, text: fs.readFileSync(p, 'utf8') };
+});
+handle('svg:write', (p, text) => {
+	p = svgPath(p);
+	if (typeof text !== 'string' || text.length > 10 * 1024 * 1024) throw new Error('Слишком большой файл');
+	fs.writeFileSync(p, text, 'utf8');
+	return { path: p };
+});
+handle('svg:save-as', async (text) => {
+	const r = await dialog.showSaveDialog(win, { defaultPath: 'image.svg', filters: [{ name: 'SVG', extensions: ['svg'] }] });
+	if (r.canceled || !r.filePath) return null;
+	const file = /\.svg$/i.test(r.filePath) ? r.filePath : r.filePath + '.svg';
+	fs.writeFileSync(file, String(text), 'utf8');
+	return { path: file };
+});
+
 handle('insecure:proceed', (url) => {
 	const u = new URL(String(url));
 	if (u.protocol !== 'http:') throw new Error('Неверный адрес');
@@ -2220,6 +2276,17 @@ handle('default-browser:set', async () => {
 	const run = (cmd, args) => new Promise((resolve) => require('child_process').execFile(cmd, args, { timeout: 8000 }, (err, out) => resolve(err ? null : String(out).trim())));
 	let ok;
 	if (process.platform === 'linux') {
+		// AppImage сам в меню приложений не появляется: записываем свой ярлык, который запускает именно этот файл
+		if (process.env.APPIMAGE) {
+			try {
+				const { apps } = require('./desktop').writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir());
+				await run('update-desktop-database', [apps]);
+				await run('xdg-mime', ['default', 'problet.desktop', 'x-scheme-handler/http']);
+				await run('xdg-mime', ['default', 'problet.desktop', 'x-scheme-handler/https']);
+			} catch (e) {
+				log('не удалось записать ярлык AppImage', e);
+			}
+		}
 		await run('xdg-settings', ['set', 'default-web-browser', 'problet.desktop']);
 		ok = (await run('xdg-settings', ['get', 'default-web-browser'])) === 'problet.desktop';
 	} else {
@@ -2231,7 +2298,7 @@ handle('default-browser:set', async () => {
 	if (ok) return { ok, message: 'Problet теперь стандартный браузер' };
 	return { ok, message: process.platform === 'win32' || process.platform === 'darwin'
 		? 'Система не применила изменение. Выбери Problet вручную в настройках системы: приложения по умолчанию'
-		: 'Не удалось. Если запускаешь из AppImage, установи его в меню приложений (например, через AppImageLauncher) и повтори' };
+		: 'Не удалось назначить браузер по умолчанию через xdg-settings. Выбери Problet вручную в настройках системы' };
 });
 handle('spaces:state', () => spacesState());
 handle('spaces:switch', (id) => switchSpace(String(id)));
@@ -2414,18 +2481,33 @@ handle('data:import', async () => {
 
 // ---------- Окно ----------
 
+// Страница 404 для несуществующих адресов problet://: стили вшиваем в неё, ведь у неизвестного адреса своих файлов нет
+function notFoundResponse(request) {
+	const read = (...p) => {
+		try {
+			return fs.readFileSync(path.join(...p), 'utf8');
+		} catch (e) {
+			return '';
+		}
+	};
+	const dest = request.headers.get('sec-fetch-dest');
+	if (dest && dest !== 'document' && dest !== 'iframe') return new Response('Not found', { status: 404 });
+	const html = read(__dirname, 'pages', '404.html')
+		.replace('/*THEME*/', read(__dirname, 'theme.css') + read(__dirname, 'pages', 'common.css'))
+		.replace('{{url}}', request.url.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]));
+	return new Response(html, { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } });
+}
+
 function internalHandler(request) {
 	const root = path.join(__dirname, 'pages');
-	{
-		const url = new URL(request.url);
-		if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || new Response('Not found', { status: 404 });
-		if (!INTERNAL_PAGES.has(url.hostname)) return new Response('Not found', { status: 404 });
-		const name = url.pathname === '/' || url.pathname === '' || (url.hostname === 'version' && /^\/debug\/?$/.test(url.pathname)) ? (url.pathname === '/' || url.pathname === '' ? url.hostname : 'debug') + '.html' : path.posix.basename(url.pathname);
-		if (!/^[\w-]+\.(html|js|css)$/.test(name)) return new Response('Not found', { status: 404 });
-		const filePath = name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name); // тема общая для всех окон
-		if (!fs.existsSync(filePath)) return new Response('Not found', { status: 404 });
-		return net.fetch(pathToFileURL(filePath).toString());
-	}
+	const url = new URL(request.url);
+	if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || notFoundResponse(request);
+	if (!INTERNAL_PAGES.has(url.hostname)) return notFoundResponse(request);
+	const name = url.pathname === '/' || url.pathname === '' || (url.hostname === 'version' && /^\/debug\/?$/.test(url.pathname)) ? (url.pathname === '/' || url.pathname === '' ? url.hostname : 'debug') + '.html' : path.posix.basename(url.pathname);
+	if (!/^[\w-]+\.(html|js|css)$/.test(name)) return notFoundResponse(request);
+	const filePath = name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name); // тема общая для всех окон
+	if (!fs.existsSync(filePath)) return notFoundResponse(request);
+	return net.fetch(pathToFileURL(filePath).toString());
 }
 
 function registerInternalPages() {

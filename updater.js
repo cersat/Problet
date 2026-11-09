@@ -70,17 +70,38 @@ function pickAsset(assets) {
 	return null;
 }
 
-// Название коммита, из которого собрана последняя версия: служит списком изменений
-async function commitTitle(ref) {
-	if (process.env.PROBLET_UPDATE_URL) return '';
+// Последний коммит ветки main: его название служит списком изменений, а версия в package.json показывает, что скоро выйдет
+async function headInfo() {
+	if (process.env.PROBLET_UPDATE_URL) return null;
 	try {
-		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/commits/' + encodeURIComponent(ref || 'main'), { headers: { Accept: 'application/vnd.github+json' } });
-		if (!res.ok) return '';
+		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/commits/main', { headers: { Accept: 'application/vnd.github+json' } });
+		if (!res.ok) return null;
 		const data = await res.json();
-		return String((data.commit && data.commit.message) || '').split('\n')[0].trim().slice(0, 300);
+		const info = { title: String((data.commit && data.commit.message) || '').split('\n')[0].trim().slice(0, 300), version: '' };
+		try {
+			const pkg = await net.fetch('https://raw.githubusercontent.com/' + REPO + '/' + data.sha + '/package.json');
+			if (pkg.ok) info.version = String((await pkg.json()).version || '');
+		} catch (e) { /* без версии определим по названию релиза */ }
+		return info;
 	} catch (e) {
-		return '';
+		return null;
 	}
+}
+
+// Список изменений запоминаем на диске, чтобы он был виден сразу после запуска
+const cacheFile = () => path.join(app.getPath('userData'), 'update-cache.json');
+
+function loadCache() {
+	try {
+		const c = JSON.parse(fs.readFileSync(cacheFile(), 'utf8'));
+		if (typeof c.changelog === 'string') set({ changelog: c.changelog });
+	} catch (e) { /* кеша ещё нет */ }
+}
+
+function saveCache() {
+	try {
+		fs.writeFileSync(cacheFile(), JSON.stringify({ changelog: state.changelog }));
+	} catch (e) { /* не страшно */ }
 }
 
 async function check(force) {
@@ -94,9 +115,15 @@ async function check(force) {
 		const release = await res.json();
 		page = release.html_url || 'https://github.com/' + REPO + '/releases';
 		asset = pickAsset(release.assets || []);
-		set({ changelog: await commitTitle('main') });
-		if (!asset) throw new Error('Для этой системы в релизе нет подходящего файла');
-		if (force || isNewer(asset.version, app.getVersion())) set({ status: 'available', version: asset.version });
+		const head = await headInfo();
+		if (head) {
+			set({ changelog: head.title });
+			saveCache();
+		}
+		const ready = asset && (force || isNewer(asset.version, app.getVersion()));
+		if (ready) set({ status: 'available', version: asset.version });
+		else if (head && head.version && isNewer(head.version, app.getVersion())) set({ status: 'building', version: head.version }); // коммит уже есть, сборка ещё идёт
+		else if (!asset) throw new Error('Для этой системы в релизе нет подходящего файла');
 		else set({ status: 'uptodate', version: app.getVersion() });
 	} catch (e) {
 		set({ status: 'error', message: String((e && e.message) || e) });
@@ -205,18 +232,19 @@ async function apply() {
 	}
 }
 
-// Автопроверка: через минуту после запуска и дальше раз в несколько часов; найденное обновление качается само
+// Проверка при запуске (через несколько секунд) и дальше раз в несколько часов; найденное обновление качается само
 function schedule(enabled, restartWhenReady) {
 	if (timer) clearInterval(timer);
-	if (mode() === 'dev') return;
-	const run = async () => {
-		if (!enabled() || busy || state.status === 'ready') return;
+	loadCache();
+	const run = async (startup) => {
+		if ((!startup && !enabled()) || busy || state.status === 'ready') return;
 		await check();
+		if (!enabled()) return;
 		if (state.status === 'available' && (mode() === 'appimage' || mode() === 'installer' || mode() === 'dmg')) await prepare();
 		if (state.status === 'ready' && mode() !== 'dmg' && restartWhenReady && restartWhenReady()) await apply(); // на macOS установщик сам не открываем: нужно перетащить приложение вручную
 	};
-	setTimeout(run, 60 * 1000);
-	timer = setInterval(run, CHECK_EVERY);
+	setTimeout(() => run(true), 4000);
+	if (mode() !== 'dev') timer = setInterval(run, CHECK_EVERY);
 }
 
 module.exports = { looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src data: blob:; style-src 'self' 'unsafe-inline'">
+	<title>Редактор SVG</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="svgedit.css">
+</head>
+<body class="svg-page">
+	<header>
+		<div class="file" id="file">…</div>
+		<button class="primary" id="save">Сохранить</button>
+		<button id="save-as">Сохранить как…</button>
+		<button id="format">Форматировать</button>
+		<button id="copy">Копировать код</button>
+		<button id="raw">Открыть как есть</button>
+		<span id="state" class="state"></span>
+	</header>
+	<div class="work">
+		<section class="code">
+			<textarea id="src" spellcheck="false" autocomplete="off" wrap="off"></textarea>
+			<div id="err" class="err" hidden></div>
+		</section>
+		<section class="view">
+			<div class="tools">
+				<div class="seg" id="bg" role="group" aria-label="Фон">
+					<button data-bg="check" class="on" title="Шахматка">▦</button>
+					<button data-bg="light" title="Светлый">☀</button>
+					<button data-bg="dark" title="Тёмный">☾</button>
+				</div>
+				<button id="zoom-out" aria-label="Уменьшить">−</button>
+				<button id="zoom-fit" aria-label="По размеру окна">100%</button>
+				<button id="zoom-in" aria-label="Увеличить">+</button>
+				<span id="size" class="size"></span>
+			</div>
+			<div class="stage check" id="stage"><img id="img" alt="Предпросмотр"></div>
+		</section>
+	</div>
+	<script src="svgedit.js"></script>
+</body>
+</html>

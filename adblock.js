@@ -2,9 +2,10 @@
 // Сам адрес страницы (переход по ссылке) не блокируется, только то, что страница подгружает: скрипты, картинки, фреймы, запросы.
 
 const fs = require('fs');
+const { fileURLToPath } = require('url');
 const path = require('path');
 
-const URLS = ['http://*/*', 'https://*/*'];
+const URLS = ['http://*/*', 'https://*/*', 'file:///*'];
 
 let blocked = 0;
 let domains = new Set();
@@ -178,6 +179,18 @@ function insecureRedirect(details) {
 	}
 }
 
+// Локальные файлы: папка открывается проводником, svg — редактором (адрес с ?view показывает файл как есть)
+function localRedirect(details) {
+	try {
+		const u = new URL(details.url);
+		if (u.protocol !== 'file:') return null;
+		const file = fileURLToPath(u);
+		if (fs.statSync(file).isDirectory()) return 'problet://files/?p=' + encodeURIComponent(file);
+		if (/\.svg$/i.test(file) && !u.searchParams.has('view')) return 'problet://svgedit/?p=' + encodeURIComponent(file);
+	} catch (e) { /* нет такого файла: пусть покажет обычную ошибку */ }
+	return null;
+}
+
 let observer = null;
 const observe = (fn) => { observer = fn; }; // сообщает о каждом запросе и о том, заблокирован ли он (режим без окна)
 
@@ -185,6 +198,13 @@ function start(session, store) {
 	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
 		const s = store.getSettings();
+		if (details.resourceType === 'mainFrame') {
+			const to = localRedirect(details);
+			if (to) {
+				callback({ redirectURL: to });
+				return;
+			}
+		}
 		if (s.warnInsecure && details.resourceType === 'mainFrame') {
 			const to = insecureRedirect(details);
 			if (to) {
@@ -230,4 +250,4 @@ const COSMETIC_CSS = [
 
 const blockedCount = () => blocked;
 
-module.exports = { allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };

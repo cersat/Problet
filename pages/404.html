@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Страница не найдена</title>
+	<style>
+/*THEME*/
+body { display: grid; place-items: center; min-height: 100vh; margin: 0; }
+.box { text-align: center; padding: 24px; }
+.code { font-size: 96px; font-weight: 700; line-height: 1; color: var(--accent); letter-spacing: -2px; }
+h1 { font-size: 22px; margin: 12px 0 6px; }
+p { color: var(--muted); margin: 0 0 20px; word-break: break-all; }
+a.btn { display: inline-block; padding: 9px 18px; border-radius: 8px; background: var(--accent); color: var(--on-accent); text-decoration: none; }
+	</style>
+</head>
+<body>
+	<div class="box">
+		<div class="code">404</div>
+		<h1>Такой страницы нет</h1>
+		<p>{{url}}</p>
+		<a class="btn" href="problet://newtab">Открыть новую вкладку</a>
+	</div>
+</body>
+</html>
