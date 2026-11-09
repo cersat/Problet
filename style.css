@@ -592,3 +592,6 @@ body[data-tabs="bottom"] .tabs.two .tab.active { box-shadow: inset 0 -2px 0 var(
 /* Без промежутка вкладки в режиме прокрутки тоже растягиваются, но не уже 180 пикселей */
 .tabbar:not(.has-sp) .tabs.scroll .tab { flex: 1 0 180px; }
 .tabs.two.scroll:not(.side) { grid-template-columns: repeat(var(--n, 1), 190px); overflow-x: auto; scrollbar-width: none; }
+/* Двухслойные вкладки без промежутка тоже растягиваются до конца панели */
+.tabbar:not(.has-sp) .tabs.two:not(.side) { grid-template-columns: repeat(var(--n, 1), minmax(36px, 1fr)); }
+.tabbar:not(.has-sp) .tabs.two.scroll:not(.side) { grid-template-columns: repeat(var(--n, 1), minmax(190px, 1fr)); }
