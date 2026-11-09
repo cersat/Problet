@@ -13,3 +13,7 @@
 .group select { border-radius: 0 6px 6px 0; border-left: 0; padding: 0 6px; }
 .error { padding: 8px 14px; background: var(--danger-bg, #4a2e32); color: var(--danger, #f2929a); font-size: 13px; }
 .editor { flex: 1; min-height: 0; overflow: hidden; }
+:global(#root) { --paint-looks-secondary: var(--accent, #7c9cf5); --paint-looks-transparent: var(--accent-soft, rgba(124, 156, 245, 0.24)); }
+:global(#root) * { box-sizing: border-box; }
+.editor { position: relative; }
+.editor > :global(*) { position: absolute; inset: 0; }
