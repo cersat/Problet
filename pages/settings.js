@@ -103,6 +103,60 @@ function saveLayout(patch, after) {
 	});
 }
 
+// Свои кнопки: окно создания и изменения
+let cbEditing = null;
+
+function cbSync() {
+	const t = $('cb-type').value;
+	$('cb-url-row').classList.toggle('hidden', t !== 'url');
+	$('cb-newtab-row').classList.toggle('hidden', t !== 'url');
+	$('cb-script-row').classList.toggle('hidden', t !== 'script');
+	$('cb-action-row').classList.toggle('hidden', t !== 'action');
+}
+
+function openCustom(c) {
+	cbEditing = c || null;
+	$('cb-title').textContent = c ? 'Изменить кнопку' : 'Новая кнопка';
+	const sel = $('cb-action');
+	if (!sel.children.length) for (const a of accel.ACTIONS) sel.append(new Option(a.label, a.id));
+	$('cb-name').value = c ? c.name : '';
+	$('cb-icon').value = c ? c.icon : '';
+	$('cb-type').value = c ? c.type : 'url';
+	$('cb-url').value = c && c.type === 'url' ? c.value : '';
+	$('cb-newtab').checked = !!(c && c.newTab);
+	$('cb-script').value = c && c.type === 'script' ? c.value : '';
+	if (c && c.type === 'action') sel.value = c.value;
+	$('cb-error').textContent = '';
+	cbSync();
+	$('cb-dialog').showModal();
+	$('cb-name').focus();
+}
+
+$('cb-add').addEventListener('click', () => {
+	if (current.customButtons.length >= 20) return say('Своих кнопок может быть не больше 20', true);
+	openCustom(null);
+});
+$('cb-type').addEventListener('change', cbSync);
+$('cb-cancel').addEventListener('click', () => $('cb-dialog').close());
+$('cb-form').addEventListener('submit', async (e) => {
+	e.preventDefault();
+	const type = $('cb-type').value;
+	const value = type === 'url' ? $('cb-url').value.trim() : type === 'script' ? $('cb-script').value : $('cb-action').value;
+	const entry = {
+		id: cbEditing ? cbEditing.id : 'cb:' + Math.random().toString(36).slice(2, 10).padEnd(8, '0'),
+		name: $('cb-name').value, icon: $('cb-icon').value, type, value, newTab: $('cb-newtab').checked,
+	};
+	const list = cbEditing ? current.customButtons.map((c) => (c.id === entry.id ? entry : c)) : [...current.customButtons, entry];
+	try {
+		current = await api.setSettings({ customButtons: list });
+		$('cb-dialog').close();
+		renderPanels();
+		say('Сохранено');
+	} catch (err) {
+		$('cb-error').textContent = errText(err);
+	}
+});
+
 function renderPanels() {
 	const glyphs = arrows[current.arrows] || ['◀', '▶'];
 	const order = current.panelOrder;
@@ -135,7 +189,8 @@ function renderPanels() {
 				group.append(listRow(MAIN_NAMES[id], true));
 				return;
 			}
-			const row = listRow(BTN_NAMES[id]);
+			const custom = (current.customButtons || []).find((c) => c.id === id);
+			const row = listRow(custom ? custom.icon + '  ' + custom.name : BTN_NAMES[id]);
 			const sel = document.createElement('select');
 			for (const p of ['tabs', 'toolbar', 'bmbar']) sel.append(new Option(PANEL_NAMES[p], p));
 			sel.append(new Option('Скрыть', 'hidden'));
@@ -161,6 +216,11 @@ function renderPanels() {
 					saveLayout({ btnLayout: next });
 				};
 				row.append(moveButton(glyphs[0], 'Назад по панели', i === 0, () => swap(-1)), moveButton(glyphs[1], 'Вперёд по панели', i === L[key].length - 1, () => swap(1)));
+			}
+			if (custom) {
+				const edit = moveButton('✎', 'Изменить кнопку', false, () => openCustom(custom));
+				const del = moveButton('✕', 'Удалить кнопку', false, () => saveLayout({ customButtons: current.customButtons.filter((c) => c.id !== id) }));
+				row.append(edit, del);
 			}
 			group.append(row);
 		});

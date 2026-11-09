@@ -998,7 +998,7 @@ body.version .actions {
 }
 
 /* Раскрывающиеся группы настроек */
-.settings h3 {
+.settings main > section h3 {
 	margin: 26px 0 4px;
 	font-size: 15px;
 	color: var(--text-strong);
@@ -1047,3 +1047,8 @@ button.move {
 body.version .cell[data-tap] { user-select: none; -webkit-user-select: none; cursor: default; }
 
 .setting[hidden] { display: none; }
+
+.plist-actions { margin: 10px 0 0; }
+dialog label.check { display: flex; align-items: center; gap: 8px; }
+dialog label.check input { display: inline-block; width: auto; margin: 0; }
+dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--control); color: var(--text-strong); font: 13px ui-monospace, monospace; resize: vertical; user-select: text; }

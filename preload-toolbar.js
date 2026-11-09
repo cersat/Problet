@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
 	tabRename: (id, name) => ipcRenderer.send('tab-rename', id, name),
 	onTabRename: (cb) => ipcRenderer.on('tab-rename', (_e, id) => cb(id)),
 	tabsScale: (v) => ipcRenderer.send('tabs-scale', v),
+	customButton: (id) => ipcRenderer.send('custom-button', id),
 	barMenu: (id) => ipcRenderer.send('bar:menu', id),
 	moveTab: (id, to) => ipcRenderer.send('tab-move', id, to),
 	suggestQuery: (msg) => ipcRenderer.send('suggest-query', msg),

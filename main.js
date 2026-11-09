@@ -273,6 +273,7 @@ function layoutPayload() {
 	out.plan = panelPlan();
 	out.tabsTwoRows = s.tabsTwoRows && s.tabsScale >= store.TWO_ROWS_MIN; // выбор сохраняется, а действует, пока панель растянута
 	out.arrows = store.ARROWS[s.arrows];
+	out.customButtons = s.customButtons.map((c) => ({ id: c.id, name: c.name, icon: c.icon }));
 	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
 	return out;
@@ -1940,6 +1941,21 @@ ipcMain.on('tabs-scale', (e, v) => {
 		store.setSettings({ tabsScale: v });
 		applySettings();
 	} catch (err) { /* значение вне допустимого — оставляем как есть */ }
+});
+// Свои кнопки: адрес, скрипт на открытой странице или команда браузера из списка горячих клавиш
+ipcMain.on('custom-button', (e, id) => {
+	if (!fromToolbar(e)) return;
+	const c = settings().customButtons.find((x) => x.id === id);
+	if (!c) return;
+	if (c.type === 'url') {
+		if (c.newTab) createTab(c.value, { activate: true });
+		else loadInActive(c.value);
+	} else if (c.type === 'script') {
+		const wc = activeContents();
+		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(c.value, true).catch(() => {});
+	} else if (ACTION_RUN[c.value]) {
+		ACTION_RUN[c.value]();
+	}
 });
 ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 

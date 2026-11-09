@@ -36,6 +36,28 @@ function defaultButtons() {
 	};
 }
 
+// Свои кнопки: название, значок и действие (адрес, скрипт на странице или команда браузера)
+const CUSTOM_LIMIT = 20;
+const CUSTOM_TYPES = ['url', 'script', 'action'];
+function cleanCustom(raw) {
+	const out = [];
+	const used = new Set();
+	for (const c of Array.isArray(raw) ? raw.slice(0, CUSTOM_LIMIT) : []) {
+		if (!c || typeof c !== 'object' || !CUSTOM_TYPES.includes(c.type)) continue;
+		const id = typeof c.id === 'string' && /^cb:[a-z0-9]{6,16}$/.test(c.id) && !used.has(c.id) ? c.id : '';
+		if (!id) continue;
+		let value = '';
+		if (c.type === 'url') value = cleanUrl(c.value);
+		else if (c.type === 'script') value = str(c.value, 20000).trim();
+		else value = accel.ACTIONS.some((a) => a.id === c.value) ? c.value : '';
+		if (!value) continue;
+		used.add(id);
+		const name = str(c.name, 40).trim() || 'Кнопка';
+		out.push({ id, name, icon: str(c.icon, 4).trim() || name[0].toUpperCase(), type: c.type, value, newTab: c.type === 'url' && c.newTab === true });
+	}
+	return out;
+}
+
 // Порядок панелей: перестановка из tabs, toolbar, bmbar, page; что угодно другое — порядок по умолчанию
 function cleanOrder(raw) {
 	if (Array.isArray(raw) && raw.length === DEFAULT_ORDER.length && DEFAULT_ORDER.every((k) => raw.includes(k))) return [...raw];
@@ -43,7 +65,7 @@ function cleanOrder(raw) {
 }
 
 // Расположение кнопок: каждая кнопка ровно в одной панели (или в hidden), главные элементы на своих панелях
-function cleanButtons(raw) {
+function cleanButtons(raw, customIds = []) {
 	const def = defaultButtons();
 	const r = raw && typeof raw === 'object' ? raw : {};
 	const out = { tabs: [], toolbar: [], bmbar: [], hidden: [] };
@@ -52,7 +74,7 @@ function cleanButtons(raw) {
 		if (!Array.isArray(r[key])) continue;
 		for (const id of r[key]) {
 			if (typeof id !== 'string' || seen.has(id)) continue;
-			if (Object.hasOwn(MAIN_OF, id) ? MAIN_OF[id] !== key : !BUTTONS.includes(id)) continue;
+			if (Object.hasOwn(MAIN_OF, id) ? MAIN_OF[id] !== key : !BUTTONS.includes(id) && !customIds.includes(id)) continue;
 			seen.add(id);
 			out[key].push(id);
 		}
@@ -77,6 +99,7 @@ function cleanButtons(raw) {
 		});
 	}
 	for (const id of def.hidden) if (!seen.has(id)) out.hidden.push(id);
+	for (const id of customIds) if (!seen.has(id)) out.toolbar.push(id); // новая своя кнопка встаёт в конец панели инструментов
 	// переменный промежуток на панели только один, остальные уходят в скрытые
 	for (const key of PANELS) {
 		const extra = out[key].filter((id) => SPACERS.includes(id)).slice(1);
@@ -136,6 +159,7 @@ const SETTING_DEFAULTS = {
 	tabsTwoRows: false,
 	panelOrder: [...DEFAULT_ORDER],
 	btnLayout: defaultButtons(),
+	customButtons: [],
 	arrows: 'tri',
 	bmOnlyIcons: false,
 	bookmarksBar: true,
@@ -265,6 +289,8 @@ function sanitizeSettings(raw) {
 	for (const [key, values] of Object.entries(ENUM_SETTINGS)) {
 		if (values.includes(r[key])) out[key] = r[key];
 	}
+	out.customButtons = cleanCustom(r.customButtons);
+	const customIds = out.customButtons.map((c) => c.id);
 	// Файлы старых версий: положение вкладок и закладок и переключатели кнопок
 	const legacy = !Object.hasOwn(r, 'btnLayout') && !Object.hasOwn(r, 'panelOrder');
 	if (legacy) {
@@ -280,10 +306,10 @@ function sanitizeSettings(raw) {
 			for (const key of PANELS) b[key] = b[key].filter((x) => x !== id);
 			b.hidden.push(id);
 		}
-		out.btnLayout = cleanButtons(b);
+		out.btnLayout = cleanButtons(b, customIds);
 	} else {
 		out.panelOrder = cleanOrder(r.panelOrder);
-		out.btnLayout = cleanButtons(r.btnLayout);
+		out.btnLayout = cleanButtons(r.btnLayout, customIds);
 	}
 	out.tabsScale = cleanScale(r.tabsScale);
 	out.hotkeys = cleanHotkeys(r.hotkeys);
@@ -650,8 +676,15 @@ function setSettings(patch) {
 		if (cleanOrder(p.panelOrder).join() !== (Array.isArray(p.panelOrder) ? p.panelOrder.join() : null)) throw new Error('Некорректный порядок панелей');
 		next.panelOrder = [...p.panelOrder];
 	}
+	if (p.customButtons !== undefined) {
+		if (!Array.isArray(p.customButtons)) throw new Error('Некорректные свои кнопки');
+		const clean = cleanCustom(p.customButtons);
+		if (clean.length !== Math.min(p.customButtons.length, CUSTOM_LIMIT)) throw new Error(p.customButtons.length > CUSTOM_LIMIT ? 'Слишком много своих кнопок' : 'Заполни название и действие кнопки: адрес должен начинаться с http:// или https://');
+		next.customButtons = clean;
+		next.btnLayout = cleanButtons(next.btnLayout, clean.map((c) => c.id)); // убранные кнопки уходят с панелей, новые встают в конец панели инструментов
+	}
 	if (p.btnLayout !== undefined) {
-		const clean = cleanButtons(p.btnLayout);
+		const clean = cleanButtons(p.btnLayout, next.customButtons.map((c) => c.id));
 		const same = p.btnLayout && typeof p.btnLayout === 'object' && Object.keys(clean).every((k) => Array.isArray(p.btnLayout[k]) && p.btnLayout[k].join() === clean[k].join());
 		if (!same) throw new Error('Некорректное расположение кнопок');
 		next.btnLayout = clean;

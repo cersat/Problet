@@ -110,6 +110,7 @@
 			<div id="panel-order" class="plist"></div>
 			<h3>Кнопки</h3>
 			<div class="what plist-title"><small>Для каждой кнопки можно выбрать панель или скрыть её, стрелками меняется порядок на панели. Серые строки — адресная строка, вкладки и закладки: они стоят на своих панелях и служат точкой отсчёта</small></div>
+			<div class="plist-actions"><button id="cb-add">Добавить свою кнопку</button></div>
 			<div id="btn-lists"></div>
 		</section>
 
@@ -355,6 +356,30 @@
 
 		<p id="status" class="status"></p>
 	</main>
+
+	<dialog id="cb-dialog">
+		<form id="cb-form">
+			<h3 id="cb-title"></h3>
+			<label>Название<input id="cb-name" type="text" maxlength="40" autocomplete="off"></label>
+			<label>Значок (символ или эмодзи)<input id="cb-icon" type="text" maxlength="4" autocomplete="off"></label>
+			<label>Что делает кнопка
+				<select id="cb-type">
+					<option value="url">Открывает адрес</option>
+					<option value="script">Выполняет скрипт на открытой странице</option>
+					<option value="action">Выполняет команду браузера</option>
+				</select>
+			</label>
+			<label id="cb-url-row">Адрес<input id="cb-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://"></label>
+			<label id="cb-newtab-row" class="check"><input id="cb-newtab" type="checkbox"> Открывать в новой вкладке</label>
+			<label id="cb-script-row">Скрипт (JavaScript)<textarea id="cb-script" rows="5" spellcheck="false"></textarea></label>
+			<label id="cb-action-row">Команда<select id="cb-action"></select></label>
+			<p id="cb-error" class="error"></p>
+			<div class="buttons">
+				<button type="button" id="cb-cancel">Отмена</button>
+				<button type="submit" class="primary">Сохранить</button>
+			</div>
+		</form>
+	</dialog>
 	<script src="accel.js"></script>
 	<script src="settings.js"></script>
 </body>

@@ -402,6 +402,30 @@ const bmbar = document.getElementById('bmbar');
 const bmlist = document.getElementById('bmlist');
 const winctl = document.getElementById('winctl');
 const $id = (id) => document.getElementById(id);
+// Свои кнопки создаются по списку из настроек; id вида cb:xxxx в странице превращается в cb-xxxx
+const customEls = new Map();
+function syncCustom(list) {
+	const ids = new Set(list.map((c) => c.id));
+	for (const [id, el] of customEls) {
+		if (ids.has(id)) continue;
+		el.remove();
+		customEls.delete(id);
+	}
+	for (const c of list) {
+		let el = customEls.get(c.id);
+		if (!el) {
+			el = document.createElement('button');
+			el.id = 'cb-' + c.id.slice(3);
+			el.className = 'custom-btn';
+			el.addEventListener('click', () => api.customButton(c.id));
+			document.body.append(el); // на панель переедет в applyLayout
+			customEls.set(c.id, el);
+		}
+		el.textContent = c.icon;
+		el.title = c.name;
+	}
+}
+const elFor = (id) => (id.startsWith('cb:') ? customEls.get(id) : $id(id));
 const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar };
 // Главный элемент каждой панели: вокруг него расставляются кнопки
 // Ручка растягивания панели вкладок: до двойного размера (по высоте, а сбоку по ширине)
@@ -462,6 +486,7 @@ function applyLayout(l) {
 	bmbar.classList.toggle('edge-b', p.before.includes('bmbar'));
 	bmbar.classList.toggle('edge-t', p.after.includes('bmbar'));
 	// Кнопки: каждая в своей панели в заданном порядке; кнопки окна на панели вкладок могут уйти в полосу заголовка
+	syncCustom(l.customButtons);
 	const L = l.btnLayout;
 	for (const key of Object.keys(PANEL_EL)) {
 		const host = PANEL_EL[key];
@@ -470,7 +495,7 @@ function applyLayout(l) {
 		host.classList.toggle('has-sp', L[key].some((id) => /^sp\d$/.test(id)));
 		const want = [];
 		for (const id of L[key]) {
-			const el = $id(id === main ? MAIN_EL[id] : id);
+			const el = id === main ? $id(MAIN_EL[id]) : elFor(id);
 			if (id === 'winctl' && key === 'tabs' && p.strip) {
 				$id('titlebar').append(el);
 				el.classList.remove('off');
@@ -483,7 +508,7 @@ function applyLayout(l) {
 		// переставляем, только если порядок изменился: перенос ручки во время перетаскивания сбросил бы захват мыши
 		if (want.length !== host.children.length || want.some((el, i) => host.children[i] !== el)) host.append(...want);
 	}
-	for (const id of L.hidden) $id(id).classList.add('off');
+	for (const id of L.hidden) elFor(id).classList.add('off');
 	// Размер панели вкладок и ручка, за которую её растягивают
 	const scale = l.tabsScale;
 	document.body.style.setProperty('--tabs-h', Math.round(l.tabsBase.row * scale) + 'px');
