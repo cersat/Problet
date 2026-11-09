@@ -48,7 +48,6 @@ async function load() {
 		if (el.type === 'checkbox') el.checked = !!v;
 		else el.value = v;
 	}
-	$('two-rows').disabled = settings.tabsScale < 1.8 && !settings.tabsTwoRows;
 	$('startup-url').value = settings.startupUrl;
 	showDownloadDir();
 	$('startup-url-row').classList.toggle('hidden', settings.startup !== 'url');
@@ -595,14 +594,3 @@ refreshBlocked().catch(() => {});
 setInterval(() => {
 	if (document.visibilityState === 'visible') refreshBlocked().catch(() => {});
 }, 2000);
-
-// Панель вкладок растягивают в окне браузера, а не здесь: при возвращении на страницу обновляем доступность «2 слоёв»
-document.addEventListener('visibilitychange', () => {
-	if (document.hidden) return;
-	run(async () => {
-		const { settings } = await api.getSettings();
-		current = { ...current, tabsScale: settings.tabsScale, tabsTwoRows: settings.tabsTwoRows };
-		$('two-rows').checked = settings.tabsTwoRows;
-		$('two-rows').disabled = settings.tabsScale < 1.8 && !settings.tabsTwoRows;
-	});
-});
