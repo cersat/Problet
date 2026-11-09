@@ -50,12 +50,20 @@ document.getElementById('zoom').addEventListener('click', () => api.zoomReset())
 document.getElementById('downloads').addEventListener('click', () => api.openInternal('downloads'));
 document.getElementById('settings').addEventListener('click', () => api.openInternal('settings'));
 document.getElementById('newtab').addEventListener('click', () => api.newTab());
+// Курсор стоял в адресной строке до щелчка? Если окно получило фокус самим этим щелчком (человек пришёл со страницы), то нет: activeElement остаётся адресной строкой и после ухода на страницу
+let winFocusAt = 0;
+let addrAtDown = false;
+window.addEventListener('focus', () => { winFocusAt = Date.now(); });
 const appletRect = (el) => {
 	const r = el.getBoundingClientRect();
-	return { x: r.left, y: r.top, width: r.width, height: r.height };
+	return { x: r.left, y: r.top, width: r.width, height: r.height, addr: addrAtDown };
 };
 for (const kind of ['chars', 'spaces']) {
 	const btn = document.getElementById(kind);
+	btn.addEventListener('mousedown', (e) => {
+		e.preventDefault(); // кнопка не забирает курсор у адресной строки
+		addrAtDown = document.activeElement === address && Date.now() - winFocusAt > 300;
+	});
 	btn.addEventListener('click', () => api.openApplet(kind, appletRect(btn)));
 }
 document.getElementById('newtab').addEventListener('contextmenu', (e) => {

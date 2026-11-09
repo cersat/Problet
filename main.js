@@ -2062,7 +2062,8 @@ function openPanel(kind, rect) {
 	}
 	if (kind === panelKind && Date.now() - panelClosedAt < 300) return; // клик по кнопке закрыл панель потерей фокуса
 	ensurePanel();
-	panelReturn = win.webContents.isFocused() ? 'toolbar' : 'tab';
+	// Куда вернуть фокус и вставить символ: в адресную строку, только если курсор стоял в ней, иначе в страницу (кнопка на панели сама забирает фокус окна)
+	panelReturn = rect && typeof rect.addr === 'boolean' ? (rect.addr ? 'toolbar' : 'tab') : win.webContents.isFocused() ? 'toolbar' : 'tab';
 	const [w, h] = PANEL_SIZE[kind];
 	const [cw, ch] = contentSize();
 	const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - w / 2, y: insets().top - 4, width: 0, height: 0 };
