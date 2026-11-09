@@ -610,9 +610,9 @@ function spaceOf(opts) {
 const sameUrl = (a, b) => a === b || a.replace(/\/$/, '') === b.replace(/\/$/, '');
 
 function createTab(url, opts = {}) {
-	// Свитч «Не открывать вторую идентичную вкладку»: вместо новой переходим в уже открытую с тем же адресом
+	// Свитч «Не открывать вторую идентичную вкладку»: вместо новой переходим в уже открытую с тем же адресом в текущем пространстве (при общем списке — среди всех)
 	if (settings().noDuplicateTabs && url && !opts.lazy && !opts.hidden && !opts.duplicate && !startingUp) {
-		const same = tabs.find((t) => !t.hidden && !!t.incognito === !!opts.incognito && sameUrl(t.pendingUrl || t.url, url));
+		const same = tabs.find((t) => !t.hidden && (settings().spacesMerged || t.space === currentSpace) && !!t.incognito === !!opts.incognito && sameUrl(t.pendingUrl || t.url, url));
 		if (same) {
 			activateTab(same.id);
 			return same;
