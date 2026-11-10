@@ -18,6 +18,10 @@ const { tryCalc } = require('./calc');
 const { themePayload, accentList } = require('./theme');
 const headless = require('./headless');
 
+// Память: молодое поколение кучи V8 в каждом процессе ограничено 2 МБ (по умолчанию растёт до 16). Страницы с большим числом
+// недолговечных объектов собирают мусор чаще, зато каждая вкладка занимает заметно меньше (в замерах около 20 МБ на 7 вкладок)
+app.commandLine.appendSwitch('js-flags', '--max-semi-space-size=2');
+
 // Режим без окна: одноразовый профиль, если папка профиля не задана явно
 if (headless.enabled && !process.argv.some((a) => a.startsWith('--user-data-dir='))) {
 	const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'problet-headless-'));
@@ -640,8 +644,8 @@ function createTab(url, opts = {}) {
 	index = tab.pinned ? Math.min(index, pinnedCount()) : Math.max(index, pinnedCount());
 	tabs.splice(index, 0, tab);
 	win.contentView.addChildView(view);
-	win.contentView.addChildView(findView);
-	win.contentView.addChildView(popup); // подсказки всегда поверх страниц
+	if (findView) win.contentView.addChildView(findView);
+	if (popup) win.contentView.addChildView(popup); // подсказки всегда поверх страниц
 	if (panel) win.contentView.addChildView(panel);
 	view.setBounds(pageBounds());
 	wireTab(tab);
@@ -773,8 +777,8 @@ function discardTab(tab) {
 	tab.loading = false;
 	win.contentView.removeChildView(old);
 	win.contentView.addChildView(view);
-	win.contentView.addChildView(findView);
-	win.contentView.addChildView(popup);
+	if (findView) win.contentView.addChildView(findView);
+	if (popup) win.contentView.addChildView(popup);
 	if (panel) win.contentView.addChildView(panel);
 	wireTab(tab);
 	if (!old.webContents.isDestroyed()) old.webContents.close();
@@ -1473,6 +1477,55 @@ function errorPage(code, description, url) {
 	return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
 }
 
+// ---------- Слои поверх страниц ----------
+
+// Список подсказок и панель поиска — отдельные слои поверх страниц, и у каждого свой процесс (около 20 МБ).
+// Создаём их при первом обращении, а после паузы закрываем, чтобы они не занимали память впустую
+const LAYER_IDLE_MS = 45000;
+
+function createLayer(preload, file) {
+	const v = new WebContentsView({ webPreferences: { preload: path.join(__dirname, preload), contextIsolation: true } });
+	v.setBackgroundColor(settings().darkTheme ? '#2c2c2f' : '#f0f0f5');
+	v.setVisible(false);
+	win.contentView.addChildView(v);
+	v.webContents.loadFile(file);
+	return v;
+}
+
+function destroyLayer(v) {
+	if (!v) return;
+	try {
+		win.contentView.removeChildView(v);
+	} catch (e) { /* окно уже закрывается */ }
+	if (!v.webContents.isDestroyed()) v.webContents.close();
+}
+
+let popupTimer = null;
+function ensurePopup() {
+	clearTimeout(popupTimer);
+	if (popup) return;
+	popup = createLayer('preload-popup.js', 'popup.html');
+	popupReady = false;
+	const mine = popup;
+	mine.webContents.once('did-finish-load', () => {
+		if (popup !== mine) return;
+		popupReady = true;
+		if (sug.items.length) renderSuggest();
+	});
+}
+
+function releasePopup() {
+	clearTimeout(popupTimer);
+	popupTimer = setTimeout(() => {
+		destroyLayer(popup);
+		popup = null;
+		popupReady = false;
+	}, LAYER_IDLE_MS);
+}
+
+let findTimer = null;
+let findReady = false;
+
 // ---------- Поиск по странице ----------
 
 function layoutFind() {
@@ -1481,22 +1534,44 @@ function layoutFind() {
 	findView.setBounds({ x: Math.max(0, w - FIND_WIDTH - 12 - insets().right), y: insets().top + 6, width: FIND_WIDTH, height: FIND_HEIGHT });
 }
 
-function openFind() {
-	const wc = activeContents();
-	if (!wc || !findView) return;
-	findOpen = true;
+function showFind() {
 	layoutFind();
 	win.contentView.addChildView(findView); // поверх страниц
-	win.contentView.addChildView(popup);
+	if (popup) win.contentView.addChildView(popup);
 	findView.setVisible(true);
 	findView.webContents.send('find-open', findText);
 	findView.webContents.focus();
 }
 
+function openFind() {
+	const wc = activeContents();
+	if (!wc) return;
+	clearTimeout(findTimer);
+	findOpen = true;
+	if (!findView) {
+		findView = createLayer('preload-find.js', 'find.html');
+		findReady = false;
+		const mine = findView;
+		mine.webContents.once('did-finish-load', () => {
+			if (findView !== mine) return;
+			findReady = true;
+			if (findOpen) showFind();
+		});
+	}
+	if (findReady) showFind();
+}
+
 function closeFind() {
 	if (!findOpen) return;
 	findOpen = false;
-	findView.setVisible(false);
+	if (findView) findView.setVisible(false);
+	clearTimeout(findTimer);
+	findTimer = setTimeout(() => {
+		if (findOpen) return;
+		destroyLayer(findView);
+		findView = null;
+		findReady = false;
+	}, LAYER_IDLE_MS);
 	const wc = activeContents();
 	if (wc) {
 		wc.stopFindInPage('clearSelection');
@@ -1813,7 +1888,7 @@ function applySettings() {
 	refreshIdentity();
 	nativeTheme.themeSource = s.darkTheme ? 'dark' : 'light';
 	win.setBackgroundColor(bgColor());
-	popup.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
+	if (popup) popup.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
 	if (findView) findView.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
 	for (const t of tabs) t.view.setBackgroundColor(bgColor());
 	broadcastTheme();
@@ -1850,10 +1925,12 @@ function buildSuggestions(text) {
 }
 
 function renderSuggest() {
-	if (!popupReady || !sug.items.length) {
+	if (!sug.items.length) {
 		hideSuggest();
 		return;
 	}
+	ensurePopup();
+	if (!popupReady) return; // покажем, как только слой загрузится
 	const height = sug.items.length * ROW_HEIGHT + POPUP_PADDING * 2;
 	popup.setBounds({
 		x: sug.x,
@@ -1869,7 +1946,10 @@ function renderSuggest() {
 function hideSuggest() {
 	sug.items = [];
 	sug.selected = -1;
-	if (popup) popup.setVisible(false);
+	if (popup) {
+		popup.setVisible(false);
+		releasePopup();
+	}
 	if (win && !win.isDestroyed()) win.webContents.send('suggest-visible', false);
 }
 
@@ -1990,7 +2070,11 @@ function tipContent(st) {
 	return null;
 }
 
+let tipTimer = null;
+let tipReady = false;
+let tipJs = '';
 function ensureTip() {
+	clearTimeout(tipTimer);
 	if (tipView) return;
 	const t = themePayload(settings());
 	const html = '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden}'
@@ -2001,6 +2085,13 @@ function ensureTip() {
 	tipView.setBackgroundColor('#00000000');
 	tipView.setVisible(false);
 	win.contentView.addChildView(tipView);
+	tipReady = false;
+	const mine = tipView;
+	mine.webContents.once('did-finish-load', () => {
+		if (tipView !== mine) return;
+		tipReady = true;
+		if (tipJs) mine.webContents.executeJavaScript(tipJs).catch(() => {});
+	});
 	tipView.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
 }
 
@@ -2016,12 +2107,20 @@ function refreshTip() {
 	win.contentView.addChildView(tipView);
 	tipView.setVisible(true);
 	const js = 'document.getElementById("t").textContent=' + JSON.stringify(c.text) + ';document.getElementById("b").style.display=' + (c.progress === undefined ? '"none"' : '"block"') + ';document.getElementById("p").style.width="' + (c.progress || 0) + '%"';
-	tipView.webContents.executeJavaScript(js).catch(() => {});
+	tipJs = js;
+	if (tipReady) tipView.webContents.executeJavaScript(js).catch(() => {});
 }
 
 function hideTip() {
 	tipRect = null;
-	if (tipView) tipView.setVisible(false);
+	if (!tipView) return;
+	tipView.setVisible(false);
+	clearTimeout(tipTimer);
+	tipTimer = setTimeout(() => {
+		destroyLayer(tipView);
+		tipView = null;
+		tipReady = false;
+	}, LAYER_IDLE_MS);
 }
 
 ipcMain.on('update-tip', (e, rect) => {
@@ -2042,7 +2141,9 @@ let panelClosedAt = 0;
 let panelOpenedAt = 0;
 const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260] };
 
+let panelTimer = null;
 function ensurePanel() {
+	clearTimeout(panelTimer);
 	if (panel) return;
 	panel = new WebContentsView({
 		webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true },
@@ -2065,6 +2166,12 @@ function closePanel() {
 	panelOpen = false;
 	panelClosedAt = Date.now();
 	panel.setVisible(false);
+	clearTimeout(panelTimer);
+	panelTimer = setTimeout(() => {
+		if (panelOpen) return;
+		destroyLayer(panel);
+		panel = null;
+	}, LAYER_IDLE_MS);
 	const back = panelReturn === 'toolbar' ? win.webContents : activeContents();
 	if (back && !back.isDestroyed() && !win.webContents.isFocused() && !(back === win.webContents)) back.focus();
 }
@@ -2686,27 +2793,6 @@ function createWindow() {
 	win.removeMenu();
 	win.loadFile('index.html');
 	win.on('page-title-updated', (e) => e.preventDefault());
-
-	// Выпадающий список подсказок — отдельный слой поверх страниц
-	popup = new WebContentsView({
-		webPreferences: { preload: path.join(__dirname, 'preload-popup.js'), contextIsolation: true },
-	});
-	popup.setBackgroundColor(settings().darkTheme ? '#2c2c2f' : '#f0f0f5');
-	popup.setVisible(false);
-	win.contentView.addChildView(popup);
-	popup.webContents.loadFile('popup.html');
-	popup.webContents.once('did-finish-load', () => {
-		popupReady = true;
-	});
-
-	// Панель поиска по странице — тоже отдельный слой поверх страниц
-	findView = new WebContentsView({
-		webPreferences: { preload: path.join(__dirname, 'preload-find.js'), contextIsolation: true },
-	});
-	findView.setBackgroundColor(settings().darkTheme ? '#2c2c2f' : '#f0f0f5');
-	findView.setVisible(false);
-	win.contentView.addChildView(findView);
-	findView.webContents.loadFile('find.html');
 
 	win.webContents.on('context-menu', (_e, params) => {
 		if (!params.isEditable) return;
