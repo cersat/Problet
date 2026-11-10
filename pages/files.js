@@ -78,7 +78,7 @@ function render() {
 	});
 	const box = $('list');
 	box.textContent = '';
-	if (!list.length) box.append(Object.assign(document.createElement('div'), { className: 'empty', textContent: q ? 'Ничего не найдено' : 'Папка пуста' }));
+	if (!list.length) box.append(Object.assign(document.createElement('div'), { className: 'empty', textContent: data.error || (q ? 'Ничего не найдено' : 'Папка пуста') }));
 	for (const e of list) {
 		const row = document.createElement('a');
 		row.className = 'row';
@@ -127,7 +127,7 @@ async function load() {
 		data = await api.filesList(dir);
 	} catch (e) {
 		$('list').textContent = '';
-		$('list').append(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'Не удалось открыть папку: ' + String((e && e.message) || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '') }));
+		$('list').append(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'Не удалось открыть папку' }));
 		return;
 	}
 	document.title = data.path.split(/[\\/]/).filter(Boolean).pop() || data.path;

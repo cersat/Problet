@@ -2410,7 +2410,13 @@ ipcMain.handle('search:run', (e, text) => {
 // Проводник: список папки для страницы problet://files
 handle('files:list', (dir) => {
 	dir = path.resolve(String(dir || os.homedir()));
-	const names = fs.readdirSync(dir);
+	const parent = path.dirname(dir);
+	let names;
+	try {
+		names = fs.readdirSync(dir);
+	} catch (e) {
+		return { path: dir, parent: parent === dir ? '' : parent, home: os.homedir(), truncated: false, entries: [], error: e.code === 'EACCES' || e.code === 'EPERM' ? 'Нет доступа к папке' : 'Не удалось открыть папку: ' + e.message };
+	}
 	const entries = [];
 	for (const name of names.slice(0, 5000)) {
 		const full = path.join(dir, name);
@@ -2426,7 +2432,6 @@ handle('files:list', (dir) => {
 		}
 		entries.push({ name, dir: st.isDirectory(), size: st.isDirectory() ? 0 : st.size, mtime: st.mtimeMs, hidden: name.startsWith('.'), path: full, url: pathToFileURL(full).href });
 	}
-	const parent = path.dirname(dir);
 	return { path: dir, parent: parent === dir ? '' : parent, home: os.homedir(), truncated: names.length > 5000, entries };
 });
 
