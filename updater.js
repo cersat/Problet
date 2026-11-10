@@ -60,13 +60,15 @@ function isNewer(a, b) {
 // Подходящий файл релиза для этой системы
 function pickAsset(assets) {
 	const want = { appimage: /\.AppImage$/i, installer: /\.exe$/i, zip: /\.zip$/i, dmg: /\.dmg$/i, page: /\.tar\.gz$/i }[mode()];
+	let best = null;
 	for (const a of assets) {
 		const m = /^Problet-(\d+\.\d+\.\d+)-([a-z]+)-([\w]+)\./i.exec(a.name);
 		if (!m || m[2] !== OS || !ARCH.includes(m[3])) continue;
 		if (want && !want.test(a.name)) continue;
-		return { name: a.name, url: a.browser_download_url, size: a.size, version: m[1] };
+		// В релизе по пути могут лежать файлы разных версий (пока собираются остальные системы): берём самый новый
+		if (!best || isNewer(m[1], best.version)) best = { name: a.name, url: a.browser_download_url, size: a.size, version: m[1] };
 	}
-	return null;
+	return best;
 }
 
 // Лимит API GitHub без авторизации — 60 запросов в час на адрес, а одна проверка делает два (раньше — при частых проверках, пока идёт сборка).
@@ -181,14 +183,20 @@ async function download(url, dest) {
 	const total = Number(res.headers.get('content-length')) || (asset && asset.size) || 0;
 	let got = 0;
 	const out = fs.createWriteStream(dest);
+	// Ошибка записи (например, кончилось место) без обработчика уронила бы весь браузер
+	let failure = null;
+	out.on('error', (e) => { failure = e; });
 	try {
 		for await (const chunk of res.body) {
+			if (failure) throw failure;
 			got += chunk.length;
-			if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+			if (!out.write(chunk)) await new Promise((r) => { out.once('drain', r); out.once('error', r); });
+			if (failure) throw failure;
 			if (total) set({ progress: Math.min(99, Math.round((got / total) * 100)) });
 		}
 		await new Promise((resolve, reject) => {
-			out.on('error', reject);
+			if (failure) return reject(failure);
+			out.once('error', reject);
 			out.end(resolve);
 		});
 		if (total && got !== total) throw new Error('Файл скачался не полностью (' + got + ' из ' + total + ' байт)');
@@ -259,7 +267,8 @@ function installedWithSetup() {
 	return setupInstall;
 }
 
-// Программа из zip не может заменить себя сама: скрипт ждёт, пока она закроется, распаковывает архив поверх папки и запускает её снова
+// Программа из zip не может заменить себя сама: скрипт ждёт, пока она закроется, распаковывает архив поверх папки и запускает её снова.
+// Паузы сделаны через ping: timeout в скрытом окне без консоли ввода не ждёт, а сразу завершается
 function zipScript({ pid, zip, dir, exe }) {
 	const bat = (t) => String(t).replace(/%/g, '%%');
 	const ps = (t) => bat(t).replace(/'/g, "''");
@@ -267,12 +276,12 @@ function zipScript({ pid, zip, dir, exe }) {
 		'@echo off',
 		'chcp 65001 >nul',
 		':wait',
-		'tasklist /FI "PID eq ' + Number(pid) + '" 2>nul | find "' + Number(pid) + '" >nul && (timeout /t 1 /nobreak >nul & goto wait)',
+		'tasklist /FI "PID eq ' + Number(pid) + '" 2>nul | find "' + Number(pid) + '" >nul && (ping -n 2 127.0.0.1 >nul & goto wait)',
 		'set n=0',
 		':extract',
 		'set /a n+=1',
 		'where tar >nul 2>&1 && tar -xf "' + bat(zip) + '" -C "' + bat(dir) + '" || powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath \'' + ps(zip) + '\' -DestinationPath \'' + ps(dir) + '\' -Force"',
-		'if errorlevel 1 if %n% lss 5 (timeout /t 2 /nobreak >nul & goto extract)',
+		'if errorlevel 1 if %n% lss 5 (ping -n 3 127.0.0.1 >nul & goto extract)',
 		'start "" "' + bat(exe) + '"',
 		'del "' + bat(zip) + '" 2>nul',
 		'(goto) 2>nul & del "%~f0"',

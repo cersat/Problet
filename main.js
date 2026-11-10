@@ -610,6 +610,11 @@ function spaceOf(opts) {
 const sameUrl = (a, b) => a === b || a.replace(/\/$/, '') === b.replace(/\/$/, '');
 
 function createTab(url, opts = {}) {
+	// Вкладка, открытая из вкладки инкогнито, тоже инкогнито
+	if (opts.incognito === undefined && opts.afterId) {
+		const from = tabs.find((t) => t.id === opts.afterId);
+		if (from && from.incognito) opts = { ...opts, incognito: true };
+	}
 	// Свитч «Не открывать вторую идентичную вкладку»: вместо новой переходим в уже открытую с тем же адресом в текущем пространстве (при общем списке — среди всех)
 	if (settings().noDuplicateTabs && url && !opts.lazy && !opts.hidden && !opts.duplicate && !startingUp) {
 		const same = tabs.find((t) => !t.hidden && (settings().spacesMerged || t.space === currentSpace) && !!t.incognito === !!opts.incognito && sameUrl(t.pendingUrl || t.url, url));
@@ -617,11 +622,6 @@ function createTab(url, opts = {}) {
 			activateTab(same.id);
 			return same;
 		}
-	}
-	// Вкладка, открытая из вкладки инкогнито, тоже инкогнито
-	if (opts.incognito === undefined && opts.afterId) {
-		const from = tabs.find((t) => t.id === opts.afterId);
-		if (from && from.incognito) opts = { ...opts, incognito: true };
 	}
 	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
 	if (opts.incognito) prefs.session = incognitoSession();
@@ -1981,7 +1981,6 @@ ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 
 let tipView = null;
 let tipRect = null;
-let tipShown = '';
 
 function tipContent(st) {
 	if (!st) return null;

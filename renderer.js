@@ -408,7 +408,6 @@ api.onSuggestVisible((visible) => {
 
 const bmbar = document.getElementById('bmbar');
 const bmlist = document.getElementById('bmlist');
-const winctl = document.getElementById('winctl');
 const $id = (id) => document.getElementById(id);
 // Свои кнопки создаются по списку из настроек; id вида cb:xxxx в странице превращается в cb-xxxx
 const customEls = new Map();
