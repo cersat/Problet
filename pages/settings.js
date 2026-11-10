@@ -138,23 +138,39 @@ $('cb-add').addEventListener('click', () => {
 });
 $('cb-type').addEventListener('change', cbSync);
 $('cb-cancel').addEventListener('click', () => $('cb-dialog').close());
-$('cb-form').addEventListener('submit', async (e) => {
-	e.preventDefault();
+async function cbSave() {
 	const type = $('cb-type').value;
 	const value = type === 'url' ? $('cb-url').value.trim() : type === 'script' ? $('cb-script').value : $('cb-action').value;
 	const entry = {
 		id: cbEditing ? cbEditing.id : 'cb:' + Math.random().toString(36).slice(2, 10).padEnd(8, '0'),
-		name: $('cb-name').value, icon: $('cb-icon').value, type, value, newTab: $('cb-newtab').checked,
+		name: $('cb-name').value, icon: $('cb-icon').value, svg: cbEditing ? cbEditing.svg : '', type, value, newTab: $('cb-newtab').checked,
 	};
 	const list = cbEditing ? current.customButtons.map((c) => (c.id === entry.id ? entry : c)) : [...current.customButtons, entry];
 	try {
 		current = await api.setSettings({ customButtons: list });
 		$('cb-dialog').close();
 		renderPanels();
-		say('Сохранено');
+		return entry;
 	} catch (err) {
 		$('cb-error').textContent = errText(err);
+		return null;
 	}
+}
+$('cb-form').addEventListener('submit', async (e) => {
+	e.preventDefault();
+	if (await cbSave()) say('Сохранено');
+});
+// Рисунок для кнопки: сначала сохраняем саму кнопку, затем открываем редактор svg
+$('cb-draw').addEventListener('click', async () => {
+	const entry = await cbSave();
+	if (entry) location.href = 'problet://svgedit/?bm=' + encodeURIComponent(entry.id);
+});
+// Рисунок мог измениться в редакторе, пока эта страница была открыта
+window.addEventListener('focus', async () => {
+	try {
+		current = (await api.getSettings()).settings;
+		renderPanels();
+	} catch (e) { /* страница закрывается */ }
 });
 
 function renderPanels() {

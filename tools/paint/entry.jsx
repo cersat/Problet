@@ -65,12 +65,12 @@ class App extends React.Component {
         this.bitmapCanvas = null;
         this.n = 0;
         this.state.title = file;
-        document.title = (bm ? 'Иконка закладки' : baseName + '.svg') + ' — редактор';
+        document.title = (bm ? (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') : baseName + '.svg') + ' — редактор';
     }
     componentDidMount () {
         (bm ? api.bmIconGet(bm).then(r => ({text: r.svg, title: r.title})) : api.svgRead(file)).then(r => {
             if (bm) {
-                this.setState({title: 'Иконка закладки: ' + r.title});
+                this.setState({title: (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') + ': ' + r.title});
                 r.text = r.text || EMPTY_ICON;
             }
             const text = r.text.trim() ? r.text : EMPTY;

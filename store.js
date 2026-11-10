@@ -53,7 +53,7 @@ function cleanCustom(raw) {
 		if (!value) continue;
 		used.add(id);
 		const name = str(c.name, 40).trim() || 'Кнопка';
-		out.push({ id, name, icon: str(c.icon, 4).trim() || name[0].toUpperCase(), type: c.type, value, newTab: c.type === 'url' && c.newTab === true });
+		out.push({ id, name, icon: str(c.icon, 4).trim() || name[0].toUpperCase(), svg: cleanCustomIcon(c.svg), type: c.type, value, newTab: c.type === 'url' && c.newTab === true });
 	}
 	return out;
 }

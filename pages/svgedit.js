@@ -57329,7 +57329,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
     _this.bitmapCanvas = null;
     _this.n = 0;
     _this.state.title = file;
-    document.title = (bm ? 'Иконка закладки' : baseName + '.svg') + ' — редактор';
+    document.title = (bm ? (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') : baseName + '.svg') + ' — редактор';
     return _this;
   }
   entry_createClass(App, [{
@@ -57344,7 +57344,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       }) : api.svgRead(file)).then(function (r) {
         if (bm) {
           _this2.setState({
-            title: 'Иконка закладки: ' + r.title
+            title: (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') + ': ' + r.title
           });
           r.text = r.text || EMPTY_ICON;
         }

@@ -219,6 +219,8 @@ const INTERNAL_ICONS = {
 	version: svgIcon('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/>'),
 	passwords: svgIcon('<circle cx="8.5" cy="14" r="3.5"/><path d="M11 12l8-8M16 7l2.5 2.5M13.5 9.5L15 11"/>'),
 	downloads: svgIcon('<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>'),
+	files: svgIcon('<path d="M3.5 7.5a1.5 1.5 0 011.5-1.5h4l2 2.5h8a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5H5a1.5 1.5 0 01-1.5-1.5z"/>'),
+	svgedit: svgIcon('<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19z"/><path d="M14.5 6.5l3 3"/>'),
 	spaces: svgIcon('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
 };
 let browserIcon = '';
@@ -277,7 +279,7 @@ function layoutPayload() {
 	out.plan = panelPlan();
 	out.tabsTwoRows = s.tabsTwoRows && s.tabsScale >= store.TWO_ROWS_MIN; // выбор сохраняется, а действует, пока панель растянута
 	out.arrows = store.ARROWS[s.arrows];
-	out.customButtons = s.customButtons.map((c) => ({ id: c.id, name: c.name, icon: c.icon }));
+	out.customButtons = s.customButtons.map((c) => ({ id: c.id, name: c.name, icon: c.icon, svg: c.svg }));
 	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
 	return out;
@@ -2462,6 +2464,8 @@ handle('svg:write', (p, text) => {
 });
 // Своя иконка закладки: svg из редактора превращается в data-адрес и показывается вместо значка сайта
 handle('bm:icon-get', (id) => {
+	const cb = settings().customButtons.find((x) => x.id === id);
+	if (cb) return { title: cb.name, svg: cb.svg ? decodeURIComponent(cb.svg.slice(cb.svg.indexOf(',') + 1)) : '' };
 	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
 	if (!b) throw new Error('Закладка не найдена');
 	const url = b.customIcon || '';
@@ -2469,7 +2473,15 @@ handle('bm:icon-get', (id) => {
 });
 handle('bm:icon-set', (id, svg) => {
 	if (typeof svg !== 'string' || svg.length > 200000) throw new Error('Иконка слишком большая');
-	store.updateBookmark(id, { customIcon: svg ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) : '' });
+	const data = svg ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) : '';
+	if (String(id).startsWith('cb:')) {
+		const list = settings().customButtons;
+		if (!list.some((x) => x.id === id)) throw new Error('Кнопка не найдена');
+		store.setSettings({ customButtons: list.map((x) => (x.id === id ? { ...x, svg: data } : x)) });
+		applySettings();
+		return;
+	}
+	store.updateBookmark(id, { customIcon: data });
 });
 handle('svg:save-png', async (dataUrl, name) => {
 	const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl));

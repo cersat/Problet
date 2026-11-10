@@ -428,7 +428,14 @@ function syncCustom(list) {
 			document.body.append(el); // на панель переедет в applyLayout
 			customEls.set(c.id, el);
 		}
-		el.textContent = c.icon;
+		el.textContent = '';
+		if (c.svg) {
+			const img = document.createElement('img');
+			img.src = c.svg;
+			img.alt = '';
+			img.className = 'custom-img';
+			el.append(img);
+		} else el.textContent = c.icon;
 		el.title = c.name;
 	}
 }
