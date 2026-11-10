@@ -2404,7 +2404,7 @@ handle('default-browser:set', async () => {
 		// AppImage сам в меню приложений не появляется: записываем свой ярлык, который запускает именно этот файл
 		if (process.env.APPIMAGE) {
 			try {
-				const { apps } = require('./desktop').writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir());
+				const { apps } = require('./desktop').writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir(), app.getPath('userData'));
 				await run('update-desktop-database', [apps]);
 				await run('xdg-mime', ['default', 'problet.desktop', 'x-scheme-handler/http']);
 				await run('xdg-mime', ['default', 'problet.desktop', 'x-scheme-handler/https']);
@@ -2737,26 +2737,28 @@ function createWindow() {
 
 // Второй запуск (например, «открыть ссылку в Problet» из системы) открывает адрес в новой вкладке уже запущенного окна
 const gotLock = headless.enabled || app.requestSingleInstanceLock(); // без окна можно запускать сколько угодно копий
-app.on('second-instance', (_e, argv) => {
+// Ссылка из системы (второй запуск или ярлык): показываем окно и открываем адрес в новой вкладке
+function openIncoming(arg) {
 	if (!win) return;
 	if (win.isMinimized()) win.restore();
 	win.focus();
-	const arg = argv.slice(app.isPackaged ? 1 : 2).find((x) => !x.startsWith('-'));
 	const r = arg && resolveInput(arg, true);
 	if (r) createTab(r.url);
-});
+}
+app.on('second-instance', (_e, argv) => openIncoming(argv.slice(app.isPackaged ? 1 : 2).find((x) => !x.startsWith('-'))));
 
 app.whenReady().then(() => {
-	// Ярлык «браузера по умолчанию», записанный старой версией, мог запускать AppImage без учёта FUSE: переписываем его
-	if (process.platform === 'linux' && process.env.APPIMAGE) {
-		try {
-			const desktop = require('./desktop');
-			if (fs.existsSync(path.join(os.homedir(), '.local', 'share', 'applications', 'problet.desktop'))) desktop.writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir());
-		} catch (e) { log('не удалось обновить ярлык AppImage', e); }
-	}
 	if (!gotLock) {
 		app.quit();
 		return;
+	}
+	if (process.platform === 'linux' && process.env.APPIMAGE) {
+		try {
+			const desktop = require('./desktop');
+			// Ярлык, записанный старой версией, запускал AppImage напрямую (и без FUSE не работал): переписываем его на скрипт, который передаёт ссылку запущенному браузеру
+			if (fs.existsSync(path.join(os.homedir(), '.local', 'share', 'applications', 'problet.desktop'))) desktop.writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir(), app.getPath('userData'));
+			desktop.startInbox(app.getPath('userData'), openIncoming);
+		} catch (e) { log('не удалось подготовить приём ссылок из системы', e); }
 	}
 	store.init(app.getPath('userData'));
 	vault.init(app.getPath('userData'), { onLock: () => sendState() });
