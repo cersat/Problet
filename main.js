@@ -2747,6 +2747,13 @@ app.on('second-instance', (_e, argv) => {
 });
 
 app.whenReady().then(() => {
+	// Ярлык «браузера по умолчанию», записанный старой версией, мог запускать AppImage без учёта FUSE: переписываем его
+	if (process.platform === 'linux' && process.env.APPIMAGE) {
+		try {
+			const desktop = require('./desktop');
+			if (fs.existsSync(path.join(os.homedir(), '.local', 'share', 'applications', 'problet.desktop'))) desktop.writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir());
+		} catch (e) { log('не удалось обновить ярлык AppImage', e); }
+	}
 	if (!gotLock) {
 		app.quit();
 		return;
