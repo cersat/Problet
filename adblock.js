@@ -251,6 +251,13 @@ const COSMETIC_CSS = [
 	'#tads', '#tadsb', '#bottomads', '#taw[data-text-ad]', 'div[data-text-ad]', 'div[data-ad-slot]',
 ].join(',\n') + ' { display: none !important; }';
 
+// Окна согласия на куки: отдельный переключатель, от блокировщика рекламы не зависит
+const COOKIE_CSS = [
+	'#onetrust-banner-sdk', '#onetrust-consent-sdk', '#CybotCookiebotDialog', '#CybotCookiebotDialogBodyUnderlay', '.cc-window', '.cc-banner',
+	'#cookie-law-info-bar', '.cookie-notice', '#cookie-notice', '#qc-cmp2-container', '.fc-consent-root', '#cookieconsent', '.cookie-banner', '#cookie-banner',
+	'.cookie-consent', '#usercentrics-root', '#didomi-host', '.osano-cm-window', 'div[id^="sp_message_container"]',
+].join(',\n') + ' { display: none !important; }';
+
 const blockedCount = () => blocked;
 
-module.exports = { localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, COOKIE_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
