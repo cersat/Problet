@@ -6,6 +6,7 @@
 //     --wait   сколько ждать после окончания загрузки, пока страница дорисуется (по умолчанию 4000)
 //     --size   размер страницы, по умолчанию 1280x800
 //     --adblock включить блокировщик рекламы в этом запуске
+//     --insert  скрипт (код или путь к .js файлу), который выполнится на каждой странице до её собственных скриптов (работает и в режиме управления)
 //
 // Управление по HTTP (127.0.0.1, нужен токен): `problet --headless [--control-port=N]`
 //   адрес, порт и токен печатаются в stdout и пишутся в <tmp>/problet/headless.json
@@ -52,6 +53,16 @@ function summary() {
 		.sort((a, b) => b.requests - a.requests);
 }
 
+// --insert=код или --insert=путь/к/файлу.js
+function insertSource() {
+	const v = opt('insert');
+	if (!v) return '';
+	try {
+		if (fs.statSync(v).isFile()) return fs.readFileSync(v, 'utf8');
+	} catch (e) { /* не файл: это сам код */ }
+	return v;
+}
+
 // Без окна у вкладки нет настоящего размера: задаём его через отладчик (--size=1280x800)
 async function sizeView(wc) {
 	const m = /^(\d+)x(\d+)$/.exec(opt('size') || '');
@@ -61,6 +72,11 @@ async function sizeView(wc) {
 	await limit(wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false }), 10000, 'размер');
 	// Скрытое окно — «невидимая» страница: многие сайты в таком состоянии замирают, поэтому изображаем, что вкладка на виду
 	await wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true });
+	const source = insertSource();
+	if (source) {
+		await wc.debugger.sendCommand('Page.enable');
+		await wc.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source });
+	}
 	wc.setBackgroundThrottling(false);
 }
 
