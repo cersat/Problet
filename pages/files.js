@@ -16,10 +16,21 @@ function kind(e) {
 	for (const [k, list] of Object.entries(TYPES)) if (list.split(' ').some((x) => x.toLowerCase() === ext.toLowerCase())) return k;
 	return '';
 }
-function iconText(e) {
-	if (e.dir) return '';
-	const ext = e.name.includes('.') ? e.name.split('.').pop().slice(0, 3).toUpperCase() : '';
-	return ext;
+// Значки: контур файла с загнутым углом и рисунком по типу; у неизвестных типов на нём расширение
+const FILE = '<path class="body" d="M6.5 2.5h7.2l4.8 4.8V19a2 2 0 01-2 2h-10a2 2 0 01-2-2V4.5a2 2 0 012-2z"/><path class="fold" d="M13.7 2.5v3.8a1 1 0 001 1h3.8"/>';
+const GLYPHS = {
+	dir: '<path class="back" d="M3 6.5a2 2 0 012-2h4.2l2 2.2H19a2 2 0 012 2V9H3z"/><path class="body" d="M3 9.5a2 2 0 012-2h14a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',
+	img: FILE + '<circle class="mark" cx="10" cy="11.2" r="1.3"/><path class="line" d="M6.8 18l3.5-3.6 2.4 2.4 1.6-1.6 2.4 2.8"/>',
+	code: FILE + '<path class="line" d="M10.2 11.4l-2.4 2.6 2.4 2.6M13.8 11.4l2.4 2.6-2.4 2.6"/>',
+	doc: FILE + '<path class="line" d="M8.2 11.5h7.6M8.2 14.2h7.6M8.2 16.9h4.6"/>',
+	arc: FILE + '<path class="line" d="M12 7.5v1.6M12 10.4v1.6M12 13.3v1.6"/><rect class="mark" x="10.6" y="16" width="2.8" height="2.6" rx="0.8"/>',
+	'': FILE,
+};
+function iconHtml(e) {
+	return '<svg viewBox="0 0 24 24" aria-hidden="true">' + GLYPHS[kind(e)] + '</svg>';
+}
+function iconExt(e) {
+	return kind(e) || e.dir || !e.name.includes('.') ? '' : e.name.split('.').pop().slice(0, 4).toUpperCase();
 }
 function fmtSize(n) {
 	if (n < 1024) return n + ' Б';
@@ -94,11 +105,13 @@ function render() {
 		name.className = 'name';
 		const ico = document.createElement('div');
 		ico.className = 'ico ' + kind(e);
-		ico.textContent = iconText(e);
+		ico.innerHTML = iconHtml(e);
+		const ext = iconExt(e);
+		if (ext) ico.append(Object.assign(document.createElement('span'), { className: 'ext', textContent: ext }));
 		const label = document.createElement('span');
 		label.textContent = e.name;
 		name.append(ico, label);
-		if (!e.dir && /\.svg$/i.test(e.name)) {
+		if (!e.dir && /\.(svg|png)$/i.test(e.name)) {
 			const ed = document.createElement('button');
 			ed.className = 'edit';
 			ed.textContent = 'Редактировать';

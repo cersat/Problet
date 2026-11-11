@@ -98,6 +98,10 @@ if (location.protocol === 'problet:') {
 		addFolder: (name) => call('folders:add', name),
 		renameFolder: (id, name) => call('folders:rename', id, name),
 		removeFolder: (id) => call('folders:remove', id),
+		setFolderColor: (id, color) => call('folders:color', id, color),
+		folderOpen: (url, newTab) => call('folder:open', url, newTab),
+		folderOpenAll: (id) => call('folder:open-all', id),
+		folderDelete: (id) => call('folder:delete', id),
 	});
 }
 

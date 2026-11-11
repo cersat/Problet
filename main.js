@@ -103,7 +103,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -313,7 +313,7 @@ ipcMain.on('win:close', (e) => fromToolbar0(e) && win.close());
 // Панель закладок: папки и закладки целиком, рисует их окно тулбара
 function barPayload() {
 	const st = store.bookmarksState();
-	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, customIcon: b.customIcon, folder: b.folder })) };
+	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name, color: f.color })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, customIcon: b.customIcon, folder: b.folder })) };
 }
 
 function sendBar() {
@@ -348,14 +348,48 @@ ipcMain.on('bar:menu', (e, id) => {
 		{ label: 'Удалить закладку', click: () => store.removeBookmark(b.id) },
 	]);
 });
-ipcMain.on('bar:folder', (e, folderId) => {
+// Папка на панели закладок: нажатие раскрывает её окошко, правая кнопка даёт меню
+const folderRect = (rect) => ({ ...(rect || {}), addr: false });
+const folderItems = (id) => store.bookmarksState().bookmarks.filter((b) => b.folder === id);
+function openFolderAll(id) {
+	const items = folderItems(id);
+	items.forEach((b, i) => createTab(b.url, { activate: i === 0 }));
+}
+ipcMain.on('bar:folder', (e, folderId, rect) => {
+	if (!fromToolbar0(e) || !store.bookmarksState().folders.some((f) => f.id === folderId)) return;
+	openPanel('folder', folderRect(rect), folderId);
+});
+ipcMain.on('bar:folder-menu', async (e, folderId, rect) => {
 	if (!fromToolbar0(e)) return;
 	const st = store.bookmarksState();
-	const items = st.bookmarks.filter((b) => b.folder === folderId);
-	popupMenu(items.length
-		? items.map((b) => ({ label: b.title.length > 50 ? b.title.slice(0, 49) + '…' : b.title, click: () => openBookmarkUrl(b.url) }))
-		: [{ label: 'Папка пуста', enabled: false }]);
+	const f = st.folders.find((x) => x.id === folderId);
+	if (!f) return;
+	const count = folderItems(folderId).length;
+	popupMenu([
+		{ label: 'Открыть', click: () => openPanel('folder', folderRect(rect), folderId) },
+		{ label: 'Открыть все в новых вкладках', enabled: count > 0, click: () => openFolderAll(folderId) },
+		{ label: 'Открыть в менеджере закладок', click: () => createTab('problet://bookmarks/?folder=' + encodeURIComponent(folderId), { activate: true }) },
+		{ type: 'separator' },
+		{
+			label: 'Цвет',
+			submenu: [
+				{ label: 'Без цвета', type: 'radio', checked: !f.color, click: () => store.setFolderColor(folderId, '') },
+				...st.colors.map((c) => ({ label: c.name, type: 'radio', checked: f.color === c.hex, click: () => store.setFolderColor(folderId, c.hex) })),
+			],
+		},
+		{ type: 'separator' },
+		{ label: 'Удалить папку', click: () => removeFolderAsk(folderId) },
+	]);
 });
+// Закладки из удалённой папки остаются, просто без папки
+async function removeFolderAsk(id) {
+	const f = store.bookmarksState().folders.find((x) => x.id === id);
+	if (!f) return;
+	const r = await dialog.showMessageBox(win, { type: 'question', message: 'Удалить папку «' + f.name + '»? Закладки из неё останутся без папки.', buttons: ['Удалить', 'Отмена'], defaultId: 1, cancelId: 1 });
+	if (r.response !== 0) return;
+	store.removeFolder(id);
+	closePanel();
+}
 
 function sendTabs() {
 	if (!win || win.isDestroyed()) return;
@@ -2141,7 +2175,8 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260] };
+const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0] };
+let panelArg = '';
 
 let panelTimer = null;
 function ensurePanel() {
@@ -2179,28 +2214,30 @@ function closePanel() {
 }
 
 // rect — положение кнопки в окне; без неё панель встаёт у верхнего края
-function openPanel(kind, rect) {
+function openPanel(kind, rect, arg = '') {
 	if (!PANEL_SIZE[kind] || !win || win.isDestroyed()) return;
-	if (panelOpen && panelKind === kind) {
+	if (panelOpen && panelKind === kind && panelArg === arg) {
 		closePanel();
 		return;
 	}
-	if (kind === panelKind && Date.now() - panelClosedAt < 300) return; // клик по кнопке закрыл панель потерей фокуса
+	if (kind === panelKind && panelArg === arg && Date.now() - panelClosedAt < 300) return; // клик по кнопке закрыл панель потерей фокуса
 	ensurePanel();
 	// Куда вернуть фокус и вставить символ: в адресную строку, только если курсор стоял в ней, иначе в страницу (кнопка на панели сама забирает фокус окна)
 	panelReturn = rect && typeof rect.addr === 'boolean' ? (rect.addr ? 'toolbar' : 'tab') : win.webContents.isFocused() ? 'toolbar' : 'tab';
-	const [w, h] = PANEL_SIZE[kind];
+	const [w, h0] = PANEL_SIZE[kind];
+	const h = kind === 'folder' ? Math.min(440, 112 + Math.max(1, folderItems(arg).length) * 36) : h0; // шапка и подвал плюс строки закладок
 	const [cw, ch] = contentSize();
 	const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - w / 2, y: insets().top - 4, width: 0, height: 0 };
 	const x = Math.round(Math.min(Math.max(8, r.x + r.width / 2 - w / 2), Math.max(8, cw - w - 8)));
 	const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
 	panel.setBounds({ x, y, width: w, height: Math.min(h, Math.max(160, ch - y - 8)) });
 	panelKind = kind;
+	panelArg = arg;
 	panelOpen = true;
 	panelOpenedAt = Date.now();
 	win.contentView.addChildView(panel);
 	panel.setVisible(true);
-	panel.webContents.loadURL('problet://' + kind + '/?popup=1').catch(() => {});
+	panel.webContents.loadURL('problet://' + kind + '/?popup=1' + (arg ? '&id=' + encodeURIComponent(arg) : '')).catch(() => {});
 	if (kind !== 'pwsave') panel.webContents.focus();
 }
 
@@ -2280,6 +2317,18 @@ function bookmarksAction(fn) {
 	return store.bookmarksState();
 }
 
+handle('folder:open', (url, newTab) => {
+	const b = store.bookmarksState().bookmarks.find((x) => x.url === url);
+	if (!b) return;
+	closePanel();
+	openBookmarkUrl(b.url, !!newTab);
+});
+handle('folder:open-all', (id) => {
+	closePanel();
+	openFolderAll(String(id));
+});
+handle('folder:delete', (id) => removeFolderAsk(String(id)));
+handle('folders:color', (id, color) => bookmarksAction(() => store.setFolderColor(id, color)));
 handle('hotkeys:capture', (on) => {
 	capturingHotkey = !!on;
 });
@@ -2448,16 +2497,36 @@ handle('files:open', (p, asIs) => {
 // Редактор svg: чтение и запись файла по полному пути
 const svgPath = (p) => {
 	p = path.resolve(String(p));
-	if (!/\.svg$/i.test(p)) throw new Error('Это не svg-файл');
+	if (!/\.(svg|png)$/i.test(p)) throw new Error('Это не svg и не png');
 	return p;
 };
+// png открывается как svg, внутри которого лежит эта картинка: в редакторе её можно рисовать и переводить в растровый режим.
+// Сохраняется такой рисунок рядом с png, в новый svg (сам png не трогается)
+const pngTargets = new Map();
+function pngTarget(p) {
+	if (pngTargets.has(p)) return pngTargets.get(p);
+	const base = p.slice(0, -4);
+	let target = base + '.svg';
+	for (let i = 2; fs.existsSync(target); i++) target = base + ' (' + i + ').svg';
+	pngTargets.set(p, target);
+	return target;
+}
+function pngAsSvg(p) {
+	const buf = fs.readFileSync(p);
+	if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) throw new Error('Это не png-картинка');
+	const w = buf.readUInt32BE(16);
+	const h = buf.readUInt32BE(20);
+	return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '"><image width="' + w + '" height="' + h + '" xlink:href="data:image/png;base64,' + buf.toString('base64') + '"/></svg>';
+}
 handle('svg:read', (p) => {
 	p = svgPath(p);
 	if (fs.statSync(p).size > 5 * 1024 * 1024) throw new Error('Файл больше 5 МБ');
+	if (/\.png$/i.test(p)) return { path: p, text: pngAsSvg(p) };
 	return { path: p, text: fs.readFileSync(p, 'utf8') };
 });
 handle('svg:write', (p, text) => {
 	p = svgPath(p);
+	if (/\.png$/i.test(p)) p = pngTarget(p);
 	if (typeof text !== 'string' || text.length > 10 * 1024 * 1024) throw new Error('Слишком большой файл');
 	fs.writeFileSync(p, text, 'utf8');
 	return { path: p };

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Папка закладок</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="folder.css">
+</head>
+<body class="folder-page">
+	<header>
+		<span class="dot" id="dot"></span>
+		<span class="name" id="name"></span>
+		<button id="all" title="Открыть все закладки папки в новых вкладках">Открыть все</button>
+	</header>
+	<div id="list" class="list"></div>
+	<footer>
+		<div id="colors" class="colors"></div>
+		<button id="del" class="del" title="Удалить папку (закладки останутся)">Удалить</button>
+	</footer>
+	<script src="folder.js"></script>
+</body>
+</html>

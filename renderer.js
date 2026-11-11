@@ -544,18 +544,32 @@ function renderBar() {
 	bmlist.textContent = '';
 	const only = !!layoutState.bmOnlyIcons;
 	const folderIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></svg>';
+	const rectOf = (el) => {
+		const r = el.getBoundingClientRect();
+		return { x: r.left, y: r.top, width: r.width, height: r.height };
+	};
 	for (const f of barData.folders) {
 		const b = document.createElement('button');
 		b.className = 'bm folder';
 		b.title = f.name;
 		b.innerHTML = folderIcon;
+		b.dataset.folder = f.id;
+		if (f.color) {
+			const svg = b.firstElementChild;
+			svg.style.color = f.color;
+			svg.style.fill = f.color + '40'; // та же краска, но полупрозрачная
+		}
 		if (!only) {
 			const n = document.createElement('span');
 			n.className = 'name';
 			n.textContent = f.name;
 			b.append(n);
 		}
-		b.addEventListener('click', () => api.barFolder(f.id));
+		b.addEventListener('click', () => api.barFolder(f.id, rectOf(b)));
+		b.addEventListener('contextmenu', (e) => {
+			e.preventDefault();
+			api.barFolderMenu(f.id, rectOf(b));
+		});
 		bmlist.append(b);
 	}
 	for (const m of barData.bookmarks.filter((x) => !x.folder)) {

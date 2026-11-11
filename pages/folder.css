@@ -1,0 +1,21 @@
+.folder-page { border: 1px solid var(--border-strong); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.folder-page header { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 12px; border-bottom: 1px solid var(--border-strong); }
+.folder-page .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); }
+.folder-page .name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-page header button { flex: none; padding: 3px 9px; font-size: 12px; }
+.folder-page .list { flex: 1; overflow-y: auto; padding: 4px; }
+.folder-page .item { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.folder-page .item:hover, .folder-page .item:focus-visible { background: var(--hover); outline: none; }
+.folder-page .item .fav { flex: none; width: 16px; height: 16px; border-radius: 3px; object-fit: contain; }
+.folder-page .item .fav.letter { display: grid; place-items: center; font-size: 10px; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
+.folder-page .item .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-page .item .host { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.folder-page .empty { padding: 22px 12px; text-align: center; color: var(--muted); }
+.folder-page footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--border-strong); }
+.folder-page .colors { display: flex; gap: 6px; align-items: center; }
+.folder-page .sw { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.folder-page .sw:hover { transform: scale(1.15); }
+.folder-page .sw.on { border-color: var(--text); }
+.folder-page .sw.none { background: transparent; border: 2px dashed var(--faint); }
+.folder-page .sw.none.on { border-color: var(--text); border-style: solid; }
+.folder-page footer .del { padding: 3px 9px; font-size: 12px; color: #e5646e; }

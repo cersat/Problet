@@ -6,6 +6,7 @@ let query = '';
 let sort = 'new';
 let editingId = null;
 let renamingFolderId = null;
+let folderColor = '';
 let toastTimer = null;
 
 function el(tag, className, text) {
@@ -82,6 +83,11 @@ function visibleBookmarks() {
 
 function navItem(id, label, count, folder) {
 	const item = el('div', 'nav-item' + (current === id ? ' active' : ''));
+	if (folder) {
+		const dot = el('span', 'nav-dot');
+		if (folder.color) dot.style.background = folder.color;
+		item.append(dot);
+	}
 	item.append(el('span', 'nav-label', label), el('span', 'nav-count', String(count)));
 	item.addEventListener('click', () => {
 		current = id;
@@ -264,10 +270,28 @@ function openFolderDialog(folder) {
 	renamingFolderId = folder ? folder.id : null;
 	$('folder-title').textContent = folder ? 'Переименовать папку' : 'Новая папка';
 	$('folder-name').value = folder ? folder.name : '';
+	folderColor = folder ? folder.color || '' : '';
+	renderFolderColors();
 	$('folder-error').textContent = '';
 	$('folder-dialog').showModal();
 	$('folder-name').focus();
 	$('folder-name').select();
+}
+
+function renderFolderColors() {
+	const box = $('folder-colors');
+	box.textContent = '';
+	for (const c of [{ hex: '', name: 'Без цвета' }, ...state.colors]) {
+		const s = el('button', 'sw' + (c.hex ? '' : ' none') + (folderColor === c.hex ? ' on' : ''));
+		s.type = 'button';
+		s.title = c.name;
+		if (c.hex) s.style.background = c.hex;
+		s.addEventListener('click', () => {
+			folderColor = c.hex;
+			renderFolderColors();
+		});
+		box.append(s);
+	}
 }
 
 $('folder-form').addEventListener('submit', async (e) => {
@@ -275,6 +299,8 @@ $('folder-form').addEventListener('submit', async (e) => {
 	const name = $('folder-name').value;
 	try {
 		state = renamingFolderId ? await api.renameFolder(renamingFolderId, name) : await api.addFolder(name);
+		const saved = renamingFolderId ? state.folders.find((f) => f.id === renamingFolderId) : state.folders.find((f) => f.name.toLowerCase() === name.trim().toLowerCase());
+		if (saved && (saved.color || '') !== folderColor) state = await api.setFolderColor(saved.id, folderColor);
 		$('folder-dialog').close();
 		render();
 	} catch (err) {
@@ -298,9 +324,15 @@ $('sort').addEventListener('change', (e) => {
 
 // problet://bookmarks/?edit=<id> — сразу открыть окно изменения закладки (так открывает пункт меню панели закладок)
 act(() => api.bookmarks()).then(() => {
-	const id = new URLSearchParams(location.search).get('edit');
+	const params = new URLSearchParams(location.search);
+	const id = params.get('edit');
 	const target = id && state && state.bookmarks.find((x) => x.id === id);
 	if (target) openEdit(target);
+	const folder = params.get('folder');
+	if (folder && state && state.folders.some((f) => f.id === folder)) {
+		current = folder;
+		render();
+	}
 });
 
 // Закладки могли измениться в другой вкладке: перечитываем, если человек сейчас не вводит что-то в окне

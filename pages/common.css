@@ -1052,3 +1052,13 @@ body.version .cell[data-tap] { user-select: none; -webkit-user-select: none; cur
 dialog label.check { display: flex; align-items: center; gap: 8px; }
 dialog label.check input { display: inline-block; width: auto; margin: 0; }
 dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--control); color: var(--text-strong); font: 13px ui-monospace, monospace; resize: vertical; user-select: text; }
+
+/* Цвета папок закладок */
+.nav-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--faint); }
+.field-label { margin: 8px 0 6px; color: var(--muted); font-size: 13px; }
+.colors { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.colors .sw { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.colors .sw:hover { transform: scale(1.1); }
+.colors .sw.on { border-color: var(--text-strong); }
+.colors .sw.none { background: transparent; border: 2px dashed var(--faint); }
+.colors .sw.none.on { border-style: solid; border-color: var(--text-strong); }

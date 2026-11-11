@@ -121,10 +121,10 @@ class App extends React.Component {
         if (this.state.bitmap) return this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG');
         try {
             if (bm) await api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
-            else await api.svgWrite(file, this.svg);
+            else this.savedTo = (await api.svgWrite(file, this.svg)).path;
             this.savedSvg = this.svg;
             this.setState({dirty: false});
-            this.say('Сохранено');
+            this.say('Сохранено' + (this.savedTo && this.savedTo !== file ? ' в ' + this.savedTo : ''));
         } catch (e) {
             this.say('Не удалось сохранить: ' + clean(e));
         }

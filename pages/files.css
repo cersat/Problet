@@ -23,12 +23,20 @@
 .row .name { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .row .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .size, .row .date { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.ico { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; font-size: 10px; font-weight: 700; color: var(--on-accent); background: var(--faint); }
-.ico.dir { background: var(--star); }
-.ico.img { background: #8fd3a3; }
-.ico.code { background: var(--accent); }
-.ico.doc { background: #f2929a; }
-.ico.arc { background: #c9a7f5; }
+/* Значок типа: цвет задаётся классом, форма лежит в svg */
+.ico { position: relative; flex: none; width: 28px; height: 28px; display: grid; place-items: center; --c: var(--faint); }
+.ico svg { width: 28px; height: 28px; overflow: visible; }
+.ico .body { fill: color-mix(in srgb, var(--c) 22%, transparent); stroke: var(--c); stroke-width: 1.5; stroke-linejoin: round; }
+.ico .back { fill: color-mix(in srgb, var(--c) 55%, transparent); stroke: var(--c); stroke-width: 1.5; stroke-linejoin: round; }
+.ico .fold { fill: none; stroke: var(--c); stroke-width: 1.5; stroke-linejoin: round; }
+.ico .line { fill: none; stroke: var(--c); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ico .mark { fill: var(--c); stroke: none; }
+.ico .ext { position: absolute; left: 0; right: 0; top: 13px; text-align: center; font-size: 7px; font-weight: 700; letter-spacing: 0.02em; color: var(--c); line-height: 1; pointer-events: none; }
+.ico.dir { --c: var(--star); }
+.ico.img { --c: #5fc47f; }
+.ico.code { --c: var(--accent); }
+.ico.doc { --c: #ef7f89; }
+.ico.arc { --c: #b28df0; }
 .row .edit { margin-left: auto; flex: none; padding: 2px 8px; font-size: 12px; }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 #info { padding: 6px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; background: var(--panel); }

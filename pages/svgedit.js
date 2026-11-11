@@ -57423,13 +57423,13 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
               break;
             case 8:
               _context.next = 10;
-              return api.svgWrite(file, this.svg);
+              return api.svgWrite(file, this.svg).then(r => { this.savedTo = r && r.path; });
             case 10:
               this.savedSvg = this.svg;
               this.setState({
                 dirty: false
               });
-              this.say('Сохранено');
+              this.say('Сохранено' + (this.savedTo && this.savedTo !== file ? ' в ' + this.savedTo : ''));
               _context.next = 18;
               break;
             case 15:

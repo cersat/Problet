@@ -454,7 +454,7 @@ function sanitize(raw) {
 		let id = str(f.id, 64);
 		if (!id || folderIds.has(id)) id = newId();
 		folderIds.add(id);
-		out.folders.push({ id, name });
+		out.folders.push({ id, name, color: cleanFolderColor(f.color) });
 	}
 
 	const usedIds = new Set();
@@ -787,7 +787,7 @@ function searchSuggestions(query, limit) {
 // ---------- Закладки ----------
 
 function bookmarksState() {
-	return { bookmarks: data.bookmarks, folders: data.folders };
+	return { bookmarks: data.bookmarks, folders: data.folders, colors: FOLDER_COLORS };
 }
 
 function findBookmarkByUrl(url) {
@@ -841,12 +841,28 @@ function restoreBookmark(raw) {
 	}
 }
 
+// Цвета папок: в закладках хранится только hex из этого списка
+const FOLDER_COLORS = [
+	{ name: 'Красный', hex: '#e5646e' }, { name: 'Оранжевый', hex: '#e8955a' }, { name: 'Жёлтый', hex: '#e2c04d' },
+	{ name: 'Зелёный', hex: '#6fc283' }, { name: 'Бирюзовый', hex: '#4fc1c7' }, { name: 'Синий', hex: '#6c8cf0' },
+	{ name: 'Фиолетовый', hex: '#a98af0' }, { name: 'Розовый', hex: '#ec86bf' },
+];
+const cleanFolderColor = (v) => (FOLDER_COLORS.some((c) => c.hex === v) ? v : '');
+
+function setFolderColor(id, color) {
+	const f = data.folders.find((x) => x.id === id);
+	if (!f) throw new Error('Папка не найдена');
+	f.color = cleanFolderColor(color);
+	scheduleSave();
+	changed('bookmarks');
+}
+
 function addFolder(name) {
 	const n = str(name, 100).trim();
 	if (!n) throw new Error('Введи название папки');
 	const existing = data.folders.find((f) => f.name.toLowerCase() === n.toLowerCase());
 	if (existing) return existing;
-	const f = { id: newId(), name: n };
+	const f = { id: newId(), name: n, color: '' };
 	data.folders.push(f);
 	scheduleSave();
 	changed('bookmarks');
@@ -893,7 +909,7 @@ function importBookmarkItems(items) {
 		if (name) {
 			let f = data.folders.find((x) => x.name.toLowerCase() === name.toLowerCase());
 			if (!f) {
-				f = { id: newId(), name };
+				f = { id: newId(), name, color: '' };
 				data.folders.push(f);
 				folders++;
 			}
@@ -981,7 +997,7 @@ function importData(raw, mode) {
 	for (const f of inc.folders) {
 		let target = data.folders.find((x) => x.name.toLowerCase() === f.name.toLowerCase());
 		if (!target) {
-			target = { id: data.folders.some((x) => x.id === f.id) ? newId() : f.id, name: f.name };
+			target = { id: data.folders.some((x) => x.id === f.id) ? newId() : f.id, name: f.name, color: cleanFolderColor(f.color) };
 			data.folders.push(target);
 			folders++;
 		}
@@ -1027,7 +1043,7 @@ module.exports = {
 	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
-	addFolder, renameFolder, removeFolder, importBookmarkItems, exportBookmarksHtml,
+	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, exportBookmarksHtml,
 	exportData, looksLikeBackup, importData,
 	getSession, setSession, getCacheClearedAt, setCacheClearedAt,
 	onChange, notify: changed, DEFAULT_SPACE,
