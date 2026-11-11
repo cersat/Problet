@@ -28,13 +28,13 @@ const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmba
 const SPACERS = ['sp1', 'sp2', 'sp3'];
 // x:<id расширения> — кнопка расширения, у каждого своя
 const EXT_BTN = /^x:[a-p]{32}$/;
-const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
+const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {
 		tabs: ['spaces', 'm:tabs', 'newtab', 'sp1', 'winctl'],
 		toolbar: ['back', 'forward', 'reload', 'm:address', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'],
 		bmbar: ['m:bookmarks', 'sp3'],
-		hidden: ['sp2'],
+		hidden: ['sp2', 'darkpage'],
 	};
 }
 
@@ -243,18 +243,20 @@ function validTemplate(t) {
 }
 
 // Оставляем только известные действия с допустимыми сочетаниями, без повторов
-function cleanHotkeys(raw) {
+// customIds — свои кнопки: у них по умолчанию нет клавиши, но её можно назначить
+function cleanHotkeys(raw, customIds = []) {
 	const out = {};
 	if (!raw || typeof raw !== 'object') return out;
-	const known = new Map(accel.ACTIONS.map((a) => [a.id, a.key]));
+	const all = [...accel.ACTIONS, ...customIds.map((id) => ({ id, key: '' }))];
+	const known = new Map(all.map((a) => [a.id, a.key]));
 	const used = new Set();
-	for (const a of accel.ACTIONS) {
+	for (const a of all) {
 		const v = Object.hasOwn(raw, a.id) ? raw[a.id] : undefined;
 		if (typeof v !== 'string' || !accel.valid(v) || v === known.get(a.id)) continue;
 		out[a.id] = v;
 	}
 	// Сочетание не должно назначаться двум действиям сразу
-	for (const a of accel.ACTIONS) {
+	for (const a of all) {
 		const eff = Object.hasOwn(out, a.id) ? out[a.id] : a.key;
 		if (!eff) continue;
 		if (used.has(eff)) {
@@ -315,7 +317,7 @@ function sanitizeSettings(raw) {
 		out.btnLayout = cleanButtons(r.btnLayout, customIds);
 	}
 	out.tabsScale = cleanScale(r.tabsScale);
-	out.hotkeys = cleanHotkeys(r.hotkeys);
+	out.hotkeys = cleanHotkeys(r.hotkeys, customIds);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
 	out.downloadDir = typeof r.downloadDir === 'string' && r.downloadDir.length <= 1024 && path.isAbsolute(r.downloadDir) ? r.downloadDir : '';
@@ -665,8 +667,10 @@ function setSettings(patch) {
 	}
 	if (p.hotkeys !== undefined) {
 		if (!p.hotkeys || typeof p.hotkeys !== 'object' || Array.isArray(p.hotkeys)) throw new Error('Некорректные горячие клавиши');
-		const clean = cleanHotkeys(p.hotkeys);
-		const given = Object.keys(p.hotkeys).filter((k) => accel.ACTIONS.some((a) => a.id === k) && p.hotkeys[k] !== accel.ACTIONS.find((a) => a.id === k).key);
+		const ids = next.customButtons.map((c) => c.id);
+		const all = [...accel.ACTIONS, ...ids.map((id) => ({ id, key: '' }))];
+		const clean = cleanHotkeys(p.hotkeys, ids);
+		const given = Object.keys(p.hotkeys).filter((k) => all.some((a) => a.id === k) && p.hotkeys[k] !== all.find((a) => a.id === k).key);
 		if (given.some((k) => !Object.hasOwn(clean, k))) throw new Error('Такое сочетание уже занято или записано неверно');
 		next.hotkeys = clean;
 	}
@@ -684,6 +688,7 @@ function setSettings(patch) {
 		const clean = cleanCustom(p.customButtons);
 		if (clean.length !== Math.min(p.customButtons.length, CUSTOM_LIMIT)) throw new Error(p.customButtons.length > CUSTOM_LIMIT ? 'Слишком много своих кнопок' : 'Заполни название и действие кнопки: адрес должен начинаться с http:// или https://');
 		next.customButtons = clean;
+		next.hotkeys = cleanHotkeys(next.hotkeys, clean.map((c) => c.id)); // клавиши убранных кнопок пропадают
 		next.btnLayout = cleanButtons(next.btnLayout, clean.map((c) => c.id)); // убранные кнопки уходят с панелей, новые встают в конец панели инструментов
 	}
 	if (p.btnLayout !== undefined) {

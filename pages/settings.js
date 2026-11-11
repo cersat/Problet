@@ -71,7 +71,7 @@ let arrows = {};
 // ---------- Панели и кнопки ----------
 
 const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', page: 'Окно вкладки' };
-const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
+const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
 const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
 
 function moveButton(text, title, disabled, onClick) {
@@ -174,6 +174,7 @@ window.addEventListener('focus', async () => {
 });
 
 function renderPanels() {
+	if (!recording) renderHotkeys(); // у своих кнопок есть клавиши
 	const glyphs = arrows[current.arrows] || ['◀', '▶'];
 	const order = current.panelOrder;
 	const box = $('panel-order');
@@ -556,14 +557,16 @@ $('manage-spaces').addEventListener('click', () => run(() => api.openSpacesApple
 const hkEl = $('hotkeys');
 let recording = null; // { id, button }
 
+// Действия браузера и свои кнопки (у них клавиши по умолчанию нет)
+const hkActions = () => [...accel.ACTIONS, ...(current.customButtons || []).map((c) => ({ id: c.id, label: 'Кнопка: ' + c.icon + ' ' + c.name, key: '' }))];
 function effectiveKey(id) {
 	const custom = current.hotkeys || {};
-	return Object.hasOwn(custom, id) ? custom[id] : accel.ACTIONS.find((a) => a.id === id).key;
+	return Object.hasOwn(custom, id) ? custom[id] : hkActions().find((a) => a.id === id).key;
 }
 
 function renderHotkeys() {
 	hkEl.textContent = '';
-	for (const a of accel.ACTIONS) {
+	for (const a of hkActions()) {
 		const row = document.createElement('div');
 		row.className = 'setting';
 		const what = document.createElement('div');
@@ -621,7 +624,7 @@ document.addEventListener('keydown', (e) => {
 		return;
 	}
 	const value = bare ? '' : combo;
-	const owner = accel.ACTIONS.find((a) => a.id !== id && value && effectiveKey(a.id) === value);
+	const owner = hkActions().find((a) => a.id !== id && value && effectiveKey(a.id) === value);
 	if (owner) {
 		say('«' + value + '» уже занято: ' + owner.label, true);
 		recording.button.classList.add('conflict'); // поле с клавишей краснеет, пока не нажмёшь другое сочетание

@@ -1280,7 +1280,13 @@ handle('pw:pending-drop', (tabId) => {
 
 let capturingHotkey = false; // пока на странице настроек записывают сочетание, команды не выполняем
 
+// Тёмная тема любой страницы: инверсия цветов, повторный вызов возвращает как было
+const DARK_PAGE_JS = "document.documentElement.style.filter = document.documentElement.style.filter ? '' : 'invert(1) hue-rotate(180deg)'";
 const ACTION_RUN = {
+	darkPage: () => {
+		const wc = activeContents();
+		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(DARK_PAGE_JS, true).catch(() => {});
+	},
 	address: () => focusAddress(),
 	newTab: () => createTab(NEWTAB),
 	closeTab: () => {
@@ -1322,7 +1328,7 @@ const ACTION_RUN = {
 function hotkeyMap() {
 	const custom = settings().hotkeys || {};
 	const map = new Map();
-	for (const a of accel.ACTIONS) {
+	for (const a of [...accel.ACTIONS, ...settings().customButtons.map((c) => ({ id: c.id, key: '' }))]) {
 		const key = Object.hasOwn(custom, a.id) ? custom[a.id] : a.key;
 		if (key) map.set(key, a.id);
 	}
@@ -1342,7 +1348,8 @@ function hotkeys(event, input) {
 	let handled = true;
 	const id = hotkeyMap().get(combo);
 	if (id) {
-		ACTION_RUN[id]();
+		if (id.startsWith('cb:')) runCustom(id);
+		else ACTION_RUN[id]();
 	} else if (ctrl && !input.alt && !input.shift && /^[1-9]$/.test(input.key)) {
 		// Ctrl+1…9 — переход к вкладке по номеру, не настраивается
 		const vis = visibleTabs();
@@ -2085,8 +2092,7 @@ ipcMain.on('tabs-scale', (e, v) => {
 	} catch (err) { /* значение вне допустимого — оставляем как есть */ }
 });
 // Свои кнопки: адрес, скрипт на открытой странице или команда браузера из списка горячих клавиш
-ipcMain.on('custom-button', (e, id) => {
-	if (!fromToolbar(e)) return;
+function runCustom(id) {
 	const c = settings().customButtons.find((x) => x.id === id);
 	if (!c) return;
 	if (c.type === 'url') {
@@ -2098,7 +2104,9 @@ ipcMain.on('custom-button', (e, id) => {
 	} else if (ACTION_RUN[c.value]) {
 		ACTION_RUN[c.value]();
 	}
-});
+}
+ipcMain.on('custom-button', (e, id) => fromToolbar(e) && runCustom(id));
+ipcMain.on('dark-page', (e) => fromToolbar(e) && ACTION_RUN.darkPage());
 ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 
 // ---------- Подсказка у иконки обновления ----------

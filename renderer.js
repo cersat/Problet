@@ -48,6 +48,7 @@ document.getElementById('history').addEventListener('click', () => api.openInter
 document.getElementById('pwoffer').addEventListener('click', () => api.pwOfferAccept());
 document.getElementById('zoom').addEventListener('click', () => api.zoomReset());
 document.getElementById('downloads').addEventListener('click', () => api.openInternal('downloads'));
+document.getElementById('darkpage').addEventListener('click', () => api.darkPage());
 document.getElementById('settings').addEventListener('click', () => api.openInternal('settings'));
 document.getElementById('newtab').addEventListener('click', () => api.newTab());
 // Курсор стоял в адресной строке до щелчка? Если окно получило фокус самим этим щелчком (человек пришёл со страницы), то нет: activeElement остаётся адресной строкой и после ухода на страницу
