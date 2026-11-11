@@ -18,6 +18,27 @@ const api = window.api;
 const file = new URLSearchParams(location.search).get('p') || '';
 const params = new URLSearchParams(location.search);
 const bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
+// Любую картинку (ico, gif, webp, svg…) приводим к png: растровый режим редактора работает с ним
+function rasterize (dataUrl) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const w = img.naturalWidth || 64;
+            const h = img.naturalHeight || 64;
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            try {
+                resolve({dataUrl: canvas.toDataURL('image/png'), width: w, height: h});
+            } catch (e) {
+                resolve(null);
+            }
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+    });
+}
 const isPng = !bm && /\.png$/i.test(file); // png открывается сразу в растровом режиме
 const baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.(svg|png)$/i, '');
 
@@ -73,9 +94,17 @@ class App extends React.Component {
             api.pngRead(file).then(r => {
                 this.setState({loaded: true, format: 'png', image: r.dataUrl, imageId: String(++this.n), width: r.width, height: r.height, bitmap: true});
             }).catch(e => this.setState({loaded: true, error: 'Не удалось открыть файл: ' + clean(e)}));
-        } else (bm ? api.bmIconGet(bm).then(r => ({text: r.svg, title: r.title})) : api.svgRead(file)).then(r => {
+        } else (bm ? api.bmIconGet(bm).then(r => ({text: r.svg, title: r.title, image: r.image})) : api.svgRead(file)).then(async r => {
             if (bm) {
                 this.setState({title: (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') + ': ' + r.title});
+                // у закладки есть только значок сайта: рисование начинается с него, в растровом режиме
+                if (r.image && !r.text.trim()) {
+                    const png = await rasterize(r.image);
+                    if (png) {
+                        this.setState({loaded: true, format: 'png', image: png.dataUrl, imageId: String(++this.n), width: png.width, height: png.height, bitmap: true});
+                        return;
+                    }
+                }
                 r.text = r.text || EMPTY_ICON;
             }
             const text = r.text.trim() ? r.text : EMPTY;
@@ -127,6 +156,20 @@ class App extends React.Component {
             if (!this.state.bitmap || !this.bitmapCanvas) return this.say(this.state.bitmap ? 'Рисунок ещё не менялся' : 'Для png нужен растровый режим');
             try {
                 await api.pngWrite(file, this.bitmapCanvas.toDataURL('image/png'));
+                this.setState({dirty: false});
+                this.say('Сохранено');
+            } catch (e) {
+                this.say('Не удалось сохранить: ' + clean(e));
+            }
+            return;
+        }
+        if (bm && this.state.bitmap) {
+            // рисунок в растровом режиме хранится как svg с картинкой внутри
+            if (!this.bitmapCanvas) return this.say('Рисунок ещё не менялся');
+            const c = this.bitmapCanvas;
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + c.width + '" height="' + c.height + '" viewBox="0 0 ' + c.width + ' ' + c.height + '"><image width="' + c.width + '" height="' + c.height + '" xlink:href="' + c.toDataURL('image/png') + '"/></svg>';
+            try {
+                await api.bmIconSet(bm, svg);
                 this.setState({dirty: false});
                 this.say('Сохранено');
             } catch (e) {

@@ -57230,6 +57230,33 @@ var api = window.api;
 var file = new URLSearchParams(location.search).get('p') || '';
 var params = new URLSearchParams(location.search);
 var bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
+// Любую картинку (ico, gif, webp, svg…) приводим к png: растровый режим редактора работает с ним
+function rasterize(dataUrl) {
+  return new Promise(function (resolve) {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth || 64;
+      var h = img.naturalHeight || 64;
+      var canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      try {
+        resolve({
+          dataUrl: canvas.toDataURL('image/png'),
+          width: w,
+          height: h
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = function () {
+      return resolve(null);
+    };
+    img.src = dataUrl;
+  });
+}
 var isPng = !bm && /\.png$/i.test(file); // png открывается сразу в растровом режиме
 var baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.(svg|png)$/i, '');
 var store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /* combineReducers */])({
@@ -57358,29 +57385,71 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       } else (bm ? api.bmIconGet(bm).then(function (r) {
         return {
           text: r.svg,
-          title: r.title
+          title: r.title,
+          image: r.image
         };
-      }) : api.svgRead(file)).then(function (r) {
-        if (bm) {
-          _this2.setState({
-            title: (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') + ': ' + r.title
-          });
-          r.text = r.text || EMPTY_ICON;
-        }
-        var text = r.text.trim() ? r.text : EMPTY;
-        var size = sizeOf(text);
-        _this2.svg = text;
-        _this2.savedSvg = r.text.trim() ? r.text : null;
-        _this2.setState({
-          loaded: true,
-          image: text,
-          imageId: String(++_this2.n),
-          width: size ? Math.max(Math.ceil(size.w), 32) : 480,
-          height: size ? Math.max(Math.ceil(size.h), 32) : 360,
-          dirty: !bm && !r.text.trim(),
-          error: size || !r.text.trim() ? '' : 'Не удалось разобрать svg: рисунок может открыться пустым'
-        });
-      }).catch(function (e) {
+      }) : api.svgRead(file)).then( /*#__PURE__*/function () {
+        var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(r) {
+          var png, text, size;
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                if (!bm) {
+                  _context.next = 10;
+                  break;
+                }
+                _this2.setState({
+                  title: (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') + ': ' + r.title
+                });
+                // у закладки есть только значок сайта: рисование начинается с него, в растровом режиме
+                if (!(r.image && !r.text.trim())) {
+                  _context.next = 9;
+                  break;
+                }
+                _context.next = 5;
+                return rasterize(r.image);
+              case 5:
+                png = _context.sent;
+                if (!png) {
+                  _context.next = 9;
+                  break;
+                }
+                _this2.setState({
+                  loaded: true,
+                  format: 'png',
+                  image: png.dataUrl,
+                  imageId: String(++_this2.n),
+                  width: png.width,
+                  height: png.height,
+                  bitmap: true
+                });
+                return _context.abrupt("return");
+              case 9:
+                r.text = r.text || EMPTY_ICON;
+              case 10:
+                text = r.text.trim() ? r.text : EMPTY;
+                size = sizeOf(text);
+                _this2.svg = text;
+                _this2.savedSvg = r.text.trim() ? r.text : null;
+                _this2.setState({
+                  loaded: true,
+                  image: text,
+                  imageId: String(++_this2.n),
+                  width: size ? Math.max(Math.ceil(size.w), 32) : 480,
+                  height: size ? Math.max(Math.ceil(size.h), 32) : 360,
+                  dirty: !bm && !r.text.trim(),
+                  error: size || !r.text.trim() ? '' : 'Не удалось разобрать svg: рисунок может открыться пустым'
+                });
+              case 15:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee);
+        }));
+        return function (_x) {
+          return _ref.apply(this, arguments);
+        };
+      }()).catch(function (e) {
         return _this2.setState({
           loaded: true,
           error: 'Не удалось открыть файл: ' + clean(e)
@@ -57420,75 +57489,105 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "save",
     value: function () {
-      var _save = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-        return _regeneratorRuntime().wrap(function _callee$(_context) {
-          while (1) switch (_context.prev = _context.next) {
+      var _save = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2() {
+        var c, svg;
+        return _regeneratorRuntime().wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
             case 0:
               if (!isPng) {
-                _context.next = 14;
+                _context2.next = 14;
                 break;
               }
               if (!(!this.state.bitmap || !this.bitmapCanvas)) {
-                _context.next = 3;
+                _context2.next = 3;
                 break;
               }
-              return _context.abrupt("return", this.say(this.state.bitmap ? 'Рисунок ещё не менялся' : 'Для png нужен растровый режим'));
+              return _context2.abrupt("return", this.say(this.state.bitmap ? 'Рисунок ещё не менялся' : 'Для png нужен растровый режим'));
             case 3:
-              _context.prev = 3;
-              _context.next = 6;
+              _context2.prev = 3;
+              _context2.next = 6;
               return api.pngWrite(file, this.bitmapCanvas.toDataURL('image/png'));
             case 6:
               this.setState({
                 dirty: false
               });
               this.say('Сохранено');
-              _context.next = 13;
+              _context2.next = 13;
               break;
             case 10:
-              _context.prev = 10;
-              _context.t0 = _context["catch"](3);
-              this.say('Не удалось сохранить: ' + clean(_context.t0));
+              _context2.prev = 10;
+              _context2.t0 = _context2["catch"](3);
+              this.say('Не удалось сохранить: ' + clean(_context2.t0));
             case 13:
-              return _context.abrupt("return");
+              return _context2.abrupt("return");
             case 14:
-              if (!this.state.bitmap) {
-                _context.next = 16;
+              if (!(bm && this.state.bitmap)) {
+                _context2.next = 30;
                 break;
               }
-              return _context.abrupt("return", this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG'));
-            case 16:
-              _context.prev = 16;
-              if (!bm) {
-                _context.next = 22;
+              if (this.bitmapCanvas) {
+                _context2.next = 17;
                 break;
               }
-              _context.next = 20;
-              return api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
-            case 20:
-              _context.next = 25;
-              break;
+              return _context2.abrupt("return", this.say('Рисунок ещё не менялся'));
+            case 17:
+              c = this.bitmapCanvas;
+              svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + c.width + '" height="' + c.height + '" viewBox="0 0 ' + c.width + ' ' + c.height + '"><image width="' + c.width + '" height="' + c.height + '" xlink:href="' + c.toDataURL('image/png') + '"/></svg>';
+              _context2.prev = 19;
+              _context2.next = 22;
+              return api.bmIconSet(bm, svg);
             case 22:
-              _context.next = 24;
+              this.setState({
+                dirty: false
+              });
+              this.say('Сохранено');
+              _context2.next = 29;
+              break;
+            case 26:
+              _context2.prev = 26;
+              _context2.t1 = _context2["catch"](19);
+              this.say('Не удалось сохранить: ' + clean(_context2.t1));
+            case 29:
+              return _context2.abrupt("return");
+            case 30:
+              if (!this.state.bitmap) {
+                _context2.next = 32;
+                break;
+              }
+              return _context2.abrupt("return", this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG'));
+            case 32:
+              _context2.prev = 32;
+              if (!bm) {
+                _context2.next = 38;
+                break;
+              }
+              _context2.next = 36;
+              return api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
+            case 36:
+              _context2.next = 41;
+              break;
+            case 38:
+              _context2.next = 40;
               return api.svgWrite(file, this.svg);
-            case 24:
-              this.savedTo = _context.sent.path;
-            case 25:
+            case 40:
+              this.savedTo = _context2.sent.path;
+            case 41:
               this.savedSvg = this.svg;
               this.setState({
                 dirty: false
               });
               this.say('Сохранено' + (this.savedTo && this.savedTo !== file ? ' в ' + this.savedTo : ''));
-              _context.next = 33;
+              _context2.next = 49;
               break;
-            case 30:
-              _context.prev = 30;
-              _context.t1 = _context["catch"](16);
-              this.say('Не удалось сохранить: ' + clean(_context.t1));
-            case 33:
+            case 46:
+              _context2.prev = 46;
+              _context2.t2 = _context2["catch"](32);
+              this.say('Не удалось сохранить: ' + clean(_context2.t2));
+            case 49:
             case "end":
-              return _context.stop();
+              return _context2.stop();
           }
-        }, _callee, this, [[3, 10], [16, 30]]);
+        }, _callee2, this, [[3, 10], [19, 26], [32, 46]]);
       }));
       function save() {
         return _save.apply(this, arguments);
@@ -57498,34 +57597,34 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "saveAs",
     value: function () {
-      var _saveAs = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2() {
+      var _saveAs = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3() {
         var r;
-        return _regeneratorRuntime().wrap(function _callee2$(_context2) {
-          while (1) switch (_context2.prev = _context2.next) {
+        return _regeneratorRuntime().wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
             case 0:
               if (!this.state.bitmap) {
-                _context2.next = 2;
+                _context3.next = 2;
                 break;
               }
-              return _context2.abrupt("return", this.say('В растровом режиме svg не сохранить'));
+              return _context3.abrupt("return", this.say('В растровом режиме svg не сохранить'));
             case 2:
-              _context2.prev = 2;
-              _context2.next = 5;
+              _context3.prev = 2;
+              _context3.next = 5;
               return api.svgSaveAs(this.svg);
             case 5:
-              r = _context2.sent;
+              r = _context3.sent;
               if (r) this.say('Сохранено в ' + r.path);
-              _context2.next = 12;
+              _context3.next = 12;
               break;
             case 9:
-              _context2.prev = 9;
-              _context2.t0 = _context2["catch"](2);
-              this.say(clean(_context2.t0));
+              _context3.prev = 9;
+              _context3.t0 = _context3["catch"](2);
+              this.say(clean(_context3.t0));
             case 12:
             case "end":
-              return _context2.stop();
+              return _context3.stop();
           }
-        }, _callee2, this, [[2, 9]]);
+        }, _callee3, this, [[2, 9]]);
       }));
       function saveAs() {
         return _saveAs.apply(this, arguments);
@@ -57561,34 +57660,34 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "exportPng",
     value: function () {
-      var _exportPng = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3() {
+      var _exportPng = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee4() {
         var r;
-        return _regeneratorRuntime().wrap(function _callee3$(_context3) {
-          while (1) switch (_context3.prev = _context3.next) {
+        return _regeneratorRuntime().wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
             case 0:
-              _context3.prev = 0;
-              _context3.t0 = api;
-              _context3.next = 4;
+              _context4.prev = 0;
+              _context4.t0 = api;
+              _context4.next = 4;
               return this.renderPng();
             case 4:
-              _context3.t1 = _context3.sent;
-              _context3.t2 = baseName + '.png';
-              _context3.next = 8;
-              return _context3.t0.svgSavePng.call(_context3.t0, _context3.t1, _context3.t2);
+              _context4.t1 = _context4.sent;
+              _context4.t2 = baseName + '.png';
+              _context4.next = 8;
+              return _context4.t0.svgSavePng.call(_context4.t0, _context4.t1, _context4.t2);
             case 8:
-              r = _context3.sent;
+              r = _context4.sent;
               if (r) this.say('PNG сохранён: ' + r.path);
-              _context3.next = 15;
+              _context4.next = 15;
               break;
             case 12:
-              _context3.prev = 12;
-              _context3.t3 = _context3["catch"](0);
-              this.say(clean(_context3.t3));
+              _context4.prev = 12;
+              _context4.t3 = _context4["catch"](0);
+              this.say(clean(_context4.t3));
             case 15:
             case "end":
-              return _context3.stop();
+              return _context4.stop();
           }
-        }, _callee3, this, [[0, 12]]);
+        }, _callee4, this, [[0, 12]]);
       }));
       function exportPng() {
         return _exportPng.apply(this, arguments);
@@ -57598,26 +57697,26 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "copyCode",
     value: function () {
-      var _copyCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee4() {
-        return _regeneratorRuntime().wrap(function _callee4$(_context4) {
-          while (1) switch (_context4.prev = _context4.next) {
+      var _copyCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
+        return _regeneratorRuntime().wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
             case 0:
-              _context4.prev = 0;
-              _context4.next = 3;
+              _context5.prev = 0;
+              _context5.next = 3;
               return navigator.clipboard.writeText(this.svg);
             case 3:
               this.say('Код svg скопирован');
-              _context4.next = 9;
+              _context5.next = 9;
               break;
             case 6:
-              _context4.prev = 6;
-              _context4.t0 = _context4["catch"](0);
+              _context5.prev = 6;
+              _context5.t0 = _context5["catch"](0);
               this.say('Не удалось скопировать');
             case 9:
             case "end":
-              return _context4.stop();
+              return _context5.stop();
           }
-        }, _callee4, this, [[0, 6]]);
+        }, _callee5, this, [[0, 6]]);
       }));
       function copyCode() {
         return _copyCode.apply(this, arguments);

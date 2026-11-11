@@ -2532,12 +2532,25 @@ handle('svg:write', (p, text) => {
 	return { path: p };
 });
 // Своя иконка закладки: svg из редактора превращается в data-адрес и показывается вместо значка сайта
-handle('bm:icon-get', (id) => {
+// Значок сайта у закладки: редактор начинает с него, если своего рисунка ещё нет
+async function siteIconData(url) {
+	try {
+		const r = await net.fetch(url, { signal: AbortSignal.timeout(6000) });
+		const type = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+		const buf = Buffer.from(await r.arrayBuffer());
+		if (!r.ok || buf.length > 1024 * 1024 || !/^image\//.test(type || 'image/x-icon')) return '';
+		return 'data:' + (type || 'image/x-icon') + ';base64,' + buf.toString('base64');
+	} catch (e) {
+		return '';
+	}
+}
+handle('bm:icon-get', async (id) => {
 	const cb = settings().customButtons.find((x) => x.id === id);
 	if (cb) return { title: cb.name, svg: cb.svg ? decodeURIComponent(cb.svg.slice(cb.svg.indexOf(',') + 1)) : '' };
 	const b = store.bookmarksState().bookmarks.find((x) => x.id === id);
 	if (!b) throw new Error('Закладка не найдена');
 	const url = b.customIcon || '';
+	if (!url && b.icon) return { title: b.title, svg: '', image: await siteIconData(b.icon) };
 	return { title: b.title, svg: url ? decodeURIComponent(url.slice(url.indexOf(',') + 1)) : '' };
 });
 handle('bm:icon-set', (id, svg) => {
