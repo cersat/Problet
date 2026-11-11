@@ -77962,3 +77962,12 @@ minero.cc
 settings-win.data.microsoft.com
 ads.vizio.com
 vortex-win.data.microsoft.com
+# Дополнено по тесту блокировщика: рекламные сети, их загрузчики и счётчики
+ezoic.net
+sascdn.com
+smi2.ru
+primis.tech
+adobedtm.com
+highperformanceformat.com
+hilltopads.com
+richads.com

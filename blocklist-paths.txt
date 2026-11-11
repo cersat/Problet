@@ -17,3 +17,10 @@ www.gstatic.com|/adsense/
 # YouTube: рекламная статистика и пиксели (действуют вместе с переключателем блокировки рекламы на YouTube)
 www.youtube.com|/api/stats/ads
 www.youtube.com|/pagead/
+# Пиксели и счётчики на общих доменах: блокируются только эти пути
+s.pinimg.com|/ct/
+www.redditstatic.com|/ads/
+vk.com|/rtrg
+# YouTube: рекламные запросы плеера
+www.youtube.com|/get_midroll_info
+www.youtube.com|/ptracking
