@@ -2184,6 +2184,10 @@ let panelArg = '';
 let panelTimer = null;
 function ensurePanel() {
 	clearTimeout(panelTimer);
+	if (panel && panel.webContents.isDestroyed()) {
+		panel = null; // страница расширения закрыла своё окошко сама (window.close)
+		panelOpen = false;
+	}
 	if (panel) return;
 	panel = new WebContentsView({
 		webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true },
@@ -2191,6 +2195,15 @@ function ensurePanel() {
 	panel.setBackgroundColor(bgColor());
 	panel.setVisible(false);
 	win.contentView.addChildView(panel);
+	const made = panel;
+	panel.webContents.on('destroyed', () => {
+		if (panel !== made) return;
+		try {
+			win.contentView.removeChildView(made);
+		} catch (e) { /* окно уже закрывается */ }
+		panel = null;
+		panelOpen = false;
+	});
 	// Потеря фокуса закрывает панель, но не пока она грузится: при загрузке страницы фокус на миг сбрасывается
 	panel.webContents.on('blur', () => {
 		if (!panelOpen || panel.webContents.isLoading() || Date.now() - panelOpenedAt < (panelKind === 'pwsave' ? 5000 : 500)) return; // предложение сохранить пережить редирект после входа
