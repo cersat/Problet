@@ -206,7 +206,7 @@ function renderPanels() {
 				return;
 			}
 			const custom = (current.customButtons || []).find((c) => c.id === id);
-			const row = listRow(custom ? custom.icon + '  ' + custom.name : BTN_NAMES[id]);
+			const row = listRow(custom ? custom.icon + '  ' + custom.name : id.startsWith('x:') ? 'Расширение: ' + (extNames[id] || 'удалено') : BTN_NAMES[id]);
 			const sel = document.createElement('select');
 			for (const p of ['tabs', 'toolbar', 'bmbar']) sel.append(new Option(PANEL_NAMES[p], p));
 			sel.append(new Option('Скрыть', 'hidden'));
@@ -398,8 +398,12 @@ $('import-run').addEventListener('click', () => run(async () => {
 
 // ---------- Расширения ----------
 
+const extNames = {};
 async function loadExtensions() {
 	const list = await api.extList();
+	for (const k of Object.keys(extNames)) delete extNames[k];
+	for (const e of list) if (e.id) extNames['x:' + e.id] = e.name;
+	if (current.btnLayout) renderPanels();
 	const box = $('ext-list');
 	box.textContent = '';
 	for (const e of list) {

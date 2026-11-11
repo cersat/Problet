@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('api', {
 	updateTip: (rect) => ipcRenderer.send('update-tip', rect),
 	updateApply: () => ipcRenderer.send('update-apply'),
 	updateState: () => ipcRenderer.sendSync('update-get'),
+	extClick: (id, rect) => ipcRenderer.send('bar:ext', id, rect),
 	onUpdate: (cb) => ipcRenderer.on('update-state', (_e, st) => cb(st)),
 	onDownloadsBusy: (cb) => ipcRenderer.on('downloads-busy', (_e, n) => cb(n)),
 	onTabs: (cb) => ipcRenderer.on('tabs', (_e, data) => cb(data)),

@@ -455,6 +455,8 @@ body[data-tabs="bottom"] .tab.incognito.active { box-shadow: inset 0 -2px 0 #a68
 .bmbar > button:not(.spaces) { width: 28px; height: 28px; }
 .bmbar > .spaces { height: 26px; }
 
+.ext-btn img { width: 18px; height: 18px; display: block; margin: auto; pointer-events: none; }
+.ext-btn { font-weight: 700; }
 .bmbar .bm.folder svg { flex: none; }
 .bmbar .bm {
 	display: flex;

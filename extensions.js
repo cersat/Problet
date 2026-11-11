@@ -27,10 +27,28 @@ function readManifest(dir) {
 	return m;
 }
 
+// Фоновому процессу расширения из магазина добавляем заглушки недостающих chrome.* (см. ext-shim.js).
+// Подмена делается в нашей копии расширения: оригинальный фоновый файл переименован, а manifest указывает на обёртку
+function patchBackground(dir) {
+	const mf = path.join(dir, 'manifest.json');
+	const m = readManifest(dir);
+	const bg = m.background && m.background.service_worker;
+	if (!bg || bg === 'problet-sw.js') return;
+	fs.copyFileSync(path.join(__dirname, 'ext-shim.js'), path.join(dir, 'problet-shim.js'));
+	const quote = (s) => JSON.stringify(s);
+	const code = m.background.type === 'module'
+		? 'import ' + quote('./problet-shim.js') + ';\nimport ' + quote('./' + bg) + ';\n'
+		: 'importScripts(' + quote('problet-shim.js') + ', ' + quote(bg) + ');\n';
+	fs.writeFileSync(path.join(dir, 'problet-sw.js'), code);
+	m.background.service_worker = 'problet-sw.js';
+	fs.writeFileSync(mf, JSON.stringify(m, null, '\t'));
+}
+
 async function loadOne(dir) {
 	const entry = { path: dir, id: '', name: path.basename(dir), version: '', error: '' };
 	try {
 		readManifest(dir);
+		if (dir.startsWith(path.join(path.dirname(file), 'extensions') + path.sep)) patchBackground(dir);
 		const ext = await ses.extensions.loadExtension(dir, { allowFileAccess: false });
 		entry.id = ext.id;
 		entry.name = ext.name || entry.name;
@@ -81,6 +99,60 @@ async function remove(dir) {
 	save();
 	// Расширения, скачанные из магазина, лежат в нашей папке — убираем и файлы
 	if (dir.startsWith(path.join(path.dirname(file), 'extensions') + path.sep)) fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// ---------- Кнопки расширений на панели ----------
+
+const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
+
+// Значок кнопки: из action.default_icon или общих icons манифеста, самый крупный до 64 пикселей
+function iconData(dir, m, act) {
+	let src = act.default_icon || m.icons || null;
+	if (typeof src === 'string') src = { 16: src };
+	if (!src || typeof src !== 'object') return '';
+	const sizes = Object.keys(src).map(Number).filter((n) => n > 0).sort((a, b) => a - b);
+	const pick = [...sizes].reverse().find((n) => n <= 64) || sizes[0];
+	const rel = pick && src[pick];
+	const mime = rel && MIME[path.extname(String(rel)).toLowerCase()];
+	if (!mime) return '';
+	try {
+		const p = path.resolve(dir, String(rel).replace(/^\/+/, ''));
+		if (!p.startsWith(path.resolve(dir) + path.sep)) return '';
+		return 'data:' + mime + ';base64,' + fs.readFileSync(p).toString('base64');
+	} catch (e) {
+		return '';
+	}
+}
+
+function manifestOf(e) {
+	try {
+		return readManifest(e.path);
+	} catch (err) {
+		return null;
+	}
+}
+
+// Расширения с кнопкой на панели инструментов (action в манифесте)
+function actions() {
+	const out = [];
+	for (const e of entries) {
+		if (!e.id || e.error) continue;
+		const m = manifestOf(e);
+		const act = m && (m.action || m.browser_action);
+		if (!act || typeof act !== 'object') continue;
+		out.push({ id: e.id, name: e.name, title: typeof act.default_title === 'string' && !act.default_title.startsWith('__MSG_') ? act.default_title : e.name, icon: iconData(e.path, m, act), popup: !!act.default_popup });
+	}
+	return out;
+}
+
+// Адрес окошка кнопки, а если окошка нет — страницы настроек расширения
+function pageUrl(id, kind) {
+	const e = entries.find((x) => x.id === id);
+	const m = e && manifestOf(e);
+	if (!m) return '';
+	const act = m.action || m.browser_action || {};
+	const rel = kind === 'popup' ? act.default_popup : (m.options_ui && m.options_ui.page) || m.options_page;
+	return typeof rel === 'string' && rel ? 'chrome-extension://' + id + '/' + rel.replace(/^\/+/, '') : '';
 }
 
 // ---------- Установка из Chrome Web Store ----------
@@ -179,4 +251,4 @@ async function installFromStore(input, chromeVersion) {
 	}
 }
 
-module.exports = { init, list, add, remove, installFromStore, storeId, crxToZip, unzip };
+module.exports = { init, list, add, remove, actions, pageUrl, installFromStore, storeId, crxToZip, unzip };

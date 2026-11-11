@@ -26,6 +26,8 @@ const DEFAULT_ORDER = ['tabs', 'toolbar', 'bmbar', 'page'];
 const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmbar' };
 // sp1–sp3 — переменные промежутки: занимают свободное место на панели; на одной панели не больше одного
 const SPACERS = ['sp1', 'sp2', 'sp3'];
+// x:<id расширения> — кнопка расширения, у каждого своя
+const EXT_BTN = /^x:[a-p]{32}$/;
 const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {
@@ -74,7 +76,7 @@ function cleanButtons(raw, customIds = []) {
 		if (!Array.isArray(r[key])) continue;
 		for (const id of r[key]) {
 			if (typeof id !== 'string' || seen.has(id)) continue;
-			if (Object.hasOwn(MAIN_OF, id) ? MAIN_OF[id] !== key : !BUTTONS.includes(id) && !customIds.includes(id)) continue;
+			if (Object.hasOwn(MAIN_OF, id) ? MAIN_OF[id] !== key : !BUTTONS.includes(id) && !customIds.includes(id) && !EXT_BTN.test(id)) continue;
 			seen.add(id);
 			out[key].push(id);
 		}
@@ -1039,7 +1041,7 @@ function importData(raw, mode) {
 }
 
 module.exports = {
-	TWO_ROWS_MIN,
+	TWO_ROWS_MIN, EXT_BTN,
 	init, flush,
 	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,

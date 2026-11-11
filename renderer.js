@@ -439,7 +439,40 @@ function syncCustom(list) {
 		el.title = c.name;
 	}
 }
-const elFor = (id) => (id.startsWith('cb:') ? customEls.get(id) : $id(id));
+// Кнопки расширений: у каждого своя, id вида x:<id расширения>; нажатие открывает окошко расширения
+const extEls = new Map();
+function syncExt(list) {
+	const ids = new Set(list.map((x) => 'x:' + x.id));
+	for (const [id, el] of extEls) {
+		if (ids.has(id)) continue;
+		el.remove();
+		extEls.delete(id);
+	}
+	for (const x of list) {
+		const id = 'x:' + x.id;
+		let b = extEls.get(id);
+		if (!b) {
+			b = document.createElement('button');
+			b.className = 'ext-btn';
+			b.addEventListener('mousedown', (e) => {
+				e.preventDefault();
+				addrAtDown = document.activeElement === address && Date.now() - winFocusAt > 300;
+			});
+			b.addEventListener('click', () => api.extClick(x.id, appletRect(b)));
+			document.body.append(b); // на панель переедет в applyLayout
+			extEls.set(id, b);
+		}
+		b.textContent = '';
+		b.title = x.title;
+		if (x.icon) {
+			const img = document.createElement('img');
+			img.src = x.icon;
+			img.alt = '';
+			b.append(img);
+		} else b.textContent = (x.name.trim()[0] || '?').toUpperCase();
+	}
+}
+const elFor = (id) => (id.startsWith('cb:') ? customEls.get(id) : id.startsWith('x:') ? extEls.get(id) : $id(id));
 const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar };
 // Главный элемент каждой панели: вокруг него расставляются кнопки
 // Ручка растягивания панели вкладок: до двойного размера (по высоте, а сбоку по ширине)
@@ -501,6 +534,7 @@ function applyLayout(l) {
 	bmbar.classList.toggle('edge-t', p.after.includes('bmbar'));
 	// Кнопки: каждая в своей панели в заданном порядке; кнопки окна на панели вкладок могут уйти в полосу заголовка
 	syncCustom(l.customButtons);
+	syncExt(l.extButtons || []);
 	const L = l.btnLayout;
 	for (const key of Object.keys(PANEL_EL)) {
 		const host = PANEL_EL[key];

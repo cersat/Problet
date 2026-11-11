@@ -279,6 +279,7 @@ function layoutPayload() {
 	out.plan = panelPlan();
 	out.tabsTwoRows = s.tabsTwoRows && s.tabsScale >= store.TWO_ROWS_MIN; // выбор сохраняется, а действует, пока панель растянута
 	out.arrows = store.ARROWS[s.arrows];
+	out.extButtons = extensions.actions();
 	out.customButtons = s.customButtons.map((c) => ({ id: c.id, name: c.name, icon: c.icon, svg: c.svg }));
 	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
@@ -2177,7 +2178,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0] };
+const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0], ext: [380, 440] };
 let panelArg = '';
 
 let panelTimer = null;
@@ -2228,18 +2229,33 @@ function openPanel(kind, rect, arg = '') {
 	panelReturn = rect && typeof rect.addr === 'boolean' ? (rect.addr ? 'toolbar' : 'tab') : win.webContents.isFocused() ? 'toolbar' : 'tab';
 	const [w, h0] = PANEL_SIZE[kind];
 	const h = kind === 'folder' ? Math.min(440, 112 + Math.max(1, folderItems(arg).length) * 36) : h0; // шапка и подвал плюс строки закладок
-	const [cw, ch] = contentSize();
-	const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - w / 2, y: insets().top - 4, width: 0, height: 0 };
-	const x = Math.round(Math.min(Math.max(8, r.x + r.width / 2 - w / 2), Math.max(8, cw - w - 8)));
-	const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
-	panel.setBounds({ x, y, width: w, height: Math.min(h, Math.max(160, ch - y - 8)) });
+	const place = (pw, ph) => {
+		const [cw, ch] = contentSize();
+		const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - pw / 2, y: insets().top - 4, width: 0, height: 0 };
+		const x = Math.round(Math.min(Math.max(8, r.x + r.width / 2 - pw / 2), Math.max(8, cw - pw - 8)));
+		const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
+		panel.setBounds({ x, y, width: pw, height: Math.min(ph, Math.max(160, ch - y - 8)) });
+	};
+	place(w, h);
 	panelKind = kind;
 	panelArg = arg;
 	panelOpen = true;
 	panelOpenedAt = Date.now();
 	win.contentView.addChildView(panel);
 	panel.setVisible(true);
-	panel.webContents.loadURL('problet://' + kind + '/?popup=1' + (arg ? '&id=' + encodeURIComponent(arg) : '')).catch(() => {});
+	if (kind === 'ext') {
+		// окошко расширения само не сообщает размер: меряем страницу после загрузки
+		const mine = panel;
+		mine.webContents.once('did-finish-load', async () => {
+			await new Promise((r) => setTimeout(r, 400));
+			if (!panelOpen || panel !== mine || panelArg !== arg) return;
+			try {
+				const d = await mine.webContents.executeJavaScript('[document.documentElement.scrollWidth, document.documentElement.scrollHeight]');
+				place(Math.min(720, Math.max(280, d[0])), Math.min(600, Math.max(120, d[1])));
+			} catch (e) { /* остаётся прежний размер */ }
+		});
+		panel.webContents.loadURL(extensions.pageUrl(arg, 'popup')).catch(() => {});
+	} else panel.webContents.loadURL('problet://' + kind + '/?popup=1' + (arg ? '&id=' + encodeURIComponent(arg) : '')).catch(() => {});
 	if (kind !== 'pwsave') panel.webContents.focus();
 }
 
@@ -2746,13 +2762,55 @@ handle('ext:add', async () => {
 		dir = r.filePaths[0];
 	}
 	const e = await extensions.add(dir);
+	sendExtActions();
 	return { message: 'Расширение «' + e.name + '» добавлено' };
 });
 handle('ext:store', async (input) => {
 	const e = await extensions.installFromStore(String(input || ''), process.versions.chrome);
+	sendExtActions();
 	return { message: 'Расширение «' + e.name + '» установлено' };
 });
-handle('ext:remove', (p) => extensions.remove(String(p)));
+handle('ext:remove', async (p) => {
+	await extensions.remove(String(p));
+	sendExtActions();
+});
+// Кнопки расширений на панели инструментов
+// Каждое расширение с кнопкой получает свою кнопку на панели инструментов, у удалённых кнопки пропадают
+let extReady = false;
+function sendExtActions() {
+	if (extReady) {
+		const ids = extensions.actions().map((x) => 'x:' + x.id);
+		const L = settings().btnLayout;
+		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.hidden]);
+		const next = { tabs: [...L.tabs], toolbar: [...L.toolbar], bmbar: [...L.bmbar], hidden: [...L.hidden] };
+		let changed = false;
+		for (const key of Object.keys(next)) {
+			const keep = next[key].filter((id) => !store.EXT_BTN.test(id) || ids.includes(id));
+			if (keep.length !== next[key].length) changed = true;
+			next[key] = keep;
+		}
+		for (const id of ids) {
+			if (has.has(id)) continue;
+			next.toolbar.push(id);
+			changed = true;
+		}
+		if (changed) {
+			try {
+				store.setSettings({ btnLayout: next });
+			} catch (e) { /* расположение останется прежним */ }
+		}
+	}
+	sendLayout();
+}
+ipcMain.on('bar:ext', (e, id, rect) => {
+	if (!fromToolbar0(e)) return;
+	const url = extensions.pageUrl(String(id), 'popup');
+	if (url) openPanel('ext', folderRect(rect), String(id));
+	else {
+		const options = extensions.pageUrl(String(id), 'options');
+		if (options) createTab(options, { activate: true });
+	}
+});
 
 async function saveToFile(title, defaultName, filters, content) {
 	const res = await dialog.showSaveDialog(win, { title, defaultPath: defaultName, filters });
@@ -2912,6 +2970,7 @@ function createWindow() {
 	win.on('maximize', sendLayout);
 	win.on('unmaximize', sendLayout);
 	win.webContents.on('before-input-event', hotkeys);
+	win.webContents.on('did-finish-load', sendExtActions);
 	win.webContents.on('did-finish-load', () => {
 		if (started) return;
 		started = true;
@@ -2953,7 +3012,10 @@ app.whenReady().then(() => {
 	adblock.start(session.defaultSession, store);
 	startIdentity(session.defaultSession);
 	setupDownloads(session.defaultSession);
-	extensions.init(session.defaultSession, app.getPath('userData')).catch(() => {});
+	extensions.init(session.defaultSession, app.getPath('userData')).then(() => {
+		extReady = true;
+		sendExtActions();
+	}).catch(() => {});
 	createWindow();
 	if (headless.enabled) startHeadless();
 	updater.onChange((st) => {
