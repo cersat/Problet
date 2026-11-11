@@ -1543,13 +1543,19 @@ let popupTimer = null;
 function ensurePopup() {
 	clearTimeout(popupTimer);
 	if (popup) return;
+	const typing = win.webContents.isFocused(); // новый слой забирает фокус у адресной строки: возвращаем
+	const keep = () => typing && win && !win.isDestroyed() && !win.webContents.isFocused() && win.webContents.focus();
 	popup = createLayer('preload-popup.js', 'popup.html');
 	popupReady = false;
+	keep();
 	const mine = popup;
 	mine.webContents.once('did-finish-load', () => {
 		if (popup !== mine) return;
 		popupReady = true;
+		keep();
 		if (sug.items.length) renderSuggest();
+		keep();
+		setTimeout(keep, 150);
 	});
 }
 
