@@ -2500,33 +2500,31 @@ const svgPath = (p) => {
 	if (!/\.(svg|png)$/i.test(p)) throw new Error('Это не svg и не png');
 	return p;
 };
-// png открывается как svg, внутри которого лежит эта картинка: в редакторе её можно рисовать и переводить в растровый режим.
-// Сохраняется такой рисунок рядом с png, в новый svg (сам png не трогается)
-const pngTargets = new Map();
-function pngTarget(p) {
-	if (pngTargets.has(p)) return pngTargets.get(p);
-	const base = p.slice(0, -4);
-	let target = base + '.svg';
-	for (let i = 2; fs.existsSync(target); i++) target = base + ' (' + i + ').svg';
-	pngTargets.set(p, target);
-	return target;
-}
-function pngAsSvg(p) {
+// png открывается в растровом режиме того же редактора
+handle('png:read', (p) => {
+	p = svgPath(p);
+	if (!/\.png$/i.test(p)) throw new Error('Это не png-файл');
+	if (fs.statSync(p).size > 5 * 1024 * 1024) throw new Error('Файл больше 5 МБ');
 	const buf = fs.readFileSync(p);
 	if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) throw new Error('Это не png-картинка');
-	const w = buf.readUInt32BE(16);
-	const h = buf.readUInt32BE(20);
-	return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '"><image width="' + w + '" height="' + h + '" xlink:href="data:image/png;base64,' + buf.toString('base64') + '"/></svg>';
-}
+	return { dataUrl: 'data:image/png;base64,' + buf.toString('base64'), width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+});
+handle('png:write', (p, dataUrl) => {
+	p = svgPath(p);
+	const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl));
+	if (!/\.png$/i.test(p) || !m) throw new Error('Неверное изображение');
+	fs.writeFileSync(p, Buffer.from(m[1], 'base64'));
+	return { path: p };
+});
 handle('svg:read', (p) => {
 	p = svgPath(p);
+	if (!/\.svg$/i.test(p)) throw new Error('Это не svg-файл');
 	if (fs.statSync(p).size > 5 * 1024 * 1024) throw new Error('Файл больше 5 МБ');
-	if (/\.png$/i.test(p)) return { path: p, text: pngAsSvg(p) };
 	return { path: p, text: fs.readFileSync(p, 'utf8') };
 });
 handle('svg:write', (p, text) => {
 	p = svgPath(p);
-	if (/\.png$/i.test(p)) p = pngTarget(p);
+	if (!/\.svg$/i.test(p)) throw new Error('Это не svg-файл');
 	if (typeof text !== 'string' || text.length > 10 * 1024 * 1024) throw new Error('Слишком большой файл');
 	fs.writeFileSync(p, text, 'utf8');
 	return { path: p };

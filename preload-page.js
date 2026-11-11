@@ -56,6 +56,8 @@ if (location.protocol === 'problet:') {
 		bmIconGet: (id) => call('bm:icon-get', id),
 		bmIconSet: (id, svg) => call('bm:icon-set', id, svg),
 		svgWrite: (p, text) => call('svg:write', p, text),
+		pngRead: (p) => call('png:read', p),
+		pngWrite: (p, dataUrl) => call('png:write', p, dataUrl),
 		svgSavePng: (dataUrl, name) => call('svg:save-png', dataUrl, name),
 		svgSaveAs: (text) => call('svg:save-as', text),
 		debug: (action) => call('debug:run', action),

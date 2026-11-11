@@ -57230,7 +57230,8 @@ var api = window.api;
 var file = new URLSearchParams(location.search).get('p') || '';
 var params = new URLSearchParams(location.search);
 var bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
-var baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.svg$/i, '');
+var isPng = !bm && /\.png$/i.test(file); // png открывается сразу в растровом режиме
+var baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.(svg|png)$/i, '');
 var store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /* combineReducers */])({
   intl: lib["intlReducer"],
   scratchPaint: scratch_paint_reducer
@@ -57322,21 +57323,39 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       error: '',
       theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
       scale: '1',
-      bitmap: false
+      bitmap: false,
+      format: 'svg'
     };
     _this.svg = EMPTY; // последнее состояние рисунка
     _this.savedSvg = null; // что лежит в файле
     _this.bitmapCanvas = null;
     _this.n = 0;
     _this.state.title = file;
-    document.title = (bm ? (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') : baseName + '.svg') + ' — редактор';
+    document.title = (bm ? bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки' : baseName + (isPng ? '.png' : '.svg')) + ' — редактор';
     return _this;
   }
   entry_createClass(App, [{
     key: "componentDidMount",
     value: function componentDidMount() {
       var _this2 = this;
-      (bm ? api.bmIconGet(bm).then(function (r) {
+      if (isPng) {
+        api.pngRead(file).then(function (r) {
+          _this2.setState({
+            loaded: true,
+            format: 'png',
+            image: r.dataUrl,
+            imageId: String(++_this2.n),
+            width: r.width,
+            height: r.height,
+            bitmap: true
+          });
+        }).catch(function (e) {
+          return _this2.setState({
+            loaded: true,
+            error: 'Не удалось открыть файл: ' + clean(e)
+          });
+        });
+      } else (bm ? api.bmIconGet(bm).then(function (r) {
         return {
           text: r.svg,
           title: r.title
@@ -57405,42 +57424,71 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         return _regeneratorRuntime().wrap(function _callee$(_context) {
           while (1) switch (_context.prev = _context.next) {
             case 0:
+              if (!isPng) {
+                _context.next = 14;
+                break;
+              }
+              if (!(!this.state.bitmap || !this.bitmapCanvas)) {
+                _context.next = 3;
+                break;
+              }
+              return _context.abrupt("return", this.say(this.state.bitmap ? 'Рисунок ещё не менялся' : 'Для png нужен растровый режим'));
+            case 3:
+              _context.prev = 3;
+              _context.next = 6;
+              return api.pngWrite(file, this.bitmapCanvas.toDataURL('image/png'));
+            case 6:
+              this.setState({
+                dirty: false
+              });
+              this.say('Сохранено');
+              _context.next = 13;
+              break;
+            case 10:
+              _context.prev = 10;
+              _context.t0 = _context["catch"](3);
+              this.say('Не удалось сохранить: ' + clean(_context.t0));
+            case 13:
+              return _context.abrupt("return");
+            case 14:
               if (!this.state.bitmap) {
-                _context.next = 2;
+                _context.next = 16;
                 break;
               }
               return _context.abrupt("return", this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG'));
-            case 2:
-              _context.prev = 2;
+            case 16:
+              _context.prev = 16;
               if (!bm) {
-                _context.next = 8;
+                _context.next = 22;
                 break;
               }
-              _context.next = 6;
+              _context.next = 20;
               return api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
-            case 6:
-              _context.next = 10;
+            case 20:
+              _context.next = 25;
               break;
-            case 8:
-              _context.next = 10;
-              return api.svgWrite(file, this.svg).then(r => { this.savedTo = r && r.path; });
-            case 10:
+            case 22:
+              _context.next = 24;
+              return api.svgWrite(file, this.svg);
+            case 24:
+              this.savedTo = _context.sent.path;
+            case 25:
               this.savedSvg = this.svg;
               this.setState({
                 dirty: false
               });
               this.say('Сохранено' + (this.savedTo && this.savedTo !== file ? ' в ' + this.savedTo : ''));
-              _context.next = 18;
+              _context.next = 33;
               break;
-            case 15:
-              _context.prev = 15;
-              _context.t0 = _context["catch"](2);
-              this.say('Не удалось сохранить: ' + clean(_context.t0));
-            case 18:
+            case 30:
+              _context.prev = 30;
+              _context.t1 = _context["catch"](16);
+              this.say('Не удалось сохранить: ' + clean(_context.t1));
+            case 33:
             case "end":
               return _context.stop();
           }
-        }, _callee, this, [[2, 15]]);
+        }, _callee, this, [[3, 10], [16, 30]]);
       }));
       function save() {
         return _save.apply(this, arguments);
@@ -57606,7 +57654,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
           return _this5.save();
         },
         title: "Ctrl+S"
-      }, 'Сохранить'), bm ? null : /*#__PURE__*/react_default.a.createElement("button", {
+      }, 'Сохранить'), bm || isPng ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
           return _this5.saveAs();
         }
@@ -57632,7 +57680,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         value: "4"
       }, '×4'), /*#__PURE__*/react_default.a.createElement("option", {
         value: "8"
-      }, '×8'))), /*#__PURE__*/react_default.a.createElement("button", {
+      }, '×8'))), isPng ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
           return _this5.copyCode();
         }
@@ -57646,7 +57694,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         className: entry_default.a.editor
       }, loaded ? /*#__PURE__*/react_default.a.createElement(tw_paint_editor_wrapper, {
         image: image,
-        imageFormat: "svg",
+        imageFormat: this.state.format,
         imageId: imageId,
         name: baseName,
         width: width,

@@ -18,7 +18,8 @@ const api = window.api;
 const file = new URLSearchParams(location.search).get('p') || '';
 const params = new URLSearchParams(location.search);
 const bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
-const baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.svg$/i, '');
+const isPng = !bm && /\.png$/i.test(file); // png открывается сразу в растровом режиме
+const baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.(svg|png)$/i, '');
 
 const store = createStore(
     combineReducers({intl: intlReducer, scratchPaint: ScratchPaintReducer}),
@@ -58,17 +59,21 @@ class App extends React.Component {
         this.state = {
             loaded: false, image: EMPTY, imageId: '0', width: 480, height: 360,
             dirty: false, note: '', error: '', theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
-            scale: '1', bitmap: false
+            scale: '1', bitmap: false, format: 'svg'
         };
         this.svg = EMPTY; // последнее состояние рисунка
         this.savedSvg = null; // что лежит в файле
         this.bitmapCanvas = null;
         this.n = 0;
         this.state.title = file;
-        document.title = (bm ? (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') : baseName + '.svg') + ' — редактор';
+        document.title = (bm ? (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') : baseName + (isPng ? '.png' : '.svg')) + ' — редактор';
     }
     componentDidMount () {
-        (bm ? api.bmIconGet(bm).then(r => ({text: r.svg, title: r.title})) : api.svgRead(file)).then(r => {
+        if (isPng) {
+            api.pngRead(file).then(r => {
+                this.setState({loaded: true, format: 'png', image: r.dataUrl, imageId: String(++this.n), width: r.width, height: r.height, bitmap: true});
+            }).catch(e => this.setState({loaded: true, error: 'Не удалось открыть файл: ' + clean(e)}));
+        } else (bm ? api.bmIconGet(bm).then(r => ({text: r.svg, title: r.title})) : api.svgRead(file)).then(r => {
             if (bm) {
                 this.setState({title: (bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки') + ': ' + r.title});
                 r.text = r.text || EMPTY_ICON;
@@ -118,6 +123,17 @@ class App extends React.Component {
         this.noteTimer = setTimeout(() => this.setState({note: ''}), 3500);
     }
     async save () {
+        if (isPng) {
+            if (!this.state.bitmap || !this.bitmapCanvas) return this.say(this.state.bitmap ? 'Рисунок ещё не менялся' : 'Для png нужен растровый режим');
+            try {
+                await api.pngWrite(file, this.bitmapCanvas.toDataURL('image/png'));
+                this.setState({dirty: false});
+                this.say('Сохранено');
+            } catch (e) {
+                this.say('Не удалось сохранить: ' + clean(e));
+            }
+            return;
+        }
         if (this.state.bitmap) return this.say('В растровом режиме svg не сохранить: переключись обратно на векторный или выгрузи PNG');
         try {
             if (bm) await api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
@@ -181,7 +197,7 @@ class App extends React.Component {
                     <div className={styles.file} title={file}>{this.state.title}{dirty ? ' •' : ''}</div>
                     <span className={styles.note}>{note || (bitmap ? 'Растровый режим' : dirty ? 'Не сохранено' : 'Сохранено')}</span>
                     <button className={styles.primary} onClick={() => this.save()} title="Ctrl+S">{'Сохранить'}</button>
-                    {bm ? null : <button onClick={() => this.saveAs()}>{'Сохранить как…'}</button>}
+                    {bm || isPng ? null : <button onClick={() => this.saveAs()}>{'Сохранить как…'}</button>}
                     <span className={styles.group}>
                         <button onClick={() => this.exportPng()}>{'Выгрузить PNG'}</button>
                         <select value={this.state.scale} onChange={e => this.setState({scale: e.target.value})} title="Масштаб PNG">
@@ -191,7 +207,7 @@ class App extends React.Component {
                             <option value="8">{'×8'}</option>
                         </select>
                     </span>
-                    <button onClick={() => this.copyCode()}>{'Копировать код'}</button>
+                    {isPng ? null : <button onClick={() => this.copyCode()}>{'Копировать код'}</button>}
                     {bm ? null : <button onClick={() => api.filesOpen(file, true)}>{'Открыть как есть'}</button>}
                 </header>
                 {error ? <div className={styles.error}>{error}</div> : null}
@@ -199,7 +215,7 @@ class App extends React.Component {
                     {loaded ? (
                         <PaintEditor
                             image={image}
-                            imageFormat="svg"
+                            imageFormat={this.state.format}
                             imageId={imageId}
                             name={baseName}
                             width={width}
