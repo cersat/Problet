@@ -2267,6 +2267,19 @@ function openPanel(kind, rect, arg = '') {
 				place(Math.min(720, Math.max(280, d[0])), Math.min(600, Math.max(120, d[1])));
 			} catch (e) { /* остаётся прежний размер */ }
 		});
+		// В Electron у расширений нет chrome.runtime.openOptionsPage: подставляем своё, оно открывает страницу настроек вкладкой
+		const options = extensions.pageUrl(arg, 'options');
+		mine.webContents.setWindowOpenHandler(({ url }) => {
+			if (/^chrome-extension:\/\//.test(url)) {
+				createTab(url, { activate: true });
+				closePanel();
+			}
+			return { action: 'deny' };
+		});
+		mine.webContents.once('dom-ready', () => {
+			if (!options || mine.webContents.isDestroyed()) return;
+			mine.webContents.executeJavaScript('try{chrome.runtime.openOptionsPage=(cb)=>{window.open(' + JSON.stringify(options) + ');if(typeof cb==="function")cb();return Promise.resolve()}}catch(e){}').catch(() => {});
+		});
 		panel.webContents.loadURL(extensions.pageUrl(arg, 'popup')).catch(() => {});
 	} else panel.webContents.loadURL('problet://' + kind + '/?popup=1' + (arg ? '&id=' + encodeURIComponent(arg) : '')).catch(() => {});
 	if (kind !== 'pwsave') panel.webContents.focus();
