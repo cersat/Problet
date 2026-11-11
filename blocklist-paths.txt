@@ -14,3 +14,6 @@ www.google.com|/ads/
 cse.google.com|/adsense/
 www.google.com|/afs/
 www.gstatic.com|/adsense/
+# YouTube: рекламная статистика и пиксели (действуют вместе с переключателем блокировки рекламы на YouTube)
+www.youtube.com|/api/stats/ads
+www.youtube.com|/pagead/

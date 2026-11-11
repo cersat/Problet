@@ -241,10 +241,13 @@ function start(session, store) {
 	});
 }
 
-// Что пролезло мимо запретов по адресам, прячем на странице: блоки Google AdSense, рекламные места Ad Manager и рекламу в выдаче Google
+// Что пролезло мимо запретов по адресам, прячем на странице: блоки Google AdSense, рекламные места Ad Manager, рекламу в выдаче Google и блоки с типовыми рекламными именами
 const COSMETIC_CSS = [
 	'ins.adsbygoogle', '.adsbygoogle', 'iframe[id^="google_ads_iframe"]', 'iframe[src*="googlesyndication.com"]', 'iframe[src*="doubleclick.net"]',
 	'div[id^="div-gpt-ad"]', 'div[id^="google_ads_"]', 'amp-ad', 'amp-embed[type="adsense"]',
+	// Типовые имена рекламных блоков (как в общих списках EasyList); «ad» и «ads» только у div, чтобы не задеть ссылки и подписи
+	'div.ad', 'div.ads', '.adsbox', '.ad-banner', '.banner_ad', '.ad-container', '.ad-placeholder', '.advert', '.advertisement', '.sponsored-ad', '.google-ad',
+	'#ad_300x250', '#banner-ad', '.top-ad-slot', '.pub_300x250', '.pub_300x250m', '.pub_728x90', '.text-ad', '.textAd', '.text_ad', '.text_ads', '.text-ads', '.text-ad-links',
 	'#tads', '#tadsb', '#bottomads', '#taw[data-text-ad]', 'div[data-text-ad]', 'div[data-ad-slot]',
 ].join(',\n') + ' { display: none !important; }';
 
