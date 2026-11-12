@@ -7,5 +7,5 @@
 .debug-page .item + .item { border-top: 1px solid var(--border); }
 .debug-page .what small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
 .debug-page button { flex: none; min-width: 112px; }
-.debug-page button.danger { border-color: var(--danger-border, #d94b4b); color: var(--danger-border, #d94b4b); }
+.debug-page button.danger { border-color: var(--danger); color: var(--danger); }
 .debug-page .status { min-height: 1.4em; margin-top: 18px; color: var(--muted); }
