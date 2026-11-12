@@ -38,6 +38,16 @@ const server = http.createServer((req, res) => {
 	} else if (req.url === '/ok.js') {
 		res.writeHead(200, { 'content-type': 'text/javascript' });
 		res.end('window.okLoaded = 1;');
+	} else if (req.url.startsWith('/addon/')) {
+		const files = {
+			'addon.json': JSON.stringify({ id: 'smoke', name: 'Проверка', version: '1.0', icon: '🧪', permissions: ['tabs', 'storage', 'exec'], content: [{ matches: ['http://127.0.0.1/*'], js: ['content.js'], runAt: 'end' }], background: 'bg.js' }),
+			'content.js': 'document.documentElement.dataset.addon = typeof window.problet; problet.send({ cmd: "exec" }).then((r) => { document.documentElement.dataset.exec = r; });',
+			'bg.js': 'problet.on("message", async (m) => { if (m.message.cmd !== "exec") return null; const r = await problet.exec("echo привет"); return r.stdout.trim() + "|" + (await problet.tabs.list()).length; });',
+		};
+		const name = req.url.slice(7);
+		if (!files[name]) { res.writeHead(404); return res.end(); }
+		res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+		res.end(files[name]);
 	} else if (req.url === '/plain.bin') {
 		res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="plain.bin"' });
 		res.end(Buffer.alloc(100, 7));
@@ -53,7 +63,7 @@ const server = http.createServer((req, res) => {
 function launch(extra = []) {
 	const args = [root, '--headless', '--user-data-dir=' + profile, ...extra];
 	if (process.platform === 'linux') args.push('--no-sandbox');
-	const child = spawn(electron, args, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PROBLET_TEST_SAVE_DIR: work } });
+	const child = spawn(electron, args, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PROBLET_TEST_SAVE_DIR: work, PROBLET_TEST_ADDON_ANSWER: 'always' } });
 	let out = '';
 	let err = '';
 	child.stderr.on('data', (d) => { err += d; });
@@ -216,6 +226,16 @@ async function first(base) {
 	check('страница с ошибкой 404 показывается', (await c.text(nf.id)).includes('нет'), nf);
 	const dead = await c.open('http://127.0.0.1:9/', 1200);
 	check('недоступный сайт даёт страницу ошибки', /Не удалось открыть страницу/.test(await c.text(dead.id)), dead);
+
+	// --- аддон Problet: установка по ссылке, скрипт на странице, фон, exec, isProblet
+	const ad = await c.ev(s.id, `api.addonInstallUrl(${JSON.stringify(base + '/addon/addon.json')}).then((r) => r.message, (e) => 'ошибка: ' + e.message)`);
+	check('аддон ставится по ссылке', /установлен/.test(ad), ad);
+	const ap = await c.open(base + '/', 2500);
+	const adRes = await c.ev(ap.id, '[document.documentElement.dataset.addon, document.documentElement.dataset.exec, typeof window.problet, window.isProblet]');
+	check('скрипт аддона работает в своём мире, фон отвечает и выполняет команду', adRes[0] === 'object' && /^привет\|\d+$/.test(adRes[1] || '') && adRes[2] === 'undefined', adRes);
+	check('сайт видит isProblet', adRes[3] === true, adRes[3]);
+	const adList = await c.ev(s.id, 'api.extList().then((l) => l.filter((x) => x.addon).map((x) => x.name + ":" + x.granted.map((g) => g.perm).join()))');
+	check('аддон в списке расширений с выданным разрешением', adList.length === 1 && adList[0] === 'Проверка:exec', adList);
 
 	// --- пароли
 	const pw = await c.open('problet://passwords/');

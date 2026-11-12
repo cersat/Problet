@@ -400,6 +400,17 @@ $('import-run').addEventListener('click', () => run(async () => {
 // ---------- Расширения ----------
 
 const extNames = {};
+function iconEl(e) {
+	const ico = document.createElement('div');
+	ico.className = 'ico';
+	if (e.icon && e.icon.icon) {
+		const img = document.createElement('img');
+		img.src = e.icon.icon;
+		img.alt = '';
+		ico.append(img);
+	} else ico.textContent = (e.icon && e.icon.letter) || '🧩';
+	return ico;
+}
 async function loadExtensions() {
 	const list = await api.extList();
 	for (const k of Object.keys(extNames)) delete extNames[k];
@@ -414,31 +425,135 @@ async function loadExtensions() {
 		what.className = 'what';
 		const b = document.createElement('b');
 		b.textContent = e.name + (e.version ? ' ' + e.version : '');
+		const tag = document.createElement('span');
+		tag.className = 'tag';
+		tag.textContent = e.addon ? 'аддон Problet' : 'Chrome';
+		b.append(tag);
 		const sub = document.createElement('span');
-		sub.textContent = e.error ? 'Не загрузилось: ' + e.error : e.path;
+		if (e.error) sub.textContent = 'Не загрузилось: ' + e.error;
+		else if (e.addon) {
+			const allowed = e.granted.filter((g) => g.allowed).map((g) => g.label);
+			const denied = e.granted.filter((g) => !g.allowed).map((g) => g.label);
+			sub.textContent = [e.description.replace(/\.$/, ''), allowed.length ? 'Разрешено: ' + allowed.join('; ') : '', denied.length ? 'Запрещено: ' + denied.join('; ') : ''].filter(Boolean).join('. ');
+		} else sub.textContent = e.path;
 		what.append(b, sub);
+		const acts = document.createElement('div');
+		acts.className = 'acts';
+		if (e.addon && e.options) {
+			const opt = document.createElement('button');
+			opt.textContent = 'Настройки';
+			opt.addEventListener('click', () => run(() => api.addonOptions(e.id)));
+			acts.append(opt);
+		}
+		if (e.addon && e.granted.length) {
+			const reset = document.createElement('button');
+			reset.textContent = 'Сбросить разрешения';
+			reset.title = 'Аддон снова спросит, прежде чем делать опасное';
+			reset.addEventListener('click', () => run(async () => {
+				await api.addonReset(e.id);
+				say('Разрешения аддона «' + e.name + '» сброшены');
+				await loadExtensions();
+			}));
+			acts.append(reset);
+		}
 		const del = document.createElement('button');
 		del.className = 'danger';
 		del.textContent = 'Удалить';
 		del.addEventListener('click', () => run(async () => {
-			await api.extRemove(e.path);
+			if (e.addon) await api.addonRemove(e.id);
+			else await api.extRemove(e.path);
 			await loadExtensions();
 		}));
-		row.append(what, del);
+		acts.append(del);
+		row.append(iconEl(e), what, acts);
 		box.append(row);
 	}
 }
 
-$('ext-store').addEventListener('click', () => run(async () => {
-	const input = $('ext-store-input').value.trim();
-	if (!input) throw new Error('Вставь ссылку или идентификатор расширения');
-	say('Скачиваю…');
-	const r = await api.extStore(input);
-	$('ext-store-input').value = '';
-	say(r.message);
-	await loadExtensions();
-}));
+// ---------- Добавление аддона Problet: из каталога, по ссылке, из архива ----------
 
+const addonErr = (text) => { $('addon-error').textContent = text || ''; };
+async function addonDone(r) {
+	if (!r || r.canceled) return;
+	say(r.message);
+	$('addon-dialog').close();
+	await loadExtensions();
+}
+async function loadCatalog() {
+	const box = $('addon-catalog');
+	box.textContent = '';
+	const wait = Object.assign(document.createElement('div'), { className: 'empty', textContent: 'Загружаю список аддонов…' });
+	box.append(wait);
+	let list;
+	try {
+		list = await api.addonCatalog();
+	} catch (e) {
+		wait.textContent = 'Не удалось загрузить список: ' + errText(e);
+		return;
+	}
+	box.textContent = '';
+	if (!list.length) box.append(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'В каталоге пока пусто' }));
+	for (const x of list) {
+		const item = document.createElement('div');
+		item.className = 'item';
+		const what = document.createElement('div');
+		what.className = 'what';
+		const b = document.createElement('b');
+		b.textContent = x.name + (x.version ? ' ' + x.version : '');
+		const d = document.createElement('span');
+		d.textContent = x.description;
+		what.append(b, d);
+		const btn = document.createElement('button');
+		const update = x.installed && x.installed !== x.version;
+		btn.textContent = x.installed ? (update ? 'Обновить' : 'Установлен') : 'Установить';
+		btn.className = x.installed && !update ? '' : 'primary';
+		btn.disabled = !!x.installed && !update;
+		btn.addEventListener('click', async () => {
+			addonErr('');
+			btn.disabled = true;
+			try {
+				await addonDone(await api.addonInstallCatalog(x.id));
+			} catch (e) {
+				addonErr(errText(e));
+			}
+			btn.disabled = false;
+		});
+		item.append(iconEl({ icon: { letter: x.icon } }), what, btn);
+		box.append(item);
+	}
+}
+$('addon-add').addEventListener('click', () => {
+	addonErr('');
+	$('addon-url').value = '';
+	$('addon-dialog').showModal();
+	loadCatalog();
+});
+$('addon-close').addEventListener('click', () => $('addon-dialog').close());
+async function addonByUrl() {
+	addonErr('');
+	const v = $('addon-url').value.trim();
+	if (!v) return addonErr('Вставь ссылку на addon.json');
+	try {
+		await addonDone(await api.addonInstallUrl(v));
+	} catch (e) {
+		addonErr(errText(e));
+	}
+}
+$('addon-url-go').addEventListener('click', addonByUrl);
+$('addon-url').addEventListener('keydown', (e) => {
+	if (e.key === 'Enter') {
+		e.preventDefault();
+		addonByUrl();
+	}
+});
+$('addon-zip').addEventListener('click', async () => {
+	addonErr('');
+	try {
+		await addonDone(await api.addonInstallZip());
+	} catch (e) {
+		addonErr(errText(e));
+	}
+});
 $('ext-add').addEventListener('click', () => run(async () => {
 	const r = await api.extAdd();
 	if (r && r.message) say(r.message);
@@ -682,8 +797,9 @@ setInterval(() => {
 api.onChange((kinds) => {
 	if (!kinds.includes('settings') && !kinds.includes('all')) return;
 	if (recording || $('cb-dialog').open) return;
+	if (kinds.includes('all')) run(loadExtensions);
 	api.getSettings().then((r) => {
 		current = r.settings;
-		renderPanels();
+		return loadExtensions(); // заодно перерисует «Панели»: в них названия расширений и аддонов
 	}).catch(() => {});
 });

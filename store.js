@@ -27,7 +27,7 @@ const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmba
 // sp1–sp3 — переменные промежутки: занимают свободное место на панели; на одной панели не больше одного
 const SPACERS = ['sp1', 'sp2', 'sp3'];
 // x:<id расширения> — кнопка расширения, у каждого своя
-const EXT_BTN = /^x:[a-p]{32}$/;
+const EXT_BTN = /^x:([a-p]{32}|@[a-z0-9][a-z0-9-]{0,39})$/; // расширение Chrome или @аддон Problet
 const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {

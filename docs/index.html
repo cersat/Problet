@@ -24,6 +24,9 @@
 	ul { padding-left: 20px; }
 	li { margin: 6px 0; }
 	a { color: var(--accent); }
+	.installed { display: none; background: var(--card); border: 1px solid var(--accent); border-radius: 12px; padding: 14px 16px; margin: 0 0 8px; }
+	.installed b { color: var(--accent); }
+	body.is-problet .installed { display: block; }
 	footer { margin-top: 48px; color: var(--dim); font-size: 14px; }
 </style>
 </head>
@@ -34,6 +37,8 @@
 		<h1>Problet</h1>
 	</header>
 	<p class="lead">Браузер, написанный с нуля на Electron. Свои панели и кнопки, пространства, заморозка вкладок, блокировщик рекламы, менеджер паролей и встроенные инструменты вместо расширений.</p>
+
+	<div class="installed" id="installed"><b>Problet уже установлен</b> — ты смотришь эту страницу в нём. Обновления приходят сами: «Настройки» → «Обновления».</div>
 
 	<h2>Скачать</h2>
 	<div class="dl" id="dl">
@@ -49,12 +54,16 @@
 		<li>Пространства, заморозка и выгрузка вкладок, режим инкогнито</li>
 		<li>Блокировщик рекламы и трекеров, в том числе на YouTube</li>
 		<li>Зашифрованный менеджер паролей, закладки с импортом из других браузеров</li>
+		<li>Свои аддоны Problet с разрешениями на опасные действия и расширения Chrome</li>
 		<li>Встроенный SVG-редактор, таблица символов, калькулятор в адресной строке</li>
 	</ul>
 
 	<footer><a href="https://github.com/cersat/Problet">Исходный код на GitHub</a></footer>
 </main>
 <script>
+	// Problet сообщает о себе через window.isProblet (только когда не маскируется под другой браузер)
+	if (window.isProblet === true) document.body.classList.add('is-problet');
+
 	// Прямые ссылки на файлы последней сборки; если GitHub не ответил, остаются ссылки на страницу релиза
 	fetch('https://api.github.com/repos/cersat/Problet/releases/tags/latest').then((r) => (r.ok ? r.json() : null)).then((rel) => {
 		if (!rel) return;

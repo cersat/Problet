@@ -91,6 +91,13 @@ if (location.protocol === 'problet:') {
 		extAdd: () => call('ext:add'),
 		extStore: (input) => call('ext:store', input),
 		extRemove: (p) => call('ext:remove', p),
+		addonCatalog: () => call('addon:catalog'),
+		addonInstallCatalog: (id) => call('addon:install-catalog', id),
+		addonInstallUrl: (url) => call('addon:install-url', url),
+		addonInstallZip: () => call('addon:install-zip'),
+		addonRemove: (id) => call('addon:remove', id),
+		addonReset: (id) => call('addon:reset', id),
+		addonOptions: (id) => call('addon:options', id),
 		importBookmarkItems: (items) => call('bookmarks:import-items', items),
 		bookmarks: () => call('bookmarks:state'),
 		addBookmark: (b) => call('bookmarks:add', b),
@@ -146,6 +153,84 @@ if (location.protocol !== 'problet:') {
 	} catch (e) { /* без этого сайт просто может зависнуть */ }
 }
 
+// ---------- Аддоны Problet ----------
+
+// Фон аддона и его страницы (окошко кнопки, настройки) получают объект problet. Всё опасное проверяет и спрашивает главный процесс
+if (location.protocol === 'problet-addon:') {
+	const call = (method, ...args) => ipcRenderer.invoke('addon:call', method, args);
+	const listeners = new Map();
+	ipcRenderer.on('addon:event', async (_e, name, data, id) => {
+		let result;
+		for (const cb of listeners.get(name) || []) {
+			try {
+				const r = await cb(data);
+				if (r !== undefined && result === undefined) result = r;
+			} catch (e) {
+				console.error(e);
+			}
+		}
+		if (id) ipcRenderer.send('addon:reply', id, result === undefined ? null : result);
+	});
+	const m = (name) => (...args) => call(name, ...args);
+	contextBridge.exposeInMainWorld('problet', {
+		info: m('info'),
+		on: (name, cb) => {
+			if (typeof cb !== 'function') return;
+			if (!listeners.has(name)) listeners.set(name, []);
+			listeners.get(name).push(cb);
+		},
+		storage: { get: m('storage.get'), set: m('storage.set'), remove: m('storage.remove') },
+		tabs: { list: m('tabs.list'), active: m('tabs.active'), open: m('tabs.open'), close: m('tabs.close'), activate: m('tabs.activate'), navigate: m('tabs.navigate'), reload: m('tabs.reload'), eval: m('tabs.eval'), send: m('tabs.send') },
+		notify: m('notify'),
+		fetch: m('fetch'),
+		bookmarks: { list: m('bookmarks.list'), add: m('bookmarks.add') },
+		history: { list: m('history.list') },
+		clipboard: { read: m('clipboard.read'), write: m('clipboard.write') },
+		files: { pick: m('files.pick'), read: m('files.read'), write: m('files.write'), list: m('files.list'), reveal: m('files.reveal') },
+		exec: m('exec'),
+		button: { setTitle: m('button.setTitle') },
+		openOptions: m('options.open'),
+	});
+}
+
+// Скрипты аддонов на страницах сайтов: у каждого аддона свой изолированный мир, страница их не видит
+if (/^(https?|file):$/.test(location.protocol) && window === window.top) {
+	let list = [];
+	try {
+		list = ipcRenderer.sendSync('addon:content-get', location.href) || [];
+	} catch (e) { /* без аддонов */ }
+	if (list.length) {
+		const handlers = new Map();
+		ipcRenderer.on('addon:to-content', (_e, id, msg) => {
+			for (const cb of handlers.get(id) || []) {
+				try {
+					cb(msg);
+				} catch (e) { /* ошибка в скрипте аддона */ }
+			}
+		});
+		for (const x of list) {
+			const send = (kind, args) => ipcRenderer.invoke('addon:content', x.id, kind, args);
+			contextBridge.exposeInIsolatedWorld(x.world, 'problet', {
+				id: x.id,
+				send: (msg) => send('send', [msg]),
+				onMessage: (cb) => {
+					if (typeof cb !== 'function') return;
+					if (!handlers.has(x.id)) handlers.set(x.id, []);
+					handlers.get(x.id).push(cb);
+				},
+				storage: x.storage ? { get: (k) => send('storage.get', [k]), set: (k, v) => send('storage.set', [k, v]) } : undefined,
+			});
+			for (const css of x.css) webFrame.insertCSS(css);
+			const run = (arr) => {
+				if (arr.length) webFrame.executeJavaScriptInIsolatedWorld(x.world, arr).catch((e) => console.error('Аддон ' + x.id + ':', e));
+			};
+			run(x.js.start);
+			if (x.js.end.length) document.addEventListener('DOMContentLoaded', () => run(x.js.end), { once: true });
+			if (x.js.idle.length) window.addEventListener('load', () => run(x.js.idle), { once: true });
+		}
+	}
+}
+
 // Для внешних сайтов подменяем то, что видно из JavaScript: navigator.userAgentData, vendor и т.п., чтобы совпадало с выбранной маскировкой.
 // Заголовки (User-Agent, Sec-CH-UA, DNT) подменяет главный процесс. В iframe других сайтов эта подмена не действует.
 if (location.protocol !== 'problet:' && window === window.top) {
@@ -159,6 +244,12 @@ if (location.protocol !== 'problet:' && window === window.top) {
 			};
 			const nav = Navigator.prototype;
 			if (id.dnt) def(nav, 'doNotTrack', () => '1');
+			// Сайт может узнать Problet, только если мы не маскируемся под другой браузер
+			if (id.kind === 'problet') {
+				try {
+					Object.defineProperty(window, 'isProblet', { value: true, configurable: true });
+				} catch (e) { /* ничего */ }
+			}
 			if (id.userAgent) {
 				def(nav, 'userAgent', () => id.userAgent);
 				def(nav, 'appVersion', () => id.userAgent.replace('Mozilla/', ''));

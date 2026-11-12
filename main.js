@@ -11,6 +11,7 @@ const identity = require('./identity');
 const updater = require('./updater');
 const importer = require('./importer');
 const extensions = require('./extensions');
+const addons = require('./addons');
 const accel = require('./pages/accel');
 const vault = require('./vault');
 const passcsv = require('./passcsv');
@@ -111,6 +112,7 @@ const NEWTAB = 'problet://newtab/';
 // Внутренние страницы живут на адресах problet://settings, problet://bookmarks и problet://newtab
 protocol.registerSchemesAsPrivileged([
 	{ scheme: 'problet', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+	{ scheme: 'problet-addon', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }, // страницы аддонов Problet
 ]);
 
 let win = null;
@@ -279,7 +281,7 @@ function layoutPayload() {
 	out.plan = panelPlan();
 	out.tabsTwoRows = s.tabsTwoRows && s.tabsScale >= store.TWO_ROWS_MIN; // выбор сохраняется, а действует, пока панель растянута
 	out.arrows = store.ARROWS[s.arrows];
-	out.extButtons = extensions.actions();
+	out.extButtons = [...extensions.actions(), ...addons.actions()];
 	out.customButtons = s.customButtons.map((c) => ({ id: c.id, name: c.name, icon: c.icon, svg: c.svg }));
 	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
 	out.maximized = !!(win && !win.isDestroyed() && win.isMaximized());
@@ -628,6 +630,7 @@ function wireTab(tab) {
 	});
 	// Страница новой вкладки при загрузке забирает фокус себе: возвращаем его в адресную строку, чтобы можно было сразу печатать
 	wc.on('did-finish-load', () => {
+		if (!tab.incognito) addons.emit('tabUpdated', { id: tab.id, url: wc.getURL(), title: wc.getTitle() });
 		if (tab.id === activeId && isNewTab(wc.getURL()) && Date.now() - tab.created < 5000 && win && win.isFocused()) focusAddress();
 	});
 	// Включённый блокировщик прячет остатки рекламы на самой странице
@@ -700,6 +703,7 @@ function createTab(url, opts = {}) {
 	else if (url) view.webContents.loadURL(url).catch(() => {});
 
 	log('новая вкладка', tab.id, url, tab.hidden ? 'без панели' : '', 'пространство', tab.space);
+	if (!tab.incognito) addons.emit('tabCreated', { id: tab.id, url: url || '' });
 	if (opts.activate !== false) {
 		activateTab(tab.id);
 	} else {
@@ -727,6 +731,7 @@ function activateTab(id) {
 		prev.lastActive = Date.now();
 	}
 	tab.lastActive = Date.now();
+	if (tab.id !== activeId && !tab.incognito) addons.emit('tabActivated', { id: tab.id });
 	if (tab.frozen === 'cdp') thawTab(tab);
 	activeId = tab.id;
 	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
@@ -927,6 +932,7 @@ function closeTab(id) {
 	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden && tabs[index].view.webContents && !tabs[index].view.webContents.isDestroyed()) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
 	const vIndex = tabs.filter((t) => (settings().spacesMerged || t.space === tabs[index].space) && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
+	if (!tab.incognito) addons.emit('tabClosed', { id: tab.id });
 	dropFrozenFile(tab);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
@@ -2292,19 +2298,19 @@ function openPanel(kind, rect, arg = '') {
 			} catch (e) { /* остаётся прежний размер */ }
 		});
 		// В Electron у расширений нет chrome.runtime.openOptionsPage: подставляем своё, оно открывает страницу настроек вкладкой
-		const options = extensions.pageUrl(arg, 'options');
+		const options = extPage(arg, 'options');
 		mine.webContents.setWindowOpenHandler(({ url }) => {
-			if (/^chrome-extension:\/\//.test(url)) {
+			if (/^(chrome-extension|problet-addon|https?):\/\//.test(url)) {
 				createTab(url, { activate: true });
 				closePanel();
 			}
 			return { action: 'deny' };
 		});
 		mine.webContents.once('dom-ready', () => {
-			if (!options || mine.webContents.isDestroyed()) return;
+			if (!options || arg.startsWith('@') || mine.webContents.isDestroyed()) return;
 			mine.webContents.executeJavaScript('try{chrome.runtime.openOptionsPage=(cb)=>{window.open(' + JSON.stringify(options) + ');if(typeof cb==="function")cb();return Promise.resolve()}}catch(e){}').catch(() => {});
 		});
-		panel.webContents.loadURL(extensions.pageUrl(arg, 'popup')).catch(() => {});
+		panel.webContents.loadURL(extPage(arg, 'popup')).catch(() => {});
 	} else panel.webContents.loadURL('problet://' + kind + '/?popup=1' + (arg ? '&id=' + encodeURIComponent(arg) : '')).catch(() => {});
 	if (kind !== 'pwsave') panel.webContents.focus();
 }
@@ -2441,7 +2447,10 @@ ipcMain.handle('debug:run', async (e, action) => {
 		case 'remove-extensions': {
 			const list = extensions.list();
 			for (const x of list) await extensions.remove(x.path);
-			return { message: 'Расширений удалено: ' + list.length };
+			const n = addons.list().length;
+			addons.removeAll();
+			sendExtActions();
+			return { message: 'Расширений удалено: ' + list.length + ', аддонов: ' + n };
 		}
 		case 'open-data':
 			await shell.openPath(app.getPath('userData'));
@@ -2827,7 +2836,7 @@ handle('import:run', (id) => {
 	return { message: 'Добавлено закладок: ' + r.added + ', новых папок: ' + r.folders + (r.skipped ? '. Пропущено (повторы и неподходящие адреса): ' + r.skipped : '') };
 });
 
-handle('ext:list', () => extensions.list());
+handle('ext:list', () => [...extensions.list(), ...addons.list()]);
 handle('ext:add', async () => {
 	let dir;
 	if (process.env.PROBLET_TEST_EXT_DIR) {
@@ -2855,7 +2864,7 @@ handle('ext:remove', async (p) => {
 let extReady = false;
 function sendExtActions() {
 	if (extReady) {
-		const ids = extensions.actions().map((x) => 'x:' + x.id);
+		const ids = [...extensions.actions(), ...addons.actions()].map((x) => 'x:' + x.id);
 		const L = settings().btnLayout;
 		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.hidden]);
 		const next = { tabs: [...L.tabs], toolbar: [...L.toolbar], bmbar: [...L.bmbar], hidden: [...L.hidden] };
@@ -2878,14 +2887,62 @@ function sendExtActions() {
 	}
 	sendLayout();
 }
+// Страницы кнопки и настроек: id расширения Chrome или @id аддона Problet
+function extPage(id, kind) {
+	return id.startsWith('@') ? addons.pageUrl(id.slice(1), kind) : extensions.pageUrl(id, kind);
+}
 ipcMain.on('bar:ext', (e, id, rect) => {
 	if (!fromToolbar0(e)) return;
-	const url = extensions.pageUrl(String(id), 'popup');
-	if (url) openPanel('ext', folderRect(rect), String(id));
+	id = String(id);
+	const url = extPage(id, 'popup');
+	if (url) openPanel('ext', folderRect(rect), id);
+	else if (id.startsWith('@')) addons.click(id.slice(1)); // кнопка без окошка: нажатие получает фон аддона
 	else {
-		const options = extensions.pageUrl(String(id), 'options');
+		const options = extPage(id, 'options');
 		if (options) createTab(options, { activate: true });
 	}
+});
+
+// ---------- Аддоны Problet ----------
+
+// API для фона и страниц аддона
+ipcMain.handle('addon:call', (e, method, args) => {
+	if (e.senderFrame !== e.sender.mainFrame) throw new Error('Доступ запрещён');
+	return addons.call(e.sender, String(method), args);
+});
+ipcMain.on('addon:reply', (e, id, value) => addons.reply(e.sender, id, value));
+// Прелоад вкладки спрашивает, какие скрипты аддонов вставить в загружающуюся страницу
+ipcMain.on('addon:content-get', (e, url) => {
+	const tab = tabs.find((t) => t.view.webContents === e.sender);
+	try {
+		e.returnValue = tab && !tab.incognito && e.senderFrame === e.sender.mainFrame ? addons.contentFor(String(url)) : [];
+	} catch (err) {
+		e.returnValue = [];
+	}
+});
+ipcMain.handle('addon:content', (e, id, kind, args) => {
+	const tab = tabs.find((t) => t.view.webContents === e.sender);
+	if (!tab) throw new Error('Доступ запрещён');
+	return addons.fromContent(e.sender, String(id), String(kind), Array.isArray(args) ? args : [], { id: tab.id, url: e.sender.getURL(), title: tab.title, incognito: tab.incognito });
+});
+// Настройки: установка и удаление
+handle('addon:catalog', () => addons.catalog());
+handle('addon:install-catalog', (id) => addons.installFromCatalog(String(id)));
+handle('addon:install-url', (url) => addons.installFromUrl(String(url)));
+handle('addon:install-zip', async () => {
+	let file = process.env.PROBLET_TEST_ADDON_ZIP;
+	if (!file) {
+		const r = await dialog.showOpenDialog(win, { title: 'Архив с аддоном Problet', properties: ['openFile'], filters: [{ name: 'Архив ZIP', extensions: ['zip'] }] });
+		if (r.canceled || !r.filePaths[0]) return { canceled: true };
+		file = r.filePaths[0];
+	}
+	return addons.installFromZip(file);
+});
+handle('addon:remove', (id) => addons.remove(String(id).replace(/^@/, '')));
+handle('addon:reset', (id) => addons.resetPermissions(String(id).replace(/^@/, '')));
+handle('addon:options', (id) => {
+	const u = addons.pageUrl(String(id).replace(/^@/, ''), 'options');
+	if (u) createTab(u, { activate: true });
 });
 
 async function saveToFile(title, defaultName, filters, content) {
@@ -2977,6 +3034,7 @@ function internalHandler(request) {
 
 function registerInternalPages() {
 	protocol.handle('problet', internalHandler);
+	protocol.handle(addons.SCHEME, addons.handler);
 }
 
 // ---------- Режим инкогнито ----------
@@ -3112,6 +3170,26 @@ app.whenReady().then(() => {
 		extReady = true;
 		sendExtActions();
 	}).catch(() => {});
+	try {
+		addons.init(app.getPath('userData'), {
+			log,
+			window: () => win,
+			store,
+			tabs: () => tabs.filter((t) => !t.hidden).map((t) => ({ id: t.id, url: t.view.webContents && !t.view.webContents.isDestroyed() ? t.view.webContents.getURL() || t.pendingUrl || t.url : t.url, title: t.title, active: t.id === activeId, incognito: !!t.incognito })),
+			contents: (id) => {
+				const t = tabs.find((x) => x.id === id);
+				if (!t || !t.view.webContents || t.view.webContents.isDestroyed()) throw new Error('Нет такой вкладки');
+				return t.view.webContents;
+			},
+			openTab: (url, active) => createTab(url, { activate: active }).id,
+			closeTab: (id) => closeTab(id),
+			activateTab: (id) => activateTab(id),
+			changed: () => sendState(),
+			buttonsChanged: () => sendExtActions(),
+		});
+	} catch (e) {
+		log('аддоны не загрузились', e);
+	}
 	createWindow();
 	if (headless.enabled) startHeadless();
 	updater.onChange((st) => {

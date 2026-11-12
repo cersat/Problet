@@ -470,7 +470,7 @@ function syncExt(list) {
 			img.src = x.icon;
 			img.alt = '';
 			b.append(img);
-		} else b.textContent = (x.name.trim()[0] || '?').toUpperCase();
+		} else b.textContent = x.letter || (x.name.trim()[0] || '?').toUpperCase();
 	}
 }
 const elFor = (id) => (id.startsWith('cb:') ? customEls.get(id) : id.startsWith('x:') ? extEls.get(id) : $id(id));

@@ -1062,3 +1062,21 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .colors .sw.on { border-color: var(--text-strong); }
 .colors .sw.none { background: transparent; border: 2px dashed var(--faint); }
 .colors .sw.none.on { border-style: solid; border-color: var(--text-strong); }
+
+/* Аддоны Problet */
+.addon-dialog { width: min(560px, calc(100vw - 40px)); }
+.addon-catalog { max-height: 340px; overflow-y: auto; margin: 0 0 14px; border: 1px solid var(--border); border-radius: 8px; }
+.addon-catalog .item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; }
+.addon-catalog .item + .item { border-top: 1px solid var(--border); }
+.addon-catalog .ico, .data-row .ico { flex: none; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.data-row .ico img { width: 24px; height: 24px; }
+.addon-catalog .what { flex: 1; min-width: 0; }
+.addon-catalog .what b { color: var(--text-strong); }
+.addon-catalog .what span { display: block; color: var(--muted); font-size: 12px; }
+.addon-catalog .empty { padding: 14px; color: var(--muted); }
+.addon-catalog button { flex: none; }
+.addon-url { display: flex; gap: 8px; margin-top: 5px; }
+.addon-url input { margin-top: 0 !important; flex: 1; }
+.data-row .what .tag { margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: var(--accent-soft); color: var(--text-strong); font-size: 11px; font-weight: 600; vertical-align: 1px; white-space: nowrap; }
+.data-row .acts { display: flex; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+#ext-list .data-row:first-of-type { border-top: 1px solid var(--border); padding-top: 10px; }
