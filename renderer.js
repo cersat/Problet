@@ -545,6 +545,7 @@ function applyLayout(l) {
 		const want = [];
 		for (const id of L[key]) {
 			const el = id === main ? $id(MAIN_EL[id]) : elFor(id);
+			if (!el) continue; // кнопка расширения, которое ещё не загрузилось: появится со следующей раскладкой
 			if (id === 'winctl' && key === 'tabs' && p.strip) {
 				$id('titlebar').append(el);
 				el.classList.remove('off');
@@ -557,7 +558,10 @@ function applyLayout(l) {
 		// переставляем, только если порядок изменился: перенос ручки во время перетаскивания сбросил бы захват мыши
 		if (want.length !== host.children.length || want.some((el, i) => host.children[i] !== el)) host.append(...want);
 	}
-	for (const id of L.hidden) elFor(id).classList.add('off');
+	for (const id of L.hidden) {
+		const el = elFor(id);
+		if (el) el.classList.add('off');
+	}
 	// Размер панели вкладок и ручка, за которую её растягивают
 	const scale = l.tabsScale;
 	document.body.style.setProperty('--tabs-h', Math.round(l.tabsBase.row * scale) + 'px');

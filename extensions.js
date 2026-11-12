@@ -137,10 +137,15 @@ function actions() {
 	const out = [];
 	for (const e of entries) {
 		if (!e.id || e.error) continue;
-		const m = manifestOf(e);
-		const act = m && (m.action || m.browser_action);
-		if (!act || typeof act !== 'object') continue;
-		out.push({ id: e.id, name: e.name, title: typeof act.default_title === 'string' && !act.default_title.startsWith('__MSG_') ? act.default_title : e.name, icon: iconData(e.path, m, act), popup: !!act.default_popup });
+		// манифест и значок читаются с диска один раз: раскладка панелей запрашивается часто
+		if (e.action === undefined) {
+			const m = manifestOf(e);
+			const act = m && (m.action || m.browser_action);
+			e.action = act && typeof act === 'object'
+				? { id: e.id, name: e.name, title: typeof act.default_title === 'string' && !act.default_title.startsWith('__MSG_') ? act.default_title : e.name, icon: iconData(e.path, m, act), popup: !!act.default_popup }
+				: null;
+		}
+		if (e.action) out.push(e.action);
 	}
 	return out;
 }

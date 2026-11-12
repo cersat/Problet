@@ -136,7 +136,7 @@ function saveCache() {
 }
 
 async function check(force) {
-	if (busy) return state;
+	if (busy || state.status === 'ready') return state; // скачанное обновление ждёт перезапуска: новая проверка его не сбрасывает
 	busy = true;
 	set({ status: 'checking', message: '' });
 	try {

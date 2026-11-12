@@ -86,7 +86,13 @@ async function capture(_ctx, wc) {
 	const attached = dbg.isAttached();
 	if (!attached) dbg.attach('1.3');
 	try {
-		const shot = await limit(dbg.sendCommand('Page.captureScreenshot', { format: 'png' }), 15000, 'снимок');
+		// Окно скрыто, и готового кадра у страницы может не быть: тогда обычный снимок ждёт его бесконечно. Сначала просим отрисовать страницу заново (fromSurface: false)
+		let shot;
+		try {
+			shot = await limit(dbg.sendCommand('Page.captureScreenshot', { format: 'png', fromSurface: false }), 8000, 'снимок');
+		} catch (e) {
+			shot = await limit(dbg.sendCommand('Page.captureScreenshot', { format: 'png' }), 15000, 'снимок');
+		}
 		return Buffer.from(shot.data, 'base64');
 	} finally {
 		if (!attached) dbg.detach();

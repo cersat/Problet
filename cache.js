@@ -27,7 +27,9 @@ function isCached(settings, category) {
 }
 
 function addIcon(url) {
-	if (typeof url === 'string') iconUrls.add(url);
+	if (typeof url !== 'string') return;
+	if (iconUrls.size > 5000) iconUrls.clear();
+	iconUrls.add(url);
 }
 
 // Запрос: просим не брать из кеша, если категория выключена (headers изменяется на месте)

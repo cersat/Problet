@@ -607,7 +607,10 @@ function wireTab(tab) {
 		if (!alive()) return;
 		tab.icon = icons[0] || '';
 		if (!tab.incognito) icons.forEach(cache.addIcon);
-		if (tab.icon && !tab.incognito) iconByOrigin.set(originOf(tab.view.webContents.getURL()), tab.icon);
+		if (tab.icon && !tab.incognito) {
+			if (iconByOrigin.size > 3000) iconByOrigin.clear();
+			iconByOrigin.set(originOf(tab.view.webContents.getURL()), tab.icon);
+		}
 		sendTabs();
 		scheduleSession();
 	});
@@ -763,7 +766,7 @@ async function thawTab(tab) {
 
 function canFreeze(tab) {
 	const wc = tab.view.webContents;
-	return tab.id !== activeId && !tab.hidden && !tab.frozen && /^(https?|file):/i.test(tab.view.webContents.getURL()) && !!wc && !wc.isDestroyed() && !wc.isCurrentlyAudible() && !wc.isLoading() && !wc.debugger.isAttached();
+	return tab.id !== activeId && !tab.hidden && !tab.frozen && !!wc && !wc.isDestroyed() && /^(https?|file):/i.test(wc.getURL()) && !wc.isCurrentlyAudible() && !wc.isLoading() && !wc.debugger.isAttached();
 }
 
 async function freezeTab(tab, by) {
@@ -779,6 +782,7 @@ async function freezeTab(tab, by) {
 		tab.frozen = 'cdp';
 		tab.frozenBy = by;
 		log('вкладка заморожена', tab.id, by);
+		if (tab.id === activeId) await thawTab(tab); // пока шла команда, вкладку успели открыть
 	} catch (e) {
 		try {
 			wc.debugger.detach();
@@ -792,16 +796,20 @@ function discardTab(tab) {
 	const old = tab.view;
 	const url = old.webContents.getURL() || tab.url;
 	if (!/^(https?|file):/i.test(url)) return; // внутренние страницы дёшевы, их не трогаем
-	// Состояние страницы (история, прокрутка, введённое в поля) уходит на диск и возвращается при открытии вкладки
-	try {
-		const nav = old.webContents.navigationHistory;
-		const dir = path.join(app.getPath('userData'), 'frozen');
-		fs.mkdirSync(dir, { recursive: true });
-		tab.frozenFile = path.join(dir, tab.id + '.json');
-		fs.writeFileSync(tab.frozenFile, JSON.stringify({ entries: nav.getAllEntries(), index: nav.getActiveIndex() }));
-	} catch (e) {
-		log('не удалось сохранить состояние вкладки', tab.id, e);
-		tab.frozenFile = '';
+	// Состояние страницы (история, прокрутка, введённое в поля) уходит на диск и возвращается при открытии вкладки.
+	// У инкогнито следов на диске быть не должно: такая вкладка при открытии просто загрузится заново
+	tab.frozenFile = '';
+	if (!tab.incognito) {
+		try {
+			const nav = old.webContents.navigationHistory;
+			const dir = path.join(app.getPath('userData'), 'frozen');
+			fs.mkdirSync(dir, { recursive: true });
+			tab.frozenFile = path.join(dir, tab.id + '.json');
+			fs.writeFileSync(tab.frozenFile, JSON.stringify({ entries: nav.getAllEntries(), index: nav.getActiveIndex() }));
+		} catch (e) {
+			log('не удалось сохранить состояние вкладки', tab.id, e);
+			tab.frozenFile = '';
+		}
 	}
 	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
 	if (tab.incognito) prefs.session = incognitoSession();
@@ -884,7 +892,7 @@ function moveTab(id, to) {
 	if (i < 0 || !Number.isInteger(to)) return;
 	const [tab] = tabs.splice(i, 1);
 	// to считается среди видимых вкладок: переводим в позицию общего списка
-	const vis = tabs.filter((t) => t.space === tab.space);
+	const vis = tabs.filter((t) => (settings().spacesMerged || t.space === tab.space) && !t.hidden);
 	const at = Math.min(Math.max(0, to), vis.length);
 	const target = vis[at];
 	if (target) tabs.splice(tabs.indexOf(target), 0, tab);
@@ -1134,6 +1142,7 @@ ipcMain.on('pw:need-fill', (e, hasPass) => {
 	if (vault.isUnlocked() && !vault.forOrigin(origin).length) return;
 	const key = tab.id + '|' + e.senderFrame.url + '|' + !!hasPass; // на странице входа в два шага спросим ещё раз, когда появится пароль
 	if (fillAsked.has(key)) return;
+	if (fillAsked.size > 2000) fillAsked.clear();
 	fillAsked.add(key);
 	fillCtx = { tabId: tab.id, origin };
 	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
@@ -2153,10 +2162,11 @@ function refreshTip() {
 	const c = tipContent(updater.getState());
 	if (!c) return hideTip();
 	ensureTip();
-	const [cw] = contentSize();
+	const [cw, ch] = contentSize();
 	const w = 270;
 	const h = c.progress === undefined ? 34 : 50;
-	tipView.setBounds({ x: Math.round(Math.min(Math.max(8, tipRect.x + tipRect.width / 2 - w / 2), cw - w - 8)), y: Math.round(tipRect.y + tipRect.height + 6), width: w, height: h });
+	const below = tipRect.y + tipRect.height + 6;
+	tipView.setBounds({ x: Math.round(Math.min(Math.max(8, tipRect.x + tipRect.width / 2 - w / 2), cw - w - 8)), y: Math.round(below + h <= ch ? below : Math.max(0, tipRect.y - h - 6)), width: w, height: h });
 	win.contentView.addChildView(tipView);
 	tipView.setVisible(true);
 	const js = 'document.getElementById("t").textContent=' + JSON.stringify(c.text) + ';document.getElementById("b").style.display=' + (c.progress === undefined ? '"none"' : '"block"') + ';document.getElementById("p").style.width="' + (c.progress || 0) + '%"';
@@ -2426,6 +2436,7 @@ ipcMain.handle('debug:run', async (e, action) => {
 		case 'reset-settings':
 			store.resetSettings();
 			applySettings();
+			sendExtActions();
 			return { message: 'Настройки сброшены' };
 		case 'remove-extensions': {
 			const list = extensions.list();
@@ -2517,14 +2528,30 @@ ipcMain.handle('search:run', (e, text) => {
 
 // Открыть внутреннюю страницу (историю, закладки…) в новой вкладке
 // Проводник: список папки для страницы problet://files
+// На Windows над корнем диска есть ещё один уровень — список дисков, иначе с C: не перейти на D:
+const DRIVES = '::drives';
+function driveList() {
+	const out = [];
+	for (let c = 67; c <= 90; c++) { // C…Z: дисководы A и B не опрашиваем, они могут надолго задуматься
+		const root = String.fromCharCode(c) + ':\\';
+		try {
+			if (fs.existsSync(root)) out.push({ name: root.slice(0, 2), dir: true, size: 0, mtime: 0, hidden: false, path: root, url: pathToFileURL(root).href });
+		} catch (e) { /* диск не отвечает */ }
+	}
+	return out;
+}
 handle('files:list', (dir) => {
+	const onWin = process.platform === 'win32';
+	if (onWin && dir === DRIVES) return { path: 'Этот компьютер', virtual: true, parent: '', root: '', home: os.homedir(), truncated: false, entries: driveList() };
 	dir = path.resolve(String(dir || os.homedir()));
-	const parent = path.dirname(dir);
+	const up = path.dirname(dir);
+	const parent = up === dir ? (onWin ? DRIVES : '') : up;
+	const root = onWin ? DRIVES : '';
 	let names;
 	try {
 		names = fs.readdirSync(dir);
 	} catch (e) {
-		return { path: dir, parent: parent === dir ? '' : parent, home: os.homedir(), truncated: false, entries: [], error: e.code === 'EACCES' || e.code === 'EPERM' ? 'Нет доступа к папке' : 'Не удалось открыть папку: ' + e.message };
+		return { path: dir, parent, root, home: os.homedir(), truncated: false, entries: [], error: e.code === 'EACCES' || e.code === 'EPERM' ? 'Нет доступа к папке' : 'Не удалось открыть папку: ' + e.message };
 	}
 	const entries = [];
 	for (const name of names.slice(0, 5000)) {
@@ -2541,7 +2568,7 @@ handle('files:list', (dir) => {
 		}
 		entries.push({ name, dir: st.isDirectory(), size: st.isDirectory() ? 0 : st.size, mtime: st.mtimeMs, hidden: name.startsWith('.'), path: full, url: pathToFileURL(full).href });
 	}
-	return { path: dir, parent: parent === dir ? '' : parent, home: os.homedir(), truncated: names.length > 5000, entries };
+	return { path: dir, parent, root, home: os.homedir(), truncated: names.length > 5000, entries };
 });
 
 // Страница problet:// не может сама перейти на file://, поэтому открываем файл в её вкладке отсюда
@@ -2644,6 +2671,15 @@ handle('insecure:proceed', (url) => {
 	adblock.allowInsecure(u.hostname);
 	const tab = tabs.find((t) => t.id === activeId);
 	if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.loadURL(u.href);
+});
+// Ссылка на локальный файл со страницы браузера: в той же вкладке или в новой
+ipcMain.handle('page:open-file', (e, url, newTab) => {
+	guard(e);
+	const u = new URL(String(url));
+	if (u.protocol !== 'file:') throw new Error('Неверный адрес');
+	const tab = tabs.find((t) => t.view.webContents === e.sender);
+	if (newTab || !tab) createTab(u.href, { afterId: tab ? tab.id : undefined });
+	else tab.view.webContents.loadURL(u.href).catch(() => {});
 });
 handle('page:open-tab', (name) => {
 	if (!INTERNAL_PAGES.has(name) || name === 'newtab') throw new Error('Неизвестная страница');
@@ -2902,6 +2938,7 @@ handle('data:import', async () => {
 	const mode = choice.response === 1 ? 'replace' : 'merge';
 	const s = store.importData(parsed, mode);
 	applySettings();
+	sendExtActions();
 	sendState();
 	const base = 'закладок ' + s.bookmarks + ', папок ' + s.folders + ', запросов ' + s.searches;
 	return { message: mode === 'replace' ? 'Данные заменены: ' + base : 'Добавлено: ' + base + (s.skipped ? '. Пропущено повторов: ' + s.skipped : '') };
@@ -3015,27 +3052,43 @@ function createWindow() {
 		if (started) return;
 		started = true;
 		openStartupTabs();
+		for (const [arg, cwd] of incomingEarly.splice(0)) openIncoming(arg, cwd);
 	});
 }
 
 // Второй запуск (например, «открыть ссылку в Problet» из системы) открывает адрес в новой вкладке уже запущенного окна
 const gotLock = headless.enabled || app.requestSingleInstanceLock(); // без окна можно запускать сколько угодно копий
 // Ссылка из системы (второй запуск или ярлык): показываем окно и открываем адрес в новой вкладке
-function openIncoming(arg) {
-	if (!win) return;
+let incomingEarly = []; // ссылки, пришедшие до появления окна (macOS присылает их событием ещё при запуске)
+function openIncoming(arg, cwd) {
+	if (!win || !started) {
+		if (arg) incomingEarly.push([arg, cwd]);
+		return;
+	}
 	if (win.isMinimized()) win.restore();
 	win.focus();
-	const r = arg && resolveInput(arg, true);
+	let r = null;
+	if (arg && cwd && !path.isAbsolute(arg) && !/^[a-z][a-z0-9+.-]*:/i.test(arg) && fs.existsSync(path.resolve(cwd, arg))) r = { url: pathToFileURL(path.resolve(cwd, arg)).href };
+	else if (arg) r = resolveInput(arg, true);
 	if (r) createTab(r.url);
 }
-app.on('second-instance', (_e, argv) => openIncoming(argv.slice(app.isPackaged ? 1 : 2).find((x) => !x.startsWith('-'))));
+app.on('second-instance', (_e, argv, cwd) => openIncoming(argv.slice(app.isPackaged ? 1 : 2).find((x) => !x.startsWith('-')), cwd));
+// macOS передаёт ссылки и файлы не аргументами, а событиями
+app.on('open-url', (e, url) => {
+	e.preventDefault();
+	openIncoming(url);
+});
+app.on('open-file', (e, file) => {
+	e.preventDefault();
+	openIncoming(file);
+});
 
 app.whenReady().then(() => {
 	if (!gotLock) {
 		app.quit();
 		return;
 	}
-	if (process.platform === 'linux' && process.env.APPIMAGE) {
+	if (process.platform === 'linux' && process.env.APPIMAGE && !headless.enabled) { // без окна профиль временный: ярлык и приём ссылок остаются у обычного Problet
 		try {
 			const desktop = require('./desktop');
 			// Ярлык, записанный старой версией, запускал AppImage напрямую (и без FUSE не работал): переписываем его на скрипт, который передаёт ссылку запущенному браузеру
@@ -3043,6 +3096,9 @@ app.whenReady().then(() => {
 			desktop.startInbox(app.getPath('userData'), openIncoming);
 		} catch (e) { log('не удалось подготовить приём ссылок из системы', e); }
 	}
+	// macOS: стандартное меню Electron перезагружало бы саму панель браузера по Cmd+R и закрывало окно по Cmd+W, когда фокус в поиске или окошке.
+	// Оставляем только нужное системе: меню приложения, правку (копирование и вставка работают через него) и окно
+	if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { label: 'Окно', submenu: [{ role: 'minimize' }, { role: 'zoom' }] }]));
 	store.init(app.getPath('userData'));
 	vault.init(app.getPath('userData'), { onLock: () => sendState() });
 	vault.setAutoLock(settings().pwLock);
@@ -3062,7 +3118,7 @@ app.whenReady().then(() => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
 		refreshTip();
 	});
-	updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster }));
+	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster }));
 });
 function startHeadless() {
 	if (headless.flag('adblock')) store.setSettings({ adblock: true });

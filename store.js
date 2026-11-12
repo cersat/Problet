@@ -419,7 +419,7 @@ function sanitizeZoom(raw) {
 // Сколько рекламных запросов заблокировано за всё время
 function addBlocked() {
 	data.blockedTotal++;
-	scheduleSave();
+	scheduleSave(5000); // на страницах с рекламой счётчик растёт десятки раз в секунду: ради него файл пишется не чаще раза в 5 секунд
 }
 
 const blockedTotal = () => data.blockedTotal;
@@ -527,8 +527,13 @@ function changed(kind) {
 	for (const cb of listeners) cb(kind);
 }
 
-function scheduleSave() {
-	if (!timer) timer = setTimeout(save, 300);
+let saveAt = 0; // когда сработает уже назначенное сохранение
+function scheduleSave(delay = 300) {
+	const at = Date.now() + delay;
+	if (timer && saveAt <= at) return;
+	clearTimeout(timer);
+	saveAt = at;
+	timer = setTimeout(save, delay);
 }
 
 function flush() {

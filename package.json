@@ -1,7 +1,7 @@
 {
   "name": "problet",
   "productName": "Problet",
-  "version": "8.6.0",
+  "version": "8.6.1",
   "description": "Problet — минимальный браузер на Electron",
   "main": "main.js",
   "scripts": {
@@ -70,7 +70,16 @@
       "category": "public.app-category.productivity",
       "icon": "icon.png",
       "identity": null
-    }
+    },
+    "protocols": [
+      {
+        "name": "Web",
+        "schemes": [
+          "http",
+          "https"
+        ]
+      }
+    ]
   },
   "desktopName": "problet.desktop"
 }

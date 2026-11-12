@@ -105,6 +105,15 @@ if (location.protocol === 'problet:') {
 		folderOpenAll: (id) => call('folder:open-all', id),
 		folderDelete: (id) => call('folder:delete', id),
 	});
+	// Ссылку на локальный файл (закладка, запись истории) страница problet:// сама открыть не может: Chromium запрещает такой переход. Открывает главный процесс
+	const openFile = (e) => {
+		const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
+		if (!a || e.defaultPrevented || !/^file:/i.test(a.href) || (e.type === 'auxclick' && e.button !== 1)) return;
+		e.preventDefault();
+		call('page:open-file', a.href, e.type === 'auxclick' || a.target === '_blank' || e.ctrlKey || e.metaKey).catch(() => {});
+	};
+	document.addEventListener('click', openFile);
+	document.addEventListener('auxclick', openFile);
 }
 
 // Ключи доступа (WebAuthn) в Electron не работают: запрос ждёт окна системы, которого нет, и сайт зависает.

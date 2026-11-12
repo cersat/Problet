@@ -677,3 +677,13 @@ refreshBlocked().catch(() => {});
 setInterval(() => {
 	if (document.visibilityState === 'visible') refreshBlocked().catch(() => {});
 }, 2000);
+
+// Настройки могли измениться не здесь (поставили расширение, растянули панель вкладок, нарисовали значок кнопки): списки панелей и клавиш перечитываются
+api.onChange((kinds) => {
+	if (!kinds.includes('settings') && !kinds.includes('all')) return;
+	if (recording || $('cb-dialog').open) return;
+	api.getSettings().then((r) => {
+		current = r.settings;
+		renderPanels();
+	}).catch(() => {});
+});

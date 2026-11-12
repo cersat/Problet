@@ -48,9 +48,14 @@ const go = (p) => { location.href = 'problet://files/?p=' + encodeURIComponent(p
 function crumbs() {
 	const nav = $('crumbs');
 	nav.textContent = '';
+	if (data.virtual) { // список дисков Windows: это не папка, пути у него нет
+		nav.append(Object.assign(document.createElement('a'), { textContent: data.path }));
+		return;
+	}
 	const sep = data.path.includes('\\') ? '\\' : '/';
 	const parts = data.path.split(sep).filter(Boolean);
 	const items = [];
+	if (data.root) items.push(['Этот компьютер', data.root]);
 	if (sep === '/') {
 		items.push(['/', '/']);
 		let p = '';
@@ -123,7 +128,7 @@ function render() {
 			name.append(ed);
 		}
 		const size = Object.assign(document.createElement('div'), { className: 'size', textContent: e.dir ? '' : fmtSize(e.size) });
-		const date = Object.assign(document.createElement('div'), { className: 'date', textContent: fmtDate(e.mtime) });
+		const date = Object.assign(document.createElement('div'), { className: 'date', textContent: e.mtime ? fmtDate(e.mtime) : '' });
 		row.append(name, size, date);
 		box.append(row);
 	}
