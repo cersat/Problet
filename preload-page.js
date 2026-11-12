@@ -60,6 +60,7 @@ if (location.protocol === 'problet:') {
 		pngWrite: (p, dataUrl) => call('png:write', p, dataUrl),
 		svgSavePng: (dataUrl, name) => call('svg:save-png', dataUrl, name),
 		svgSaveAs: (text) => call('svg:save-as', text),
+		svgCopyPng: (dataUrl) => call('svg:copy-png', dataUrl),
 		debug: (action) => call('debug:run', action),
 		insecureProceed: (url) => call('insecure:proceed', url),
 		openInNewTab: (name) => call('page:open-tab', name),

@@ -7,7 +7,7 @@ if [ ! -d "$WORK/.git" ]; then GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https:/
 cd "$WORK"
 [ -d node_modules ] || npm install --ignore-scripts --no-audit --no-fund
 mkdir -p src/problet
-cp "$HERE/entry.jsx" "$HERE/entry.css" src/problet/
+cp "$HERE/entry.jsx" "$HERE/entry.css" "$HERE/tools.js" src/problet/
 cp "$HERE/webpack.problet.js" .
 NODE_OPTIONS=--openssl-legacy-provider OUT="$HERE/../../pages" npx webpack --config webpack.problet.js --bail
 cp LICENSE "$HERE/../../pages/svgedit.LICENSE.txt"

@@ -106,6 +106,18 @@ if (false) { var throwOnDirectAccess, ReactIs; } else {
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
+
+
+if (true) {
+  module.exports = __webpack_require__(90);
+} else {}
+
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
 var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
  * Paper.js v0.12.7 - The Swiss Army Knife of Vector Graphics Scripting.
  * http://paperjs.org/
@@ -15703,18 +15715,6 @@ return paper;
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-if (true) {
-  module.exports = __webpack_require__(90);
-} else {}
-
-
-/***/ }),
 /* 3 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
@@ -15744,7 +15744,7 @@ function _inheritsLoose(subClass, superClass) {
   _setPrototypeOf(subClass, superClass);
 }
 // EXTERNAL MODULE: ./node_modules/react/index.js
-var react = __webpack_require__(2);
+var react = __webpack_require__(1);
 
 // EXTERNAL MODULE: ./node_modules/prop-types/index.js
 var prop_types = __webpack_require__(0);
@@ -15892,7 +15892,7 @@ var hoist_non_react_statics_cjs = __webpack_require__(31);
 var hoist_non_react_statics_cjs_default = /*#__PURE__*/__webpack_require__.n(hoist_non_react_statics_cjs);
 
 // EXTERNAL MODULE: ./node_modules/invariant/browser.js
-var browser = __webpack_require__(17);
+var browser = __webpack_require__(18);
 var browser_default = /*#__PURE__*/__webpack_require__.n(browser);
 
 // EXTERNAL MODULE: ./node_modules/react-is/index.js
@@ -16282,7 +16282,7 @@ function shallowEqual(objA, objB) {
   return true;
 }
 // EXTERNAL MODULE: ./node_modules/redux/es/index.js + 15 modules
-var es = __webpack_require__(16);
+var es = __webpack_require__(17);
 
 // CONCATENATED MODULE: ./node_modules/react-redux/es/utils/isPlainObject.js
 /**
@@ -18222,7 +18222,7 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(144);
 
             content = content.__esModule ? content.default : content;
@@ -18246,7 +18246,7 @@ module.exports = content.locals || {};
 /* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(154);
 
             content = content.__esModule ? content.default : content;
@@ -18305,7 +18305,7 @@ var prop_types = __webpack_require__(0);
 var prop_types_default = /*#__PURE__*/__webpack_require__.n(prop_types);
 
 // EXTERNAL MODULE: ./node_modules/react/index.js
-var react = __webpack_require__(2);
+var react = __webpack_require__(1);
 var react_default = /*#__PURE__*/__webpack_require__.n(react);
 
 // EXTERNAL MODULE: ./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js
@@ -18313,7 +18313,7 @@ var hoist_non_react_statics_cjs = __webpack_require__(31);
 var hoist_non_react_statics_cjs_default = /*#__PURE__*/__webpack_require__.n(hoist_non_react_statics_cjs);
 
 // EXTERNAL MODULE: ./node_modules/invariant/browser.js
-var browser = __webpack_require__(17);
+var browser = __webpack_require__(18);
 var browser_default = /*#__PURE__*/__webpack_require__.n(browser);
 
 // CONCATENATED MODULE: ./node_modules/intl-format-cache/lib/index.js
@@ -20103,8 +20103,8 @@ addLocaleData(locale_data_ignored_default.a);
 /* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
-            var content = __webpack_require__(151);
+var api = __webpack_require__(11);
+            var content = __webpack_require__(156);
 
             content = content.__esModule ? content.default : content;
 
@@ -20125,6 +20125,30 @@ module.exports = content.locals || {};
 
 /***/ }),
 /* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var api = __webpack_require__(11);
+            var content = __webpack_require__(151);
+
+            content = content.__esModule ? content.default : content;
+
+            if (typeof content === 'string') {
+              content = [[module.i, content, '']];
+            }
+
+var options = {};
+
+options.insert = "head";
+options.singleton = false;
+
+var update = api(content, options);
+
+
+
+module.exports = content.locals || {};
+
+/***/ }),
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20399,7 +20423,7 @@ module.exports = function (list, options) {
 };
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20481,10 +20505,10 @@ function toComment(sourceMap) {
 }
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(153);
 
             content = content.__esModule ? content.default : content;
@@ -20505,10 +20529,10 @@ var update = api(content, options);
 module.exports = content.locals || {};
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(152);
 
             content = content.__esModule ? content.default : content;
@@ -20529,7 +20553,7 @@ var update = api(content, options);
 module.exports = content.locals || {};
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var convert = __webpack_require__(125);
@@ -20618,7 +20642,7 @@ module.exports = function (cstr) {
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20678,7 +20702,7 @@ module.exports = keyMirror;
 
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -21477,7 +21501,7 @@ if (false) {}
 
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21527,30 +21551,6 @@ var invariant = function(condition, format, a, b, c, d, e, f) {
 
 module.exports = invariant;
 
-
-/***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var api = __webpack_require__(10);
-            var content = __webpack_require__(156);
-
-            content = content.__esModule ? content.default : content;
-
-            if (typeof content === 'string') {
-              content = [[module.i, content, '']];
-            }
-
-var options = {};
-
-options.insert = "head";
-options.singleton = false;
-
-var update = api(content, options);
-
-
-
-module.exports = content.locals || {};
 
 /***/ }),
 /* 19 */
@@ -23073,7 +23073,7 @@ exports['default'] = exports;
 /* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(120);
 
             content = content.__esModule ? content.default : content;
@@ -23097,7 +23097,7 @@ module.exports = content.locals || {};
 /* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(141);
 
             content = content.__esModule ? content.default : content;
@@ -23149,7 +23149,7 @@ exports['default'] = exports;
 /* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(150);
 
             content = content.__esModule ? content.default : content;
@@ -23179,7 +23179,7 @@ module.exports = "data:image/svg+xml,%3C?xml version='1.0' encoding='UTF-8' stan
 /* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(143);
 
             content = content.__esModule ? content.default : content;
@@ -23204,7 +23204,7 @@ module.exports = content.locals || {};
 /***/ (function(module, exports, __webpack_require__) {
 
 !function(root, factory) {
-     true ? module.exports = factory(__webpack_require__(2)) : undefined;
+     true ? module.exports = factory(__webpack_require__(1)) : undefined;
 }("undefined" != typeof self ? self : this, function(__WEBPACK_EXTERNAL_MODULE_5__) {
     return function(modules) {
         function __webpack_require__(moduleId) {
@@ -24126,7 +24126,7 @@ module.exports = "data:image/svg+xml,%3C?xml version='1.0' encoding='UTF-8'?%3E 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(process) {/* harmony import */ var prop_types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(0);
 /* harmony import */ var prop_types__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(prop_types__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var react_style_proptype__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(68);
 /* harmony import */ var react_style_proptype__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react_style_proptype__WEBPACK_IMPORTED_MODULE_2__);
@@ -24279,7 +24279,7 @@ module.exports = lib.default
 /* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(121);
 
             content = content.__esModule ? content.default : content;
@@ -24303,7 +24303,7 @@ module.exports = content.locals || {};
 /* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(122);
 
             content = content.__esModule ? content.default : content;
@@ -24327,7 +24327,7 @@ module.exports = content.locals || {};
 /* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(142);
 
             content = content.__esModule ? content.default : content;
@@ -24351,7 +24351,7 @@ module.exports = content.locals || {};
 /* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(145);
 
             content = content.__esModule ? content.default : content;
@@ -24375,7 +24375,7 @@ module.exports = content.locals || {};
 /* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(148);
 
             content = content.__esModule ? content.default : content;
@@ -24625,7 +24625,7 @@ var result = Object(_ponyfill_js__WEBPACK_IMPORTED_MODULE_0__[/* default */ "a"]
 /* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(147);
 
             content = content.__esModule ? content.default : content;
@@ -25193,7 +25193,7 @@ var freeGlobal = typeof global == 'object' && global && global.Object === Object
 /* 65 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(119);
 
             content = content.__esModule ? content.default : content;
@@ -25266,7 +25266,7 @@ module.exports.supportingArrays = PropTypes.oneOfType([
 /* 69 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(124);
 
             content = content.__esModule ? content.default : content;
@@ -25302,7 +25302,7 @@ module.exports = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAAAAADh
 /* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(146);
 
             content = content.__esModule ? content.default : content;
@@ -25338,7 +25338,7 @@ module.exports = "data:image/svg+xml,%3C?xml version='1.0' encoding='UTF-8' stan
 /* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var api = __webpack_require__(10);
+var api = __webpack_require__(11);
             var content = __webpack_require__(149);
 
             content = content.__esModule ? content.default : content;
@@ -25489,7 +25489,7 @@ isValidElement:K,version:"16.2.0",__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_F
 /*
  Modernizr 3.0.0pre (Custom Build) | MIT
 */
-var aa=__webpack_require__(92),ca=__webpack_require__(2),m=__webpack_require__(93),p=__webpack_require__(56),v=__webpack_require__(58),da=__webpack_require__(94),ea=__webpack_require__(95),fa=__webpack_require__(96),ha=__webpack_require__(57);
+var aa=__webpack_require__(92),ca=__webpack_require__(1),m=__webpack_require__(93),p=__webpack_require__(56),v=__webpack_require__(58),da=__webpack_require__(94),ea=__webpack_require__(95),fa=__webpack_require__(96),ha=__webpack_require__(57);
 function A(a){for(var b=arguments.length-1,c="https://reactjs.org/docs/error-decoder.html?invariant="+a,d=0;d<b;d++)c+="&args[]="+encodeURIComponent(arguments[d+1]);aa(!1,"Minified React error #"+a+"; visit %s for the full message or use the non-minified dev environment for full errors and additional helpful warnings. ",c)}ca?void 0:A("227");
 function ia(a,b,c,d,e,f,g,h,k){this._hasCaughtError=!1;this._caughtError=null;var n=Array.prototype.slice.call(arguments,3);try{b.apply(c,n)}catch(r){this._caughtError=r,this._hasCaughtError=!0}}
 var B={_caughtError:null,_hasCaughtError:!1,_rethrowError:null,_hasRethrowError:!1,invokeGuardedCallback:function(a,b,c,d,e,f,g,h,k){ia.apply(B,arguments)},invokeGuardedCallbackAndCatchFirstError:function(a,b,c,d,e,f,g,h,k){B.invokeGuardedCallback.apply(this,arguments);if(B.hasCaughtError()){var n=B.clearCaughtError();B._hasRethrowError||(B._hasRethrowError=!0,B._rethrowError=n)}},rethrowCaughtError:function(){return ka.apply(B,arguments)},hasCaughtError:function(){return B._hasCaughtError},clearCaughtError:function(){if(B._hasCaughtError){var a=
@@ -28618,7 +28618,7 @@ exports.default = { "locale": "en", "pluralRuleFunction": function (n, ord) {
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, ".paper-canvas_paper-canvas_2biXB {\n    top: 1px; /* leave room for the border */\n    left: 1px;\n    width: calc(100% - 2px);\n    height: calc(100% - 2px);\n    margin: auto;\n    position: absolute;\n    background-color: #D9E3F2;\n}\n[data-paint-theme=\"dark\"] .paper-canvas_paper-canvas_2biXB {\n    background-color: #222;\n}\n", ""]);
@@ -28635,7 +28635,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, ".scrollable-canvas_vertical-scrollbar_gyXyM, .scrollable-canvas_horizontal-scrollbar_OBOUt {\n    background: rgba(190, 190, 190, 0.8);\n    border-radius: calc(8px / 2);\n    width: 100%;\n    height: 100%;\n}\n.scrollable-canvas_vertical-scrollbar-wrapper_1cMNm {\n    position: absolute;\n    width: calc(8px + 4px);\n    right: 0;\n    top: 4px;\n    height: calc(100% - 8px - 2 * 4px);\n}\n.scrollable-canvas_horizontal-scrollbar-wrapper_2BUMa {\n    position: absolute;\n    height: calc(8px + 4px);\n    left: 4px;\n    bottom: 0;\n    width: calc(100% - 8px - 2 * 4px);\n}\n.scrollable-canvas_vertical-scrollbar-hitbox_2QprH, .scrollable-canvas_horizontal-scrollbar-hitbox_EBg8r {\n    position: absolute;\n    cursor: pointer;\n    -webkit-box-sizing: border-box;\n            box-sizing: border-box;\n}\n.scrollable-canvas_vertical-scrollbar-hitbox_2QprH {\n    width: calc(8px + 4px);\n    padding-right: 4px;\n}\n.scrollable-canvas_horizontal-scrollbar-hitbox_EBg8r {\n    height: calc(8px + 4px);\n    padding-bottom: 4px;\n}\n", ""]);
@@ -28662,7 +28662,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n.button_button_lmpwR {\n    background: none;\n    cursor: pointer;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n        -ms-user-select: none;\n            user-select: none;\n}\n\n.button_button_lmpwR:active {\n    background-color: var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n}\n\n.button_highlighted_2c0Ir.button_button_lmpwR {\n    background-color: var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n}\n\n.button_mod-disabled_CFsZ2 {\n    cursor: auto;\n    opacity: .5;\n}\n\n.button_mod-disabled_CFsZ2:active {\n    background: none;\n}\n", ""]);
@@ -28681,7 +28681,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.tool-select-base_mod-tool-select_1RQKn {\n    display: inline-block;\n    margin: .25rem;\n    border: none;\n    border-radius: .25rem;\n    outline: none;\n    background: none;\n    padding: .25rem;\n    font-size: 0.85rem;\n    -webkit-transition: 0.2s;\n    transition: 0.2s;\n}\n\n.tool-select-base_mod-tool-select_1RQKn.tool-select-base_is-selected_3Le38 {\n    background-color: var(--paint-looks-secondary, #855CD6);\n}\n\n.tool-select-base_mod-tool-select_1RQKn:focus {\n    outline: none;\n}\n\nimg.tool-select-base_tool-select-icon_2TT3t {\n    width: 2rem;\n    height: 2rem;\n    -webkit-box-flex: 1;\n    -webkit-flex-grow: 1;\n        -ms-flex-positive: 1;\n            flex-grow: 1;\n    vertical-align: middle;\n    -webkit-filter: var(--paint-filter-icon-gray, none);\n            filter: var(--paint-filter-icon-gray, none);\n}\n\n.tool-select-base_mod-tool-select_1RQKn.tool-select-base_is-selected_3Le38 .tool-select-base_tool-select-icon_2TT3t {\n    /* Make the tool icons white while selected by making them black and inverting */\n    -webkit-filter: brightness(0) invert(1);\n            filter: brightness(0) invert(1);\n}\n\n@media only screen and (max-width: 1256px) {\n    .tool-select-base_mod-tool-select_1RQKn {\n        margin: 0;\n    }\n}\n", ""]);
@@ -30296,7 +30296,7 @@ module.exports = [
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.button-group_button-group_3_c2R {\n    display: -webkit-inline-box;\n    display: -webkit-inline-flex;\n    display: -ms-inline-flexbox;\n    display: inline-flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    margin: 0 0 0 0.5rem;\n}\n\n[dir=\"rtl\"] .button-group_button-group_3_c2R {\n    margin: 0 0.5rem 0 0;\n}\n", ""]);
@@ -31140,7 +31140,7 @@ var _propTypes = __webpack_require__(0);
 
 var _propTypes2 = _interopRequireDefault(_propTypes);
 
-var _react = __webpack_require__(2);
+var _react = __webpack_require__(1);
 
 var _react2 = _interopRequireDefault(_react);
 
@@ -33362,7 +33362,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _react = __webpack_require__(2);
+var _react = __webpack_require__(1);
 
 var _react2 = _interopRequireDefault(_react);
 
@@ -33396,7 +33396,7 @@ exports.default = Tip;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n.color-button_color-button_2-mXT {\n    height: 2rem;\n    width: 3rem;\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n}\n\n.color-button_color-button-swatch_6Xhs3 {\n    position: relative;\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    cursor: pointer;\n    -webkit-flex-basis: 2rem;\n        -ms-flex-preferred-size: 2rem;\n            flex-basis: 2rem;\n    -webkit-flex-shrink: 0;\n        -ms-flex-negative: 0;\n            flex-shrink: 0;\n    height: 100%;\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    background-origin: border-box !important;\n}\n\n[dir=\"ltr\"] .color-button_color-button-swatch_6Xhs3 {\n    border-top-left-radius: 4px;\n    border-bottom-left-radius: 4px;\n}\n\n[dir=\"rtl\"] .color-button_color-button-swatch_6Xhs3 {\n    border-top-right-radius: 4px;\n    border-bottom-right-radius: 4px;\n}\n\n.color-button_color-button-arrow_1b654 {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n        -ms-user-select: none;\n            user-select: none;\n    cursor: pointer;\n    -webkit-flex-basis: 1rem;\n        -ms-flex-preferred-size: 1rem;\n            flex-basis: 1rem;\n    -webkit-flex-shrink: 0;\n        -ms-flex-negative: 0;\n            flex-shrink: 0;\n    height: 100%;\n\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n\n    -webkit-box-align: center;\n\n    -webkit-align-items: center;\n\n        -ms-flex-align: center;\n\n            align-items: center;\n    -webkit-box-pack: center;\n    -webkit-justify-content: center;\n        -ms-flex-pack: center;\n            justify-content: center;\n    color: #575e75;\n    font-size: 0.75rem;\n}\n\n[dir=\"ltr\"] .color-button_color-button-arrow_1b654 {\n    border-top-right-radius: 4px;\n    border-bottom-right-radius: 4px;\n    border-left: none;\n}\n\n[dir=\"rtl\"] .color-button_color-button-arrow_1b654 {\n    border-top-left-radius: 4px;\n    border-bottom-left-radius: 4px;\n    border-right: none;\n}\n\n.color-button_swatch-icon_2gc40 {\n    width: 1.75rem;\n    margin: auto;\n    /* Make sure it appears above the outline box */\n    z-index: 2;\n}\n\n.color-button_outline-swatch_2ifeG:after {\n    content: \"\";\n    position: absolute;\n    top: calc(0.5rem);\n    left: calc(0.5rem);\n    width: 0.75rem;\n    height: 0.75rem;\n    background: white;\n    border: 1px solid rgba(0, 0, 0, 0.25);\n    /* Make sure it appears below the transparent icon */\n    z-index: 1;\n}\n", ""]);
@@ -33421,7 +33421,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, ".slider_container_2U0n6 {\n    margin: 8px;\n    height: 22px;\n    width: 150px;\n    position: relative;\n    outline: none;\n    border-radius: 11px;\n    margin-bottom: 16px;\n}\n\n.slider_last_3coMi {\n    margin-bottom: 4px;\n}\n\n.slider_handle_2M_mA {\n    left: 100px;\n    width: 26px;\n    height: 26px;\n    margin-top: -2px;\n    position: absolute;\n    background-color: white;\n    border-radius: 100%;\n    -webkit-box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.15);\n            box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.15);\n    -ms-touch-action: none;\n        touch-action: none;\n}\n", ""]);
@@ -33439,7 +33439,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.labeled-icon-button_mod-edit-field_Z3eav {\n    background: none;\n    border: none;\n    display: inline-block;\n    padding: .25rem .325rem;\n    outline: none;\n    border-radius: 0.25rem;\n    min-width: 3rem;\n    font-size: 0.85rem;\n    text-align: center;\n}\n\n.labeled-icon-button_edit-field-icon_1BGdr {\n    width: 1.5rem;\n    height: 1.5rem;\n    -webkit-box-flex: 1;\n    -webkit-flex-grow: 1;\n        -ms-flex-positive: 1;\n            flex-grow: 1;\n    vertical-align: middle;\n}\n\n.labeled-icon-button_edit-field-icon_1BGdr.labeled-icon-button_gray_2QiHm {\n    -webkit-filter: var(--paint-filter-icon-gray, none);\n            filter: var(--paint-filter-icon-gray, none);\n}\n\n.labeled-icon-button_edit-field-title_32vCQ {\n    display: block;\n    margin-top: .125rem;\n    font-size: .625rem;\n}\n", ""]);
@@ -33461,7 +33461,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n/* Popover styles */\n\n/* body is for specificity to override some addons that set a lower z-index */\n\nbody .Popover {\n    /* should be above menu bar */\n    z-index: 500;\n\n    /* color-scheme: dark causes very strange issues */\n    color-scheme: light;\n}\n\n.Popover-body {\n    color: var(--paint-text-primary, #575e75);\n    background: var(--paint-popover-background, #FFFFFF);\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    padding: 4px;\n    border-radius: 4px;\n    padding: 4px;\n    -webkit-box-shadow: 0px 0px 8px 1px var(--paint-ui-pane-border, #D9D9D9);\n            box-shadow: 0px 0px 8px 1px var(--paint-ui-pane-border, #D9D9D9);\n}\n\n.Popover-tipShape {\n    fill: var(--paint-popover-background, #FFFFFF);\n    stroke: var(--paint-ui-pane-border, #D9D9D9);\n}\n\n.color-picker_clickable_1qAhZ {\n    cursor: pointer;\n}\n\n.color-picker_swatch-row_3ygSb {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-box-pack: justify;\n    -webkit-justify-content: space-between;\n        -ms-flex-pack: justify;\n            justify-content: space-between;\n}\n\n.color-picker_row-header_23YDh {\n    font-family: \"Helvetica Neue\", Helvetica, sans-serif;\n    font-size: 0.65rem;\n    margin: 8px 8px 0 8px;\n}\n\n.color-picker_label-name_3kaOv {\n    font-weight: bold;\n}\n\n.color-picker_divider_3Hq7P {\n    border-top: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    margin: 8px;\n}\n\n.color-picker_swap-button_knDOR {\n    margin-left: 8px;\n    margin-right: 8px;\n}\n\n.color-picker_swatches_3P15b {\n    margin: 8px;\n}\n\n.color-picker_swatch_3zRbd {\n    width: 1.5rem;\n    height: 1.5rem;\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-radius: 4px;\n    -webkit-box-sizing: content-box;\n            box-sizing: content-box;\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n.color-picker_large-swatch-icon_2EdzJ {\n    width: 1.75rem;\n    margin: auto;\n}\n\n.color-picker_large-swatch_2tprq {\n    width: 2rem;\n    height: 2rem;\n}\n\n.color-picker_active-swatch_2U6UP {\n    border: 1px solid var(--paint-looks-secondary, #855CD6);\n    -webkit-box-shadow: 0px 0px 0px 3px var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n            box-shadow: 0px 0px 0px 3px var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n}\n\n.color-picker_swatch-icon_1GWhH {\n    width: 1.5rem;\n    height: 1.5rem;\n}\n\n.color-picker_picker-icon_vA6YH {\n    -webkit-filter: var(--paint-filter-icon-gray, none);\n            filter: var(--paint-filter-icon-gray, none);\n}\n\n.color-picker_inactive-gradient_3LMcb {\n    -webkit-filter: saturate(0%);\n            filter: saturate(0%);\n}\n\n.color-picker_gradient-picker-row_2ZOSs {\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-box-pack: center;\n    -webkit-justify-content: center;\n        -ms-flex-pack: center;\n            justify-content: center;\n    margin: 8px;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n        -ms-user-select: none;\n            user-select: none;\n}\n\n[dir=\"ltr\"] .color-picker_gradient-picker-row_2ZOSs > img + img {\n    margin-left: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .color-picker_gradient-picker-row_2ZOSs > img + img {\n    margin-right: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .color-picker_gradient-swatches-row_1laEb {\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: reverse;\n    -webkit-flex-direction: row-reverse;\n        -ms-flex-direction: row-reverse;\n            flex-direction: row-reverse;\n}\n\n.color-picker_picker-row_4nyd4 {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    margin: 8px;\n    margin-top: 12px;\n    width: 150px;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n.color-picker_picker-row_4nyd4 .color-picker_picker-color_3hWcS {\n    border: none;\n    border-radius: 0;\n    padding: 0 0.2rem;\n    width: 3rem;\n    -webkit-box-sizing: border-box;\n            box-sizing: border-box;\n    cursor: pointer;\n    margin: 0;\n    padding: 0;\n}\n\n.color-picker_picker-row_4nyd4 .color-picker_picker-text_39zqi {\n    -webkit-box-sizing: border-box;\n            box-sizing: border-box;\n    width: 100%;\n}\n\n[dir=\"ltr\"] .color-picker_picker-row_4nyd4 .color-picker_picker-text_39zqi {\n    border-top-left-radius: 0;\n    border-bottom-left-radius: 0;\n}\n\n[dir=\"rtl\"] .color-picker_picker-row_4nyd4 .color-picker_picker-text_39zqi {\n    border-top-right-radius: 0;\n    border-bottom-right-radius: 0;\n}\n", ""]);
@@ -33510,7 +33510,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* NOTE:\nEdited to add input-range-small\n*/\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n.input_input-form_l9eYg {\n    height: 2rem;\n    padding: 0 0.75rem;\n\n    font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;\n    font-size: 0.75rem;\n    font-weight: bold;\n    color: var(--paint-text-primary, #575e75);\n    background-color: var(--paint-input-background, #FFFFFF);\n\n    border-width: 1px;\n    border-style: solid;\n    border-color: var(--paint-form-border, #E9EEF2);\n    border-radius: 2rem;\n\n    outline: none;\n    cursor: text;\n    -webkit-transition: 0.25s ease-out;\n    transition: 0.25s ease-out; /* @todo: standardize with var */\n    -webkit-box-shadow: none;\n            box-shadow: none;\n\n    /*\n        For truncating overflowing text gracefully\n        Min-width is for a bug: https://css-tricks.com/flexbox-truncated-text\n        @todo: move this out into a mixin or a helper component\n    */\n    overflow: hidden;\n    text-overflow: ellipsis;\n    white-space: nowrap;\n    min-width: 0;\n}\n\n.input_input-form_l9eYg:hover {\n    border-color: var(--paint-looks-secondary, #855CD6);\n}\n\n.input_input-form_l9eYg:focus {\n    border-color: var(--paint-looks-secondary, #855CD6);\n    -webkit-box-shadow: 0 0 0 .25rem var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n            box-shadow: 0 0 0 .25rem var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n}\n\n.input_input-small_2qj1C {\n    width: 3rem;\n    text-align: center;\n}\n\n.input_input-small-range_2GQzZ {\n    width: 4rem;\n    text-align: center;\n}\n", ""]);
@@ -33531,7 +33531,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, ".tw-color-readout_readout_NZLGR {\n  width: 28px;\n  height: 16px;\n  text-align: center;\n  -moz-appearance: textfield;\n  font: inherit;\n  font-weight: bold;\n}\n[dir=\"ltr\"] .tw-color-readout_readout_NZLGR {\n  margin-left: 10px;\n}\n[dir=\"rtl\"] .tw-color-readout_readout_NZLGR {\n  margin-right: 10px;\n}\n.tw-color-readout_readout_NZLGR::-webkit-outer-spin-button,\n.tw-color-readout_readout_NZLGR::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n", ""]);
@@ -33547,7 +33547,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.input-group_input-group_3FzNB {\n    display: -webkit-inline-box;\n    display: -webkit-inline-flex;\n    display: -ms-inline-flexbox;\n    display: inline-flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n[dir=\"ltr\"] .input-group_input-group_3FzNB + .input-group_input-group_3FzNB {\n    margin-left: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .input-group_input-group_3FzNB + .input-group_input-group_3FzNB {\n    margin-right: calc(2 * .25rem);\n}\n\n.input-group_disabled_3fp6_ {\n    opacity: 0.3;\n    /* Prevent any user actions */\n    pointer-events: none;\n}\n", ""]);
@@ -33565,7 +33565,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n.label_input-group_2vTky {\n    display: -webkit-inline-box;\n    display: -webkit-inline-flex;\n    display: -ms-inline-flexbox;\n    display: inline-flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n[dir=\"ltr\"] .label_input-group_2vTky + .label_input-group_2vTky {\n    margin-left: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .label_input-group_2vTky + .label_input-group_2vTky {\n    margin-right: calc(2 * .25rem);\n}\n\n.label_disabled_1HlGv {\n    opacity: 0.3;\n    /* Prevent any user actions */\n    pointer-events: none;\n}\n\n.label_input-label_3KjCa, .label_input-label-secondary_3QDNV {\n    font-size: 0.625rem;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n        -ms-user-select: none;\n            user-select: none;\n    cursor: default;\n}\n\n[dir=\"ltr\"] .label_input-label_3KjCa, [dir=\"ltr\"] .label_input-label-secondary_3QDNV{\n    margin-right: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .label_input-label_3KjCa, [dir=\"ltr\"] .label_input-label-secondary_3QDNV{\n    margin-left: calc(2 * .25rem);\n}\n\n.label_input-label_3KjCa {\n    font-weight: bold;\n}\n\n@media only screen and (max-width: 1256px) {\n    .label_input-group_2vTky {\n        display: -webkit-box;\n        display: -webkit-flex;\n        display: -ms-flexbox;\n        display: flex;\n        -webkit-box-orient: vertical;\n        -webkit-box-direction: normal;\n        -webkit-flex-direction: column;\n            -ms-flex-direction: column;\n                flex-direction: column;\n        -webkit-box-align: start;\n        -webkit-align-items: flex-start;\n            -ms-flex-align: start;\n                align-items: flex-start;\n        margin-top: -1rem; /* To align with the non-labeled inputs */\n    }\n\n    .label_input-label_3KjCa {\n        font-weight: normal;\n        margin-bottom: 0.25rem;\n    }\n}\n", ""]);
@@ -33587,7 +33587,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, ".loupe_eye-dropper_39EHg {\n    position: absolute;\n    top: 0;\n    left: 0;\n    border-radius: 100%;\n    border: 1px solid #222;\n}\n\n[data-paint-theme=\"dark\"] .loupe_eye-dropper_39EHg {\n    border-color: #888;\n}\n", ""]);
@@ -33604,7 +33604,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n.dropdown_dropdown_2cQyf {\n    border: 1px solid var(--paint-form-border, #E9EEF2);\n    border-radius: 5px;\n    overflow: visible;\n    min-width: 3.5rem;\n    color: var(--paint-looks-secondary, #855CD6);\n    padding: .5rem;\n}\n\n.dropdown_mod-open_1QOjG {\n    background-color: var(--paint-form-border, #E9EEF2);\n}\n\n.dropdown_dropdown-icon_13LnP {\n    width: .5rem;\n    height: .5rem;\n    vertical-align: middle;\n    padding-bottom: .2rem;\n}\n\n[dir=\"ltr\"] .dropdown_dropdown-icon_13LnP {\n    margin-left: .5rem;\n}\n\n[dir=\"rtl\"] .dropdown_dropdown-icon_13LnP {\n    margin-right: .5rem;\n}\n\n.dropdown_mod-caret-up_1v809 {\n    -webkit-transform: rotate(180deg);\n        -ms-transform: rotate(180deg);\n            transform: rotate(180deg);\n    padding-bottom: 0;\n    padding-top: .2rem;\n}\n", ""]);
@@ -33626,7 +33626,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.fixed-tools_row_2PVw6 {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n.fixed-tools_costume-input_3ax5t {\n    width: 8rem;\n}\n\n[dir=\"ltr\"] .fixed-tools_mod-dashed-border_1AyX1 {\n    border-right: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-right: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .fixed-tools_mod-dashed-border_1AyX1 {\n    border-left: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-left: calc(2 * .25rem);\n}\n\n.fixed-tools_mod-unselect_1Xf-j {\n    -webkit-user-select: none;\n       -moz-user-select: none;\n        -ms-user-select: none;\n            user-select: none;\n}\n\n.fixed-tools_button-group-button_2DTEM {\n    display: inline-block;\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-radius: 0;\n    padding: .35rem;\n}\n\n[dir=\"ltr\"] .fixed-tools_button-group-button_2DTEM {\n    border-left: none;\n}\n\n[dir=\"rtl\"] .fixed-tools_button-group-button_2DTEM {\n    border-right: none;\n}\n\n[dir=\"ltr\"] .fixed-tools_button-group-button_2DTEM:last-of-type {\n    border-top-right-radius: 0.25rem;\n    border-bottom-right-radius: 0.25rem;\n}\n\n[dir=\"ltr\"] .fixed-tools_button-group-button_2DTEM:first-of-type {\n    border-left: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-top-left-radius: 0.25rem;\n    border-bottom-left-radius: 0.25rem;\n}\n\n[dir=\"rtl\"] .fixed-tools_button-group-button_2DTEM:last-of-type {\n    border-top-left-radius: 0.25rem;\n    border-bottom-left-radius: 0.25rem;\n}\n\n[dir=\"rtl\"] .fixed-tools_button-group-button_2DTEM:first-of-type {\n    border-right: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-top-right-radius: 0.25rem;\n    border-bottom-right-radius: 0.25rem;\n}\n\n[dir=\"ltr\"] .fixed-tools_button-group-button_2DTEM.fixed-tools_mod-start-border_1OTDn {\n    border-left: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n}\n\n[dir=\"rtl\"] .fixed-tools_button-group-button_2DTEM.fixed-tools_mod-start-border_1OTDn {\n    border-right: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n}\n\n[dir=\"ltr\"] .fixed-tools_button-group-button_2DTEM.fixed-tools_mod-no-end-border_20uuv {\n    border-right: none;\n}\n\n[dir=\"rtl\"] .fixed-tools_button-group-button_2DTEM.fixed-tools_mod-no-end-border_20uuv {\n    border-left: none;\n}\n\n.fixed-tools_button-group-button-icon_3shFH {\n    width: 1.25rem;\n    height: 1.25rem;\n    vertical-align: middle;\n}\n\n[dir=\"rtl\"] .fixed-tools_button-group-button-icon_3shFH {\n    -webkit-transform: scaleX(-1);\n        -ms-transform: scaleX(-1);\n            transform: scaleX(-1);\n}\n\n.fixed-tools_mod-context-menu_JvI5y {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: vertical;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: column;\n        -ms-flex-direction: column;\n            flex-direction: column;\n}\n\n.fixed-tools_mod-top-divider_oxfsG {\n    border-top: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n}\n\n.fixed-tools_mod-menu-item_1eQQZ {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    margin: 0 -.25rem;\n    min-width: 6.25rem;\n    padding: calc(3 * .25rem);\n    white-space: nowrap;\n    cursor: pointer;\n    -webkit-transition: 0.1s ease;\n    transition: 0.1s ease;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n    font-family: \"Helvetica Neue\", Helvetica, sans-serif;\n}\n\n.fixed-tools_mod-disabled_UJyp0 {\n    cursor: auto;\n}\n\n.fixed-tools_mod-menu-item_1eQQZ:hover {\n    background: var(--paint-looks-transparent, hsla(260, 60%, 60%, 0.35));\n}\n\n.fixed-tools_mod-disabled_UJyp0:hover {\n    background-color: transparent;\n}\n\n.fixed-tools_menu-item-icon_2DtJ1 {\n    margin-right: calc(2 * .25rem);\n    width: 1.25rem;\n    height: 1.25rem;\n}\n\n[dir=\"rtl\"] .fixed-tools_menu-item-icon_2DtJ1 {\n    margin-right: 0;\n    margin-left: calc(2 * .25rem);\n}\n", ""]);
@@ -33666,7 +33666,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.font-dropdown_mod-menu-item_hwOca {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    margin: 0 -.25rem;\n    min-width: 6.25rem;\n    padding: calc(2 * .25rem);\n    padding-left: calc(3 * .25rem);\n    padding-right: calc(3 * .25rem);\n    width: 8.5rem;\n    cursor: pointer;\n    -webkit-transition: 0.1s ease;\n    transition: 0.1s ease;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n    overflow-wrap: anywhere;\n}\n\n.font-dropdown_mod-menu-item_hwOca:hover {\n    background: var(--paint-looks-secondary, #855CD6);\n    color: white;\n}\n\n.font-dropdown_mod-context-menu_3llFm {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: vertical;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: column;\n        -ms-flex-direction: column;\n            flex-direction: column;\n}\n\n.font-dropdown_mod-unselect_130OF {\n    -webkit-user-select: none;\n       -moz-user-select: none;\n        -ms-user-select: none;\n            user-select: none;\n}\n\n.font-dropdown_displayed-font-name_3cU-U {\n    font-size: .8rem;\n    overflow: hidden;\n    white-space: nowrap;\n}\n\n.font-dropdown_font-dropdown_3vjc6 {\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n    color: var(--paint-text-primary, #575e75);\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    font-size: 1rem;\n    -webkit-box-pack: justify;\n    -webkit-justify-content: space-between;\n        -ms-flex-pack: justify;\n            justify-content: space-between;\n    width: 8.5rem;\n    height: 2rem;\n}\n", ""]);
@@ -33691,7 +33691,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.mode-tools_mode-tools_UREem {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    min-height: 3rem;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n.mode-tools_mode-tools-icon_3yoZ2 {\n    margin-right: calc(2 * .25rem);\n    width: 2rem;\n    height: 2rem;\n    -webkit-filter: var(--paint-filter-icon-gray, none);\n            filter: var(--paint-filter-icon-gray, none);\n}\n\n[dir=\"ltr\"] .mode-tools_mod-dashed-border_3Bmy_ {\n    border-right: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-right: calc(3 * .25rem);\n}\n\n[dir=\"rtl\"] .mode-tools_mod-dashed-border_3Bmy_ {\n    border-left: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-left: calc(3 * .25rem);\n}\n\n.mode-tools_mod-labeled-icon-height_kRA3W {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    height: 2.85rem; /* for the second row so the dashed borders are equal in size */\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n", ""]);
@@ -33714,7 +33714,7 @@ module.exports = exports;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
 exports.push([module.i, "/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* 35% transparent version of looks-secondary */\n\n/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.\nSee https://github.com/LLK/scratch-paint/issues/13 */\n\n/* ACTUALLY, THIS IS EDITED ;)\nTHIS WAS CHANGED ON 10/25/2017 BY @mewtaylor TO ADD A VARIABLE FOR THE SMALLEST\nGRID UNITS.\n\nALSO EDITED ON 11/13/2017 TO ADD IN CONTANTS FOR LAYOUT FROM `layout-contents.js`*/\n\n/* layout contants from `layout-constants.js`, minus 1px */\n\n.paint-editor_editor-container_3ajxi {\n    width: 100%;\n    height: 100%;\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: vertical;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: column;\n        -ms-flex-direction: column;\n            flex-direction: column;\n    padding: calc(3 * .25rem);\n}\n\n.paint-editor_row_1psvV {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-box-align: center;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n}\n\n.paint-editor_editor-container-top_23HHq {\n    border-bottom: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-bottom: calc(2 * .25rem);\n}\n\n.paint-editor_top-align-row_2Ky-F {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    height: 100%;\n    padding-top: calc(5 * .25rem);\n    min-width: 524px;\n}\n\n.paint-editor_row_1psvV + .paint-editor_row_1psvV {\n    margin-top: calc(2 * .25rem);\n}\n\n[dir=\"ltr\"] .paint-editor_mod-dashed-border_1xeKo {\n    border-right: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-right: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .paint-editor_mod-dashed-border_1xeKo {\n    border-left: 1px dashed var(--paint-ui-pane-border, #D9D9D9);\n    padding-left: calc(2 * .25rem);\n}\n\n.paint-editor_mod-labeled-icon-height_3hBCl {\n    height: 2.85rem; /* for the second row so the dashed borders are equal in size */\n}\n\n.paint-editor_button-group-button_1gq5A {\n    display: inline-block;\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-radius: 0;\n    padding: .35rem;\n}\n\n[dir=\"ltr\"] .paint-editor_button-group-button_1gq5A {\n    border-left: none;\n}\n\n[dir=\"rtl\"] .paint-editor_button-group-button_1gq5A {\n    border-right: none;\n}\n\n[dir=\"ltr\"] .paint-editor_button-group-button_1gq5A:last-of-type {\n    border-top-right-radius: 0.25rem;\n    border-bottom-right-radius: 0.25rem;\n}\n\n[dir=\"ltr\"] .paint-editor_button-group-button_1gq5A:first-of-type {\n    border-left: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-top-left-radius: 0.25rem;\n    border-bottom-left-radius: 0.25rem;\n}\n\n[dir=\"rtl\"] .paint-editor_button-group-button_1gq5A:last-of-type {\n    border-top-left-radius: 0.25rem;\n    border-bottom-left-radius: 0.25rem;\n}\n\n[dir=\"rtl\"] .paint-editor_button-group-button_1gq5A:first-of-type {\n    border-right: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-top-right-radius: 0.25rem;\n    border-bottom-right-radius: 0.25rem;\n}\n\n[dir=\"ltr\"] .paint-editor_button-group-button_1gq5A.paint-editor_mod-start-border_jVIRO {\n    border-left: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n}\n\n[dir=\"rtl\"] .paint-editor_button-group-button_1gq5A.paint-editor_mod-start-border_jVIRO {\n    border-right: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n}\n\n[dir=\"ltr\"].paint-editor_button-group-button_1gq5A.paint-editor_mod-no-end-border_XiRoc {\n    border-right: none;\n}\n\n[dir=\"rtl\"].paint-editor_button-group-button_1gq5A.paint-editor_mod-no-end-border_XiRoc {\n    border-left: none;\n}\n\n.paint-editor_button-group-button-icon_3BPxO {\n    width: 1.25rem;\n    height: 1.25rem;\n    vertical-align: middle;\n    -webkit-filter: var(--paint-filter-icon-gray, none);\n            filter: var(--paint-filter-icon-gray, none);\n}\n\n.paint-editor_mod-mode-tools_1IXSj {\n    margin-left: calc(2 * .25rem);\n}\n\n[dir=\"ltr\"] .paint-editor_mod-margin-after_1OgHf {\n    margin-right: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .paint-editor_mod-margin-after_1OgHf {\n    margin-left: calc(2 * .25rem);\n}\n\n.paint-editor_controls-container_3HDxz {\n    width: 100%;\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: vertical;\n    -webkit-box-direction: normal;\n    -webkit-flex-flow: column;\n        -ms-flex-flow: column;\n            flex-flow: column;\n    -webkit-box-flex: 1;\n    -webkit-flex-grow: 1;\n        -ms-flex-positive: 1;\n            flex-grow: 1;\n    margin-left: calc(2 * .25rem);\n    margin-right: calc(2 * .25rem);\n}\n\n.paint-editor_canvas-container_2rN98 {\n    width: 100%;\n    -webkit-box-flex: 1;\n    -webkit-flex-grow: 1;\n        -ms-flex-positive: 1;\n            flex-grow: 1;\n    min-width: 402px; /* Leave room for the border */\n    border: 1px solid var(--paint-ui-pane-border, #D9D9D9);\n    border-radius: .25rem;\n    position: relative;\n    overflow: visible;\n}\n\n.paint-editor_mode-selector_1edhd {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    max-width: 7.5rem;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: normal;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-flex-wrap: wrap;\n        -ms-flex-wrap: wrap;\n            flex-wrap: wrap;\n    -webkit-box-align: start;\n    -webkit-align-items: flex-start;\n        -ms-flex-align: start;\n            align-items: flex-start;\n    -webkit-align-content: flex-start;\n        -ms-flex-line-pack: start;\n            align-content: flex-start;\n    -webkit-box-pack: justify;\n    -webkit-justify-content: space-between;\n        -ms-flex-pack: justify;\n            justify-content: space-between;\n}\n\n.paint-editor_zoom-controls_3Qe-- {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-box-orient: horizontal;\n    -webkit-box-direction: reverse;\n    -webkit-flex-direction: row-reverse;\n        -ms-flex-direction: row-reverse;\n            flex-direction: row-reverse;\n}\n\n.paint-editor_color-picker-wrapper_1IC0W {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    pointer-events: none;\n}\n\n.paint-editor_canvas-controls_e2K-q {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    height: 36px;\n    margin-top: .25rem;\n    -webkit-box-pack: justify;\n    -webkit-justify-content: space-between;\n        -ms-flex-pack: justify;\n            justify-content: space-between;\n}\n\n.paint-editor_bitmap-button_GsX3L {\n    display: -webkit-box;\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    border-radius: 5px;\n    background-color: var(--paint-looks-secondary, #855CD6);\n    padding: calc(2 * .25rem);\n    line-height: 1.5rem;\n    font-size: calc(3 * .25rem);\n    font-weight: bold;\n    color: white;\n    -webkit-box-pack: center;\n    -webkit-justify-content: center;\n        -ms-flex-pack: center;\n            justify-content: center;\n}\n\n[dir=\"ltr\"] .paint-editor_bitmap-button-icon_wPoPh {\n    margin-right: calc(2 * .25rem);\n}\n\n[dir=\"rtl\"] .paint-editor_bitmap-button-icon_wPoPh {\n    margin-left: calc(2 * .25rem);\n}\n\n@media only screen and (max-width: 1256px) {\n    .paint-editor_editor-container_3ajxi {\n        padding: calc(3 * .25rem) .25rem;\n    }\n\n    .paint-editor_mode-selector_1edhd {\n        -webkit-box-orient: vertical;\n        -webkit-box-direction: normal;\n        -webkit-flex-direction: column;\n            -ms-flex-direction: column;\n                flex-direction: column;\n        -webkit-box-pack: start;\n        -webkit-justify-content: flex-start;\n            -ms-flex-pack: start;\n                justify-content: flex-start;\n    }\n\n    .paint-editor_controls-container_3HDxz {\n        margin-right: .25rem;\n        margin-left: .25rem;\n    }\n}\n\n.paint-editor_text-area_3VRLj {\n    color: black;\n    background: transparent;\n    border: none;\n    display: none;\n    margin: 0px;\n    opacity: .8;\n    outline: none;\n    overflow: hidden;\n    padding: 0px;\n    position: absolute;\n    resize: none;\n    -webkit-text-fill-color: transparent;\n    text-fill-color: transparent;\n}\n\n.paint-editor_button-text_2sm18 {\n    width: 100%; /* Fixes button text wrapping in Edge */\n    white-space: nowrap;\n}\n", ""]);
@@ -33781,7 +33781,7 @@ exports.default = void 0;
 
 var _reactRedux = __webpack_require__(3);
 
-var _react = _interopRequireDefault(__webpack_require__(2));
+var _react = _interopRequireDefault(__webpack_require__(1));
 
 var _propTypes = _interopRequireDefault(__webpack_require__(0));
 
@@ -33806,10 +33806,10 @@ exports.default = _default;
 /***/ (function(module, exports, __webpack_require__) {
 
 // Imports
-var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(11);
+var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(12);
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
-exports.push([module.i, "html, body { margin: 0; height: 100%; overflow: hidden; }\nbody { background: var(--bg, #1e1e20); color: var(--text, #e4e4e8); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }\n#root { height: 100%; }\n.entry_app_exSxe { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-orient: vertical; -webkit-box-direction: normal; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; height: 100vh; }\n.entry_bar_2Ieuw { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border, #38383c); background: var(--panel, #28282b); -webkit-flex-wrap: wrap; -ms-flex-wrap: wrap; flex-wrap: wrap; }\n.entry_file_36pA5 { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 120px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }\n.entry_note_1qUCS { color: var(--muted, #a0a0a8); font-size: 13px; min-width: 100px; }\n.entry_bar_2Ieuw button, .entry_bar_2Ieuw select { height: 32px; padding: 0 12px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--control, #38383c); color: inherit; font: inherit; cursor: pointer; }\n.entry_bar_2Ieuw button:hover { background: var(--hover, #3a3a3e); }\n.entry_bar_2Ieuw button.entry_primary_KDmS3 { background: var(--accent, #7c9cf5); border-color: var(--accent, #7c9cf5); color: var(--on-accent, #1d1d1f); }\n.entry_group_oBWu9 { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; gap: 0; }\n.entry_group_oBWu9 button { border-radius: 6px 0 0 6px; }\n.entry_group_oBWu9 select { border-radius: 0 6px 6px 0; border-left: 0; padding: 0 6px; }\n.entry_error_3dy-_ { padding: 8px 14px; background: var(--danger-bg, #4a2e32); color: var(--danger, #f2929a); font-size: 13px; }\n.entry_editor_1eBtl { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-height: 0; overflow: hidden; }\n#root { --paint-looks-secondary: var(--accent, #7c9cf5); --paint-looks-transparent: var(--accent-soft, rgba(124, 156, 245, 0.24)); }\n#root * { -webkit-box-sizing: border-box; box-sizing: border-box; }\n.entry_editor_1eBtl { position: relative; }\n.entry_editor_1eBtl > * { position: absolute; inset: 0; }\n", ""]);
+exports.push([module.i, "html, body { margin: 0; height: 100%; overflow: hidden; }\nbody { background: var(--bg, #1e1e20); color: var(--text, #e4e4e8); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }\n#root { height: 100%; }\n.entry_app_exSxe { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-orient: vertical; -webkit-box-direction: normal; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; height: 100vh; }\n.entry_bar_2Ieuw { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border, #38383c); background: var(--panel, #28282b); -webkit-flex-wrap: wrap; -ms-flex-wrap: wrap; flex-wrap: wrap; }\n.entry_file_36pA5 { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 120px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }\n.entry_note_1qUCS { color: var(--muted, #a0a0a8); font-size: 13px; min-width: 100px; }\n.entry_bar_2Ieuw button, .entry_bar_2Ieuw select { height: 32px; padding: 0 12px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--control, #38383c); color: inherit; font: inherit; cursor: pointer; }\n.entry_bar_2Ieuw button:hover { background: var(--hover, #3a3a3e); }\n.entry_bar_2Ieuw button.entry_primary_KDmS3 { background: var(--accent, #7c9cf5); border-color: var(--accent, #7c9cf5); color: var(--on-accent, #1d1d1f); }\n.entry_group_oBWu9 { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; gap: 0; }\n.entry_group_oBWu9 button { border-radius: 6px 0 0 6px; }\n.entry_group_oBWu9 select { border-radius: 0 6px 6px 0; border-left: 0; padding: 0 6px; }\n.entry_error_3dy-_ { padding: 8px 14px; background: var(--danger-bg, #4a2e32); color: var(--danger, #f2929a); font-size: 13px; }\n.entry_editor_1eBtl { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-height: 0; overflow: hidden; }\n#root { --paint-looks-secondary: var(--accent, #7c9cf5); --paint-looks-transparent: var(--accent-soft, rgba(124, 156, 245, 0.24)); }\n#root * { -webkit-box-sizing: border-box; box-sizing: border-box; }\n.entry_editor_1eBtl { position: relative; }\n.entry_editor_1eBtl > * { position: absolute; inset: 0; }\n.entry_main_Zb__Y { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-height: 0; display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; }\n.entry_main_Zb__Y .entry_editor_1eBtl { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 0; }\n.entry_bar_2Ieuw button.entry_on_3S3lE { border-color: var(--accent, #7c9cf5); color: var(--accent, #7c9cf5); }\n.entry_panel_2BP-6 { -webkit-box-flex: 0; -webkit-flex: none; -ms-flex: none; flex: none; width: 236px; overflow-y: auto; border-left: 1px solid var(--border, #38383c); background: var(--panel, #28282b); font-size: 13px; }\n.entry_panel_2BP-6 section { padding: 10px 12px; border-bottom: 1px solid var(--border, #38383c); display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-orient: vertical; -webkit-box-direction: normal; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 8px; }\n.entry_panel_2BP-6 h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #a0a0a8); }\n.entry_panel_2BP-6 h4 small { text-transform: none; letter-spacing: 0; font-weight: 400; }\n.entry_panel_2BP-6 button, .entry_panel_2BP-6 select, .entry_panel_2BP-6 input[type=number] { height: 28px; padding: 0 8px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--control, #38383c); color: inherit; font: inherit; }\n.entry_panel_2BP-6 button { cursor: pointer; }\n.entry_panel_2BP-6 button:hover:not(:disabled) { background: var(--hover, #3a3a3e); }\n.entry_panel_2BP-6 button:disabled, .entry_panel_2BP-6 input:disabled { opacity: .45; cursor: default; }\n.entry_panel_2BP-6 input[type=number] { width: 100%; min-width: 0; }\n.entry_grid_1qXOP { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }\n.entry_num_1j-DU { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; gap: 6px; }\n.entry_num_1j-DU span { width: 14px; color: var(--muted, #a0a0a8); }\n.entry_row_1kPwD { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; gap: 6px; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; }\n.entry_row_1kPwD button { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; }\n.entry_panel_2BP-6 .entry_small_snMYN { width: 64px !important; -webkit-box-flex: 0; -webkit-flex: none; -ms-flex: none; flex: none; }\n.entry_icons_2hvBg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }\n.entry_icons_2hvBg button { padding: 0; font-size: 15px; }\n.entry_two_3EA4k { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }\n.entry_wide_1d_5d { width: 100%; }\n.entry_check_184xy { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; gap: 6px; cursor: pointer; }\n.entry_range_3UrDZ { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; gap: 6px; }\n.entry_range_3UrDZ input { -webkit-box-flex: 1; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 0; accent-color: var(--accent, #7c9cf5); }\n.entry_range_3UrDZ b { width: 38px; text-align: right; font-weight: 500; }\n.entry_field_3Vok- { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-align: center; -webkit-align-items: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; -ms-flex-pack: justify; justify-content: space-between; gap: 8px; }\n.entry_hint_3UTZR { margin: 0; color: var(--muted, #a0a0a8); font-size: 12px; }\n.entry_code_fQr1V { display: -webkit-box; display: -webkit-flex; display: -ms-flexbox; display: flex; -webkit-box-orient: vertical; -webkit-box-direction: normal; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--border, #38383c); background: var(--panel, #28282b); }\n.entry_code_fQr1V textarea { height: 180px; resize: vertical; padding: 8px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--bg, #1e1e20); color: inherit; font: 12px/1.4 ui-monospace, monospace; }\n.entry_code_fQr1V .entry_row_1kPwD button { -webkit-box-flex: 0; -webkit-flex: none; -ms-flex: none; flex: none; height: 30px; padding: 0 12px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--control, #38383c); color: inherit; font: inherit; cursor: pointer; }\n.entry_code_fQr1V .entry_row_1kPwD button.entry_primary_KDmS3 { background: var(--accent, #7c9cf5); border-color: var(--accent, #7c9cf5); color: var(--on-accent, #1d1d1f); }\n", ""]);
 // Exports
 exports.locals = {
 	"app": "entry_app_exSxe",
@@ -33819,7 +33819,22 @@ exports.locals = {
 	"primary": "entry_primary_KDmS3",
 	"group": "entry_group_oBWu9",
 	"error": "entry_error_3dy-_",
-	"editor": "entry_editor_1eBtl"
+	"editor": "entry_editor_1eBtl",
+	"main": "entry_main_Zb__Y",
+	"on": "entry_on_3S3lE",
+	"panel": "entry_panel_2BP-6",
+	"grid": "entry_grid_1qXOP",
+	"num": "entry_num_1j-DU",
+	"row": "entry_row_1kPwD",
+	"small": "entry_small_snMYN",
+	"icons": "entry_icons_2hvBg",
+	"two": "entry_two_3EA4k",
+	"wide": "entry_wide_1d_5d",
+	"check": "entry_check_184xy",
+	"range": "entry_range_3UrDZ",
+	"field": "entry_field_3Vok-",
+	"hint": "entry_hint_3UTZR",
+	"code": "entry_code_fQr1V"
 };
 module.exports = exports;
 
@@ -33833,7 +33848,7 @@ module.exports = exports;
 __webpack_require__.r(__webpack_exports__);
 
 // EXTERNAL MODULE: ./node_modules/react/index.js
-var react = __webpack_require__(2);
+var react = __webpack_require__(1);
 var react_default = /*#__PURE__*/__webpack_require__.n(react);
 
 // EXTERNAL MODULE: ./node_modules/react-dom/index.js
@@ -33845,7 +33860,7 @@ var prop_types = __webpack_require__(0);
 var prop_types_default = /*#__PURE__*/__webpack_require__.n(prop_types);
 
 // EXTERNAL MODULE: ./node_modules/@turbowarp/paper/dist/paper-full.js
-var paper_full = __webpack_require__(1);
+var paper_full = __webpack_require__(2);
 var paper_full_default = /*#__PURE__*/__webpack_require__.n(paper_full);
 
 // EXTERNAL MODULE: ./node_modules/@turbowarp/nanolog/index.js
@@ -33871,7 +33886,7 @@ var lodash_bindall = __webpack_require__(4);
 var lodash_bindall_default = /*#__PURE__*/__webpack_require__.n(lodash_bindall);
 
 // EXTERNAL MODULE: ./node_modules/keymirror/index.js
-var keymirror = __webpack_require__(15);
+var keymirror = __webpack_require__(16);
 var keymirror_default = /*#__PURE__*/__webpack_require__.n(keymirror);
 
 // CONCATENATED MODULE: ./src/lib/format.js
@@ -42294,7 +42309,7 @@ var bit_select_mode_mapDispatchToProps = function mapDispatchToProps(dispatch) {
 };
 /* harmony default export */ var containers_bit_select_mode = (Object(es["connect"])(bit_select_mode_mapStateToProps, bit_select_mode_mapDispatchToProps)(bit_select_mode_BitSelectMode));
 // EXTERNAL MODULE: ./src/components/box/box.jsx
-var box = __webpack_require__(37);
+var box_box = __webpack_require__(37);
 
 // EXTERNAL MODULE: ./src/components/button-group/button-group.css
 var button_group = __webpack_require__(69);
@@ -43587,7 +43602,7 @@ var closeStrokeColor = function closeStrokeColor() {
 };
 
 // EXTERNAL MODULE: ./node_modules/parse-color/index.js
-var parse_color = __webpack_require__(14);
+var parse_color = __webpack_require__(15);
 var parse_color_default = /*#__PURE__*/__webpack_require__.n(parse_color);
 
 // EXTERNAL MODULE: ./node_modules/react-popover/index.js
@@ -44057,8 +44072,8 @@ See https://github.com/LLK/scratch-paint/issues/13 */
   return BufferedInput;
 });
 // EXTERNAL MODULE: ./src/components/forms/input.css
-var input = __webpack_require__(44);
-var input_default = /*#__PURE__*/__webpack_require__.n(input);
+var forms_input = __webpack_require__(44);
+var input_default = /*#__PURE__*/__webpack_require__.n(forms_input);
 
 // CONCATENATED MODULE: ./src/components/forms/input.jsx
 function input_typeof(o) { "@babel/helpers - typeof"; return input_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, input_typeof(o); }
@@ -44098,7 +44113,7 @@ input_Input.defaultProps = {
   range: false,
   small: false
 };
-/* harmony default export */ var forms_input = (input_Input);
+/* harmony default export */ var components_forms_input = (input_Input);
 // CONCATENATED MODULE: ./src/lib/tw-color-utils.js
 
 
@@ -44192,7 +44207,7 @@ function tw_color_readout_getPrototypeOf(o) { tw_color_readout_getPrototypeOf = 
 
 
 
-var tw_color_readout_BufferedInput = buffered_input_hoc(forms_input);
+var tw_color_readout_BufferedInput = buffered_input_hoc(components_forms_input);
 var tw_color_readout_TWColorReadout = /*#__PURE__*/function (_React$Component) {
   tw_color_readout_inherits(TWColorReadout, _React$Component);
   var _super = tw_color_readout_createSuper(TWColorReadout);
@@ -44271,7 +44286,7 @@ function color_picker_getPrototypeOf(o) { color_picker_getPrototypeOf = Object.s
 
 
 
-var color_picker_BufferedInput = buffered_input_hoc(forms_input);
+var color_picker_BufferedInput = buffered_input_hoc(components_forms_input);
 var color_picker_hsvToHex = function hsvToHex(h, s, v) {
   return (
     // Scale hue back up to [0, 360] from [0, 100]
@@ -44485,7 +44500,7 @@ var color_picker_ColorPickerComponent = /*#__PURE__*/function (_React$Component)
         onChange: this.props.onAlphaChange
       }))), /*#__PURE__*/react_default.a.createElement("div", {
         className: color_picker_default.a.pickerRow
-      }, /*#__PURE__*/react_default.a.createElement(forms_input, {
+      }, /*#__PURE__*/react_default.a.createElement(components_forms_input, {
         type: "color",
         className: color_picker_default.a.pickerColor
         // HTML color input does not understand transparency
@@ -46504,7 +46519,7 @@ var loupe_LoupeComponent = /*#__PURE__*/function (_React$Component) {
       var loupeDiameter = ZOOM_SCALE * LOUPE_RADIUS * 2;
       var x = colorInfo.x / pixelRatio - loupeDiameter / 2;
       var y = colorInfo.y / pixelRatio - loupeDiameter / 2;
-      return /*#__PURE__*/react_default.a.createElement(box["a" /* default */], loupe_extends({}, boxProps, {
+      return /*#__PURE__*/react_default.a.createElement(box_box["a" /* default */], loupe_extends({}, boxProps, {
         className: loupe_default.a.eyeDropper,
         componentRef: this.setCanvas,
         element: "canvas",
@@ -46735,7 +46750,7 @@ var hide_label_hideLabel = function hideLabel(locale) {
 };
 
 // EXTERNAL MODULE: ./src/components/fixed-tools/fixed-tools.css
-var fixed_tools = __webpack_require__(9);
+var fixed_tools = __webpack_require__(10);
 var fixed_tools_default = /*#__PURE__*/__webpack_require__.n(fixed_tools);
 
 // CONCATENATED MODULE: ./src/tw-recolor/build.js!./src/components/fixed-tools/icons/group.svg
@@ -46876,7 +46891,7 @@ function fixed_tools_toPrimitive(t, r) { if ("object" != fixed_tools_typeof(t) |
 
 
 
-var fixed_tools_BufferedInput = buffered_input_hoc(forms_input);
+var fixed_tools_BufferedInput = buffered_input_hoc(components_forms_input);
 var fixed_tools_messages = Object(index_es["defineMessages"])({
   costume: {
     "id": "paint.paintEditor.costume",
@@ -47642,7 +47657,7 @@ custom_font_button_CustomFontButton.propTypes = {
 };
 /* harmony default export */ var custom_font_button = (custom_font_button_CustomFontButton);
 // EXTERNAL MODULE: ./src/components/font-dropdown/font-dropdown.css
-var font_dropdown = __webpack_require__(13);
+var font_dropdown = __webpack_require__(14);
 var font_dropdown_default = /*#__PURE__*/__webpack_require__.n(font_dropdown);
 
 // CONCATENATED MODULE: ./src/components/font-dropdown/font-dropdown.jsx
@@ -48163,7 +48178,7 @@ function live_input_hoc_getPrototypeOf(o) { live_input_hoc_getPrototypeOf = Obje
   return LiveInput;
 });
 // EXTERNAL MODULE: ./src/components/mode-tools/mode-tools.css
-var mode_tools = __webpack_require__(12);
+var mode_tools = __webpack_require__(13);
 var mode_tools_default = /*#__PURE__*/__webpack_require__.n(mode_tools);
 
 // CONCATENATED MODULE: ./src/tw-recolor/build.js!./src/components/mode-tools/icons/copy.svg
@@ -48303,7 +48318,7 @@ var rectangle_outlined_default = /*#__PURE__*/__webpack_require__.n(rectangle_ou
 
 
 
-var mode_tools_LiveInput = live_input_hoc(forms_input);
+var mode_tools_LiveInput = live_input_hoc(components_forms_input);
 var mode_tools_ModeToolsComponent = function ModeToolsComponent(props) {
   var messages = Object(index_es["defineMessages"])({
     brushSize: {
@@ -51079,7 +51094,7 @@ var stroke_color_indicator_mapDispatchToProps = function mapDispatchToProps(disp
 
 
 
-var stroke_width_indicator_LiveInput = live_input_hoc(forms_input);
+var stroke_width_indicator_LiveInput = live_input_hoc(components_forms_input);
 var stroke_width_indicator_StrokeWidthIndicatorComponent = function StrokeWidthIndicatorComponent(props) {
   return /*#__PURE__*/react_default.a.createElement(input_group_input_group, {
     disabled: props.disabled
@@ -52184,7 +52199,7 @@ var paint_editor_PaintEditorComponent = function PaintEditorComponent(props) {
     className: paint_editor_default.a.textArea,
     ref: props.setTextArea,
     spellCheck: false
-  }), props.isEyeDropping && props.colorInfo !== null && !props.colorInfo.hideLoupe ? /*#__PURE__*/react_default.a.createElement(box["a" /* default */], {
+  }), props.isEyeDropping && props.colorInfo !== null && !props.colorInfo.hideLoupe ? /*#__PURE__*/react_default.a.createElement(box_box["a" /* default */], {
     className: paint_editor_default.a.colorPickerWrapper
   }, /*#__PURE__*/react_default.a.createElement(loupe_loupe, {
     colorInfo: props.colorInfo,
@@ -53492,7 +53507,7 @@ var tw_paint_editor_wrapper_mapDispatchToProps = function mapDispatchToProps(dis
 };
 /* harmony default export */ var tw_paint_editor_wrapper = (Object(es["connect"])(tw_paint_editor_wrapper_mapStateToProps, tw_paint_editor_wrapper_mapDispatchToProps)(tw_paint_editor_wrapper_TWPaintEditorWrapper));
 // EXTERNAL MODULE: ./node_modules/redux/es/index.js + 15 modules
-var redux_es = __webpack_require__(16);
+var redux_es = __webpack_require__(17);
 
 // CONCATENATED MODULE: ./src/reducers/color.js
 
@@ -57183,9 +57198,366 @@ var en_default = /*#__PURE__*/__webpack_require__.n(en);
 });
 
 // EXTERNAL MODULE: ./src/problet/entry.css
-var problet_entry = __webpack_require__(18);
+var problet_entry = __webpack_require__(9);
 var entry_default = /*#__PURE__*/__webpack_require__.n(problet_entry);
 
+// CONCATENATED MODULE: ./src/problet/tools.js
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || tools_unsupportedIterableToArray(arr) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _iterableToArray(iter) { if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter); }
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) return tools_arrayLikeToArray(arr); }
+function tools_createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = tools_unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
+function tools_unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return tools_arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return tools_arrayLikeToArray(o, minLen); }
+function tools_arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
+// Дополнительные инструменты редактора Problet поверх scratch-paint: точные размеры, выравнивание, логические операции с фигурами, вставка картинок.
+// Работают с выделением в векторном режиме и сохраняют результат так же, как это делает сам редактор (с шагом отмены).
+
+
+
+
+
+
+
+
+
+
+
+// Внутри редактора всё нарисовано в масштабе 2:1, пользователю показываем единицы svg
+var K = 2;
+var store = null;
+var onUpdate = null;
+function attach(reduxStore, onUpdateImage) {
+  store = reduxStore;
+  onUpdate = onUpdateImage;
+}
+var tools_bitmapMode = function bitmapMode() {
+  return !store || format_isBitmap(store.getState().scratchPaint.format);
+};
+var tools_selection = function selection() {
+  return tools_bitmapMode() || !paper_full_default.a.project ? [] : selection_getSelectedRootItems();
+};
+
+// То же, что делает scratch-paint после каждого изменения: svg в onUpdateImage и шаг отмены
+function commit() {
+  var mask = null;
+  var layer = paper_full_default.a.project.activeLayer;
+  if (layer.clipped) {
+    var _iterator = tools_createForOfIteratorHelper(layer.children),
+      _step;
+    try {
+      for (_iterator.s(); !(_step = _iterator.n()).done;) {
+        var child = _step.value;
+        if (child.isClipMask()) {
+          mask = child;
+          break;
+        }
+      }
+    } catch (err) {
+      _iterator.e(err);
+    } finally {
+      _iterator.f();
+    }
+    layer.clipped = false;
+    mask.remove();
+  }
+  var guides = hideGuideLayers(true);
+  math_scaleWithStrokes(layer, 0.5, new paper_full_default.a.Point());
+  var b = layer.drawnBounds;
+  var cx = b.width === 0 ? 0 : SVG_ART_BOARD_WIDTH / 2 - b.x;
+  var cy = b.height === 0 ? 0 : SVG_ART_BOARD_HEIGHT / 2 - b.y;
+  var svg = paper_full_default.a.project.exportSVG({
+    asString: true,
+    bounds: 'content',
+    matrix: new paper_full_default.a.Matrix().translate(-b.x, -b.y)
+  });
+  math_scaleWithStrokes(layer, 2, new paper_full_default.a.Point());
+  layer.applyMatrix = true;
+  layer_showGuideLayers(guides);
+  if (mask) {
+    layer.addChild(mask);
+    mask.clipMask = true;
+  }
+  onUpdate(true, svg, cx, cy);
+  view_setWorkspaceBounds();
+  store.dispatch(view_bounds_updateViewBounds(paper_full_default.a.view.matrix));
+  undo_performSnapshot(function (s) {
+    return store.dispatch(undo_undoSnapshot(s));
+  }, Formats.VECTOR);
+  store.dispatch(selected_items_setSelectedItems(selection_getSelectedLeafItems(), false));
+  store.dispatch(selected_items_redrawSelectionBox());
+}
+function unionBounds(items) {
+  var r = null;
+  var _iterator2 = tools_createForOfIteratorHelper(items),
+    _step2;
+  try {
+    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+      var it = _step2.value;
+      r = r ? r.unite(it.bounds) : it.bounds.clone();
+    }
+  } catch (err) {
+    _iterator2.e(err);
+  } finally {
+    _iterator2.f();
+  }
+  return r;
+}
+
+// Размер и место выделения в единицах svg
+function selectionBox() {
+  var items = tools_selection();
+  if (!items.length) return null;
+  var r = unionBounds(items);
+  var opacity = items.reduce(function (s, it) {
+    return s + it.opacity;
+  }, 0) / items.length;
+  return {
+    x: r.x / K,
+    y: r.y / K,
+    w: r.width / K,
+    h: r.height / K,
+    opacity: Math.round(opacity * 100),
+    count: items.length
+  };
+}
+function setBox(patch, keepRatio) {
+  var items = tools_selection();
+  if (!items.length) return;
+  var r = unionBounds(items);
+  var w = patch.w === undefined ? r.width : patch.w * K;
+  var h = patch.h === undefined ? r.height : patch.h * K;
+  if (keepRatio && r.width > 0 && r.height > 0) {
+    if (patch.w !== undefined && patch.h === undefined) h = r.height * w / r.width;
+    if (patch.h !== undefined && patch.w === undefined) w = r.width * h / r.height;
+  }
+  var sx = r.width > 0 && w > 0 ? w / r.width : 1;
+  var sy = r.height > 0 && h > 0 ? h / r.height : 1;
+  var origin = r.topLeft;
+  var _iterator3 = tools_createForOfIteratorHelper(items),
+    _step3;
+  try {
+    for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+      var it = _step3.value;
+      if (sx !== 1 || sy !== 1) it.scale(sx, sy, origin);
+    }
+  } catch (err) {
+    _iterator3.e(err);
+  } finally {
+    _iterator3.f();
+  }
+  var nr = unionBounds(items);
+  var dx = patch.x === undefined ? 0 : patch.x * K - nr.x;
+  var dy = patch.y === undefined ? 0 : patch.y * K - nr.y;
+  var _iterator4 = tools_createForOfIteratorHelper(items),
+    _step4;
+  try {
+    for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+      var _it = _step4.value;
+      _it.position = _it.position.add(new paper_full_default.a.Point(dx, dy));
+    }
+  } catch (err) {
+    _iterator4.e(err);
+  } finally {
+    _iterator4.f();
+  }
+  commit();
+}
+function rotate(deg) {
+  var items = tools_selection();
+  if (!items.length || !deg) return;
+  var c = unionBounds(items).center;
+  var _iterator5 = tools_createForOfIteratorHelper(items),
+    _step5;
+  try {
+    for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
+      var it = _step5.value;
+      it.rotate(deg, c);
+    }
+  } catch (err) {
+    _iterator5.e(err);
+  } finally {
+    _iterator5.f();
+  }
+  commit();
+}
+function setOpacity(pct) {
+  var items = tools_selection();
+  if (!items.length) return;
+  var _iterator6 = tools_createForOfIteratorHelper(items),
+    _step6;
+  try {
+    for (_iterator6.s(); !(_step6 = _iterator6.n()).done;) {
+      var it = _step6.value;
+      it.opacity = Math.min(1, Math.max(0, pct / 100));
+    }
+  } catch (err) {
+    _iterator6.e(err);
+  } finally {
+    _iterator6.f();
+  }
+  commit();
+}
+
+// Одна фигура выравнивается по холсту, несколько — по общей рамке
+function align(how) {
+  var items = tools_selection();
+  if (!items.length) return;
+  var ref = items.length === 1 ? new paper_full_default.a.Rectangle(0, 0, ART_BOARD_WIDTH, ART_BOARD_HEIGHT) : unionBounds(items);
+  var _iterator7 = tools_createForOfIteratorHelper(items),
+    _step7;
+  try {
+    for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+      var it = _step7.value;
+      var b = it.bounds;
+      var dx = 0;
+      var dy = 0;
+      if (how === 'left') dx = ref.left - b.left;
+      if (how === 'hcenter') dx = ref.center.x - b.center.x;
+      if (how === 'right') dx = ref.right - b.right;
+      if (how === 'top') dy = ref.top - b.top;
+      if (how === 'vcenter') dy = ref.center.y - b.center.y;
+      if (how === 'bottom') dy = ref.bottom - b.bottom;
+      it.position = it.position.add(new paper_full_default.a.Point(dx, dy));
+    }
+  } catch (err) {
+    _iterator7.e(err);
+  } finally {
+    _iterator7.f();
+  }
+  commit();
+}
+
+// Равные промежутки между фигурами (крайние остаются на месте)
+function distribute(axis) {
+  var items = tools_selection();
+  if (items.length < 3) return false;
+  var horiz = axis === 'h';
+  var sorted = _toConsumableArray(items).sort(function (a, b) {
+    return horiz ? a.bounds.left - b.bounds.left : a.bounds.top - b.bounds.top;
+  });
+  var first = sorted[0].bounds;
+  var last = sorted[sorted.length - 1].bounds;
+  var span = horiz ? last.right - first.left : last.bottom - first.top;
+  var sizes = sorted.reduce(function (s, it) {
+    return s + (horiz ? it.bounds.width : it.bounds.height);
+  }, 0);
+  var gap = (span - sizes) / (sorted.length - 1);
+  var at = horiz ? first.left : first.top;
+  var _iterator8 = tools_createForOfIteratorHelper(sorted),
+    _step8;
+  try {
+    for (_iterator8.s(); !(_step8 = _iterator8.n()).done;) {
+      var it = _step8.value;
+      var b = it.bounds;
+      if (horiz) it.position = it.position.add(new paper_full_default.a.Point(at - b.left, 0));else it.position = it.position.add(new paper_full_default.a.Point(0, at - b.top));
+      at += (horiz ? b.width : b.height) + gap;
+    }
+  } catch (err) {
+    _iterator8.e(err);
+  } finally {
+    _iterator8.f();
+  }
+  commit();
+  return true;
+}
+
+// Объединить, вычесть верхние из нижней, пересечь, исключить пересечение
+function tools_boolean(op) {
+  var items = tools_selection().filter(function (it) {
+    return it instanceof paper_full_default.a.PathItem;
+  });
+  if (items.length < 2) return false;
+  items.sort(function (a, b) {
+    return a.index - b.index;
+  });
+  var base = items[0];
+  var result = base;
+  var _iterator9 = tools_createForOfIteratorHelper(items.slice(1)),
+    _step9;
+  try {
+    for (_iterator9.s(); !(_step9 = _iterator9.n()).done;) {
+      var it = _step9.value;
+      var next = result[op](it, {
+        insert: false
+      });
+      if (result !== base) result.remove();
+      result = next;
+    }
+  } catch (err) {
+    _iterator9.e(err);
+  } finally {
+    _iterator9.f();
+  }
+  result.style = base.style;
+  result.opacity = base.opacity;
+  result.insertAbove(items[items.length - 1]);
+  var _iterator10 = tools_createForOfIteratorHelper(items),
+    _step10;
+  try {
+    for (_iterator10.s(); !(_step10 = _iterator10.n()).done;) {
+      var _it2 = _step10.value;
+      _it2.remove();
+    }
+  } catch (err) {
+    _iterator10.e(err);
+  } finally {
+    _iterator10.f();
+  }
+  selection_clearSelection(function () {
+    return store.dispatch(selected_items_setSelectedItems([], false));
+  });
+  selection_setItemSelection(result, true);
+  commit();
+  return true;
+}
+
+// Картинка из файла — новой фигурой в середине холста
+function insertImage(kind, data) {
+  return new Promise(function (resolve, reject) {
+    var place = function place(item) {
+      var w = item.bounds.width;
+      var h = item.bounds.height;
+      // не больше холста
+      var fit = Math.min(1, ART_BOARD_WIDTH * 0.9 / (w || 1), ART_BOARD_HEIGHT * 0.9 / (h || 1));
+      if (fit < 1) item.scale(fit);
+      item.position = CENTER;
+      paper_full_default.a.project.activeLayer.addChild(item);
+      selection_clearSelection(function () {
+        return store.dispatch(selected_items_setSelectedItems([], false));
+      });
+      selection_setItemSelection(item, true);
+      commit();
+      resolve();
+    };
+    if (kind === 'svg') {
+      var item;
+      try {
+        item = paper_full_default.a.project.importSVG(data, {
+          insert: false,
+          expandShapes: true
+        });
+      } catch (e) {
+        reject(new Error('Не удалось разобрать svg'));
+        return;
+      }
+      if (!item) return reject(new Error('Не удалось разобрать svg'));
+      math_scaleWithStrokes(item, K, new paper_full_default.a.Point());
+      place(item);
+    } else {
+      var raster = new paper_full_default.a.Raster({
+        source: data,
+        insert: false
+      });
+      raster.onLoad = function () {
+        raster.scale(K);
+        place(raster);
+      };
+      raster.onError = function () {
+        return reject(new Error('Не удалось открыть картинку'));
+      };
+    }
+  });
+}
 // CONCATENATED MODULE: ./src/problet/entry.jsx
 function entry_typeof(o) { "@babel/helpers - typeof"; return entry_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, entry_typeof(o); }
 function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == entry_typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw new Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator.return && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(entry_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw new Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, catch: function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw new Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
@@ -57206,11 +57578,11 @@ function entry_objectSpread(e) { for (var r = 1; r < arguments.length; r++) { va
 function entry_defineProperty(obj, key, value) { key = entry_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 function entry_toPropertyKey(t) { var i = entry_toPrimitive(t, "string"); return "symbol" == entry_typeof(i) ? i : String(i); }
 function entry_toPrimitive(t, r) { if ("object" != entry_typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != entry_typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || entry_unsupportedIterableToArray(arr) || _nonIterableSpread(); }
-function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function entry_toConsumableArray(arr) { return entry_arrayWithoutHoles(arr) || entry_iterableToArray(arr) || entry_unsupportedIterableToArray(arr) || entry_nonIterableSpread(); }
+function entry_nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function entry_unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return entry_arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return entry_arrayLikeToArray(o, minLen); }
-function _iterableToArray(iter) { if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter); }
-function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) return entry_arrayLikeToArray(arr); }
+function entry_iterableToArray(iter) { if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter); }
+function entry_arrayWithoutHoles(arr) { if (Array.isArray(arr)) return entry_arrayLikeToArray(arr); }
 function entry_arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
 // Графический редактор SVG для Problet: редактор «Костюмов» из scratch-paint (форк TurboWarp) и своя верхняя панель.
 // Собирается скриптом build.sh в pages/svgedit.js
@@ -57225,7 +57597,8 @@ function entry_arrayLikeToArray(arr, len) { if (len == null || len > arr.length)
 
 
 
-Object(index_es["addLocaleData"])([].concat(_toConsumableArray(ru_default.a), _toConsumableArray(en_default.a)));
+
+Object(index_es["addLocaleData"])([].concat(entry_toConsumableArray(ru_default.a), entry_toConsumableArray(en_default.a)));
 var api = window.api;
 var file = new URLSearchParams(location.search).get('p') || '';
 var params = new URLSearchParams(location.search);
@@ -57257,9 +57630,31 @@ function rasterize(dataUrl) {
     img.src = dataUrl;
   });
 }
-var isPng = !bm && /\.png$/i.test(file); // png открывается сразу в растровом режиме
+var isPng = !bm && /\.png$/i.test(file);
+var pref = function pref(key, def) {
+  try {
+    var v = localStorage.getItem('svgedit-' + key);
+    return v === null ? def : JSON.parse(v);
+  } catch (e) {
+    return def;
+  }
+};
+var setPref = function setPref(key, v) {
+  try {
+    localStorage.setItem('svgedit-' + key, JSON.stringify(v));
+  } catch (e) {/* без запоминания */}
+};
+// Округление координат в svg: файлы заметно меньше, на вид разницы нет
+var roundSvg = function roundSvg(svg) {
+  return svg.replace(/(data:[^"')\s]+)|(-?\d*\.\d{3,})/g, function (m, uri, num) {
+    return uri ? uri : String(Number(Number(num).toFixed(2)));
+  });
+};
+var fmt = function fmt(n) {
+  return String(Math.round(n * 100) / 100);
+}; // png открывается сразу в растровом режиме
 var baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replace(/\.(svg|png)$/i, '');
-var store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /* combineReducers */])({
+var entry_store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /* combineReducers */])({
   intl: lib["intlReducer"],
   scratchPaint: scratch_paint_reducer
 }), {
@@ -57312,10 +57707,23 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
     var _this;
     entry_classCallCheck(this, App);
     _this = _super.call(this, props);
+    entry_defineProperty(entry_assertThisInitialized(_this), "refreshSoon", function () {
+      return setTimeout(function () {
+        return _this.refreshBox();
+      }, 0);
+    });
     entry_defineProperty(entry_assertThisInitialized(_this), "onKey", function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      var k = e.key.toLowerCase();
+      if (k === 's' && e.shiftKey && !bm && !isPng) {
+        e.preventDefault();
+        _this.saveAs();
+      } else if (k === 's') {
         e.preventDefault();
         _this.save();
+      } else if (k === 'e' && e.shiftKey) {
+        e.preventDefault();
+        _this.exportPng();
       }
     });
     entry_defineProperty(entry_assertThisInitialized(_this), "onUpdateImage", function (isVector, image) {
@@ -57351,13 +57759,21 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
       scale: '1',
       bitmap: false,
-      format: 'svg'
+      format: 'svg',
+      panel: pref('panel', true),
+      round: pref('round', false),
+      bg: pref('bg', ''),
+      code: null,
+      box: null,
+      keepRatio: pref('keepRatio', true),
+      angle: '15'
     };
     _this.svg = EMPTY; // последнее состояние рисунка
     _this.savedSvg = null; // что лежит в файле
     _this.bitmapCanvas = null;
     _this.n = 0;
     _this.state.title = file;
+    attach(entry_store, _this.onUpdateImage);
     document.title = (bm ? bm.startsWith('cb:') ? 'Иконка кнопки' : 'Иконка закладки' : baseName + (isPng ? '.png' : '.svg')) + ' — редактор';
     return _this;
   }
@@ -57465,12 +57881,37 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         attributeFilter: ['data-theme']
       });
       document.addEventListener('keydown', this.onKey);
+      // Свойства выделения обновляются после любого действия в редакторе
+      this.unsubscribe = entry_store.subscribe(function () {
+        var sel = entry_store.getState().scratchPaint.selectedItems;
+        if (sel !== _this2.lastSel) {
+          _this2.lastSel = sel;
+          _this2.refreshBox();
+        }
+      });
+      document.addEventListener('mouseup', this.refreshSoon);
+      document.addEventListener('keyup', this.refreshSoon);
+    }
+  }, {
+    key: "refreshBox",
+    value: function refreshBox() {
+      var box = null;
+      try {
+        box = selectionBox();
+      } catch (e) {/* редактор ещё не готов */}
+      var old = this.state.box;
+      if (JSON.stringify(old) !== JSON.stringify(box)) this.setState({
+        box: box
+      });
     }
   }, {
     key: "componentWillUnmount",
     value: function componentWillUnmount() {
       this.observer.disconnect();
       document.removeEventListener('keydown', this.onKey);
+      document.removeEventListener('mouseup', this.refreshSoon);
+      document.removeEventListener('keyup', this.refreshSoon);
+      this.unsubscribe();
     }
   }, {
     key: "say",
@@ -57562,13 +58003,13 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
                 break;
               }
               _context2.next = 36;
-              return api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.svg);
+              return api.bmIconSet(bm, isEmptyDrawing(this.svg) ? '' : this.out());
             case 36:
               _context2.next = 41;
               break;
             case 38:
               _context2.next = 40;
-              return api.svgWrite(file, this.svg);
+              return api.svgWrite(file, this.out());
             case 40:
               this.savedTo = _context2.sent.path;
             case 41:
@@ -57610,7 +58051,7 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
             case 2:
               _context3.prev = 2;
               _context3.next = 5;
-              return api.svgSaveAs(this.svg);
+              return api.svgSaveAs(this.out());
             case 5:
               r = _context3.sent;
               if (r) this.say('Сохранено в ' + r.path);
@@ -57630,14 +58071,30 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         return _saveAs.apply(this, arguments);
       }
       return saveAs;
-    }()
+    }() // svg для файла: с округлёнными координатами, если так выбрано
+  }, {
+    key: "out",
+    value: function out() {
+      return this.state.round ? roundSvg(this.svg) : this.svg;
+    }
   }, {
     key: "renderPng",
     value: function renderPng() {
       var _this4 = this;
-      // растр уже готов; для вектора рисуем svg на холсте с выбранным масштабом
+      // растр уже готов; для вектора рисуем svg на холсте с выбранным масштабом. Фон — прозрачный или выбранный цвет
       var scale = Number(this.state.scale) || 1;
-      if (this.bitmapCanvas) return Promise.resolve(this.bitmapCanvas.toDataURL('image/png'));
+      var bg = this.state.bg;
+      if (this.bitmapCanvas) {
+        if (!bg) return Promise.resolve(this.bitmapCanvas.toDataURL('image/png'));
+        var c = document.createElement('canvas');
+        c.width = this.bitmapCanvas.width;
+        c.height = this.bitmapCanvas.height;
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(this.bitmapCanvas, 0, 0);
+        return Promise.resolve(c.toDataURL('image/png'));
+      }
       return new Promise(function (resolve, reject) {
         var img = new Image();
         var url = URL.createObjectURL(new Blob([_this4.svg], {
@@ -57647,7 +58104,12 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
           var canvas = document.createElement('canvas');
           canvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
           canvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          var ctx = canvas.getContext('2d');
+          if (bg) {
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
           resolve(canvas.toDataURL('image/png'));
         };
@@ -57695,28 +58157,374 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       return exportPng;
     }()
   }, {
-    key: "copyCode",
+    key: "copyPng",
     value: function () {
-      var _copyCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
+      var _copyPng = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
         return _regeneratorRuntime().wrap(function _callee5$(_context5) {
           while (1) switch (_context5.prev = _context5.next) {
             case 0:
               _context5.prev = 0;
-              _context5.next = 3;
-              return navigator.clipboard.writeText(this.svg);
-            case 3:
-              this.say('Код svg скопирован');
-              _context5.next = 9;
+              _context5.t0 = api;
+              _context5.next = 4;
+              return this.renderPng();
+            case 4:
+              _context5.t1 = _context5.sent;
+              _context5.next = 7;
+              return _context5.t0.svgCopyPng.call(_context5.t0, _context5.t1);
+            case 7:
+              this.say('PNG скопирован');
+              _context5.next = 13;
               break;
-            case 6:
-              _context5.prev = 6;
-              _context5.t0 = _context5["catch"](0);
-              this.say('Не удалось скопировать');
-            case 9:
+            case 10:
+              _context5.prev = 10;
+              _context5.t2 = _context5["catch"](0);
+              this.say('Не удалось скопировать картинку');
+            case 13:
             case "end":
               return _context5.stop();
           }
-        }, _callee5, this, [[0, 6]]);
+        }, _callee5, this, [[0, 10]]);
+      }));
+      function copyPng() {
+        return _copyPng.apply(this, arguments);
+      }
+      return copyPng;
+    }() // Картинка с диска (svg, png, jpg, gif, webp) — новой фигурой
+  }, {
+    key: "pickImage",
+    value: function pickImage() {
+      var _this5 = this;
+      if (this.state.bitmap) return this.say('Вставить картинку можно в векторном режиме');
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.svg,image/svg+xml,image/png,image/jpeg,image/gif,image/webp';
+      input.onchange = function () {
+        var f = input.files[0];
+        if (!f) return;
+        var isSvg = /svg/.test(f.type) || /\.svg$/i.test(f.name);
+        var reader = new FileReader();
+        reader.onload = function () {
+          return insertImage(isSvg ? 'svg' : 'raster', reader.result).then(function () {
+            return _this5.say('Картинка вставлена: ' + f.name);
+          }).catch(function (e) {
+            return _this5.say(clean(e));
+          });
+        };
+        if (isSvg) reader.readAsText(f);else reader.readAsDataURL(f);
+      };
+      input.click();
+    }
+    // Код svg: открыть, поправить руками и применить
+  }, {
+    key: "toggleCode",
+    value: function toggleCode() {
+      if (this.state.code !== null) return this.setState({
+        code: null
+      });
+      if (this.state.bitmap) return this.say('В растровом режиме кода svg нет');
+      this.setState({
+        code: this.out()
+      });
+    }
+  }, {
+    key: "applyCode",
+    value: function applyCode() {
+      var text = this.state.code || '';
+      var size = sizeOf(text);
+      if (!size) return this.say('Это не svg: проверь код');
+      this.svg = text;
+      this.setState({
+        image: text,
+        imageId: String(++this.n),
+        format: 'svg',
+        width: Math.max(Math.ceil(size.w), 32),
+        height: Math.max(Math.ceil(size.h), 32),
+        dirty: text !== this.savedSvg,
+        bitmap: false
+      });
+      this.say('Код применён');
+    }
+  }, {
+    key: "setPrefState",
+    value: function setPrefState(key, v) {
+      setPref(key, v);
+      this.setState(entry_defineProperty({}, key, v));
+    }
+  }, {
+    key: "act",
+    value: function act(fn) {
+      try {
+        var r = fn();
+        this.refreshSoon();
+        return r;
+      } catch (e) {
+        this.say('Не получилось: ' + clean(e));
+      }
+    }
+  }, {
+    key: "renderPanel",
+    value: function renderPanel() {
+      var _this6 = this;
+      var _this$state = this.state,
+        box = _this$state.box,
+        bitmap = _this$state.bitmap,
+        keepRatio = _this$state.keepRatio,
+        angle = _this$state.angle;
+      var num = function num(key, label) {
+        return /*#__PURE__*/react_default.a.createElement("label", {
+          className: entry_default.a.num,
+          key: key + (box ? box[key] : '')
+        }, /*#__PURE__*/react_default.a.createElement("span", null, label), /*#__PURE__*/react_default.a.createElement("input", {
+          type: "number",
+          step: "any",
+          disabled: !box,
+          defaultValue: box ? fmt(box[key]) : '',
+          onKeyDown: function onKeyDown(e) {
+            if (e.key === 'Enter') e.target.blur();
+          },
+          onBlur: function onBlur(e) {
+            var v = parseFloat(e.target.value);
+            if (!box || !Number.isFinite(v) || fmt(v) === fmt(box[key])) return;
+            if ((key === 'w' || key === 'h') && v <= 0) return;
+            _this6.act(function () {
+              return setBox(entry_defineProperty({}, key, v), keepRatio);
+            });
+          }
+        }));
+      };
+      var need = function need(n) {
+        return box && box.count >= n ? null : true;
+      };
+      return /*#__PURE__*/react_default.a.createElement("aside", {
+        className: entry_default.a.panel
+      }, /*#__PURE__*/react_default.a.createElement("section", null, /*#__PURE__*/react_default.a.createElement("h4", null, 'Выделение', box ? /*#__PURE__*/react_default.a.createElement("small", null, box.count > 1 ? ' · фигур: ' + box.count : '') : null), bitmap ? /*#__PURE__*/react_default.a.createElement("p", {
+        className: entry_default.a.hint
+      }, 'В растровом режиме точные размеры и выравнивание недоступны') : !box ? /*#__PURE__*/react_default.a.createElement("p", {
+        className: entry_default.a.hint
+      }, 'Выдели фигуру инструментом «Выбрать»') : null, /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.grid
+      }, num('x', 'X'), num('y', 'Y'), num('w', 'Ш'), num('h', 'В')), /*#__PURE__*/react_default.a.createElement("label", {
+        className: entry_default.a.check
+      }, /*#__PURE__*/react_default.a.createElement("input", {
+        type: "checkbox",
+        checked: keepRatio,
+        onChange: function onChange(e) {
+          return _this6.setPrefState('keepRatio', e.target.checked);
+        }
+      }), 'Сохранять пропорции'), /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.row
+      }, /*#__PURE__*/react_default.a.createElement("input", {
+        className: entry_default.a.small,
+        type: "number",
+        value: angle,
+        onChange: function onChange(e) {
+          return _this6.setState({
+            angle: e.target.value
+          });
+        },
+        title: "\u0423\u0433\u043E\u043B \u0432 \u0433\u0440\u0430\u0434\u0443\u0441\u0430\u0445"
+      }), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return rotate(-(Number(angle) || 0));
+          });
+        },
+        title: "\u041F\u043E\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u0440\u043E\u0442\u0438\u0432 \u0447\u0430\u0441\u043E\u0432\u043E\u0439"
+      }, '↺'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return rotate(Number(angle) || 0);
+          });
+        },
+        title: "\u041F\u043E\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u043E \u0447\u0430\u0441\u043E\u0432\u043E\u0439"
+      }, '↻')), /*#__PURE__*/react_default.a.createElement("label", {
+        className: entry_default.a.range,
+        key: 'o' + (box ? box.opacity : '')
+      }, /*#__PURE__*/react_default.a.createElement("span", null, 'Непрозрачность'), /*#__PURE__*/react_default.a.createElement("input", {
+        type: "range",
+        min: "0",
+        max: "100",
+        disabled: !box,
+        defaultValue: box ? box.opacity : 100,
+        onChange: function onChange(e) {
+          e.target.nextSibling.textContent = e.target.value + '%';
+        },
+        onMouseUp: function onMouseUp(e) {
+          return _this6.act(function () {
+            return setOpacity(Number(e.target.value));
+          });
+        },
+        onKeyUp: function onKeyUp(e) {
+          return _this6.act(function () {
+            return setOpacity(Number(e.target.value));
+          });
+        }
+      }), /*#__PURE__*/react_default.a.createElement("b", null, (box ? box.opacity : 100) + '%'))), /*#__PURE__*/react_default.a.createElement("section", null, /*#__PURE__*/react_default.a.createElement("h4", null, 'Выравнивание', /*#__PURE__*/react_default.a.createElement("small", null, box && box.count > 1 ? ' · по общей рамке' : ' · по холсту')), /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.icons
+      }, /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return align('left');
+          });
+        },
+        title: "\u041F\u043E \u043B\u0435\u0432\u043E\u043C\u0443 \u043A\u0440\u0430\u044E"
+      }, '⇤'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return align('hcenter');
+          });
+        },
+        title: "\u041F\u043E \u0446\u0435\u043D\u0442\u0440\u0443 \u043F\u043E \u0433\u043E\u0440\u0438\u0437\u043E\u043D\u0442\u0430\u043B\u0438"
+      }, '↔'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return align('right');
+          });
+        },
+        title: "\u041F\u043E \u043F\u0440\u0430\u0432\u043E\u043C\u0443 \u043A\u0440\u0430\u044E"
+      }, '⇥'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return align('top');
+          });
+        },
+        title: "\u041F\u043E \u0432\u0435\u0440\u0445\u043D\u0435\u043C\u0443 \u043A\u0440\u0430\u044E"
+      }, '⤒'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return align('vcenter');
+          });
+        },
+        title: "\u041F\u043E \u0446\u0435\u043D\u0442\u0440\u0443 \u043F\u043E \u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u0438"
+      }, '↕'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: !box,
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return align('bottom');
+          });
+        },
+        title: "\u041F\u043E \u043D\u0438\u0436\u043D\u0435\u043C\u0443 \u043A\u0440\u0430\u044E"
+      }, '⤓')), /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.row
+      }, /*#__PURE__*/react_default.a.createElement("span", {
+        className: entry_default.a.hint
+      }, 'Распределить'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: need(3),
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return distribute('h');
+          });
+        },
+        title: "\u0420\u0430\u0432\u043D\u044B\u0435 \u043F\u0440\u043E\u043C\u0435\u0436\u0443\u0442\u043A\u0438 \u043F\u043E \u0433\u043E\u0440\u0438\u0437\u043E\u043D\u0442\u0430\u043B\u0438 (\u043E\u0442 3 \u0444\u0438\u0433\u0443\u0440)"
+      }, '↔'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: need(3),
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return distribute('v');
+          });
+        },
+        title: "\u0420\u0430\u0432\u043D\u044B\u0435 \u043F\u0440\u043E\u043C\u0435\u0436\u0443\u0442\u043A\u0438 \u043F\u043E \u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u0438 (\u043E\u0442 3 \u0444\u0438\u0433\u0443\u0440)"
+      }, '↕'))), /*#__PURE__*/react_default.a.createElement("section", null, /*#__PURE__*/react_default.a.createElement("h4", null, 'Контуры', /*#__PURE__*/react_default.a.createElement("small", null, ' · от 2 фигур')), /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.two
+      }, /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: need(2),
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return tools_boolean('unite') || _this6.say('Нужны хотя бы две фигуры (не текст и не группы)');
+          });
+        }
+      }, 'Объединить'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: need(2),
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return tools_boolean('subtract') || _this6.say('Нужны хотя бы две фигуры (не текст и не группы)');
+          });
+        },
+        title: "\u0418\u0437 \u043D\u0438\u0436\u043D\u0435\u0439 \u0444\u0438\u0433\u0443\u0440\u044B \u0432\u044B\u0440\u0435\u0437\u0430\u044E\u0442\u0441\u044F \u0432\u0435\u0440\u0445\u043D\u0438\u0435"
+      }, 'Вычесть'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: need(2),
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return tools_boolean('intersect') || _this6.say('Нужны хотя бы две фигуры (не текст и не группы)');
+          });
+        }
+      }, 'Пересечь'), /*#__PURE__*/react_default.a.createElement("button", {
+        disabled: need(2),
+        onClick: function onClick() {
+          return _this6.act(function () {
+            return tools_boolean('exclude') || _this6.say('Нужны хотя бы две фигуры (не текст и не группы)');
+          });
+        }
+      }, 'Исключить'))), /*#__PURE__*/react_default.a.createElement("section", null, /*#__PURE__*/react_default.a.createElement("h4", null, 'Файл'), /*#__PURE__*/react_default.a.createElement("button", {
+        className: entry_default.a.wide,
+        onClick: function onClick() {
+          return _this6.pickImage();
+        }
+      }, 'Вставить картинку…'), isPng ? null : /*#__PURE__*/react_default.a.createElement("button", {
+        className: entry_default.a.wide,
+        onClick: function onClick() {
+          return _this6.toggleCode();
+        }
+      }, this.state.code === null ? 'Код SVG' : 'Скрыть код SVG'), /*#__PURE__*/react_default.a.createElement("button", {
+        className: entry_default.a.wide,
+        onClick: function onClick() {
+          return _this6.copyPng();
+        }
+      }, 'Копировать PNG'), /*#__PURE__*/react_default.a.createElement("label", {
+        className: entry_default.a.field
+      }, /*#__PURE__*/react_default.a.createElement("span", null, 'Фон PNG'), /*#__PURE__*/react_default.a.createElement("select", {
+        value: this.state.bg,
+        onChange: function onChange(e) {
+          return _this6.setPrefState('bg', e.target.value);
+        }
+      }, /*#__PURE__*/react_default.a.createElement("option", {
+        value: ""
+      }, 'Прозрачный'), /*#__PURE__*/react_default.a.createElement("option", {
+        value: "#ffffff"
+      }, 'Белый'), /*#__PURE__*/react_default.a.createElement("option", {
+        value: "#000000"
+      }, 'Чёрный'))), isPng ? null : /*#__PURE__*/react_default.a.createElement("label", {
+        className: entry_default.a.check
+      }, /*#__PURE__*/react_default.a.createElement("input", {
+        type: "checkbox",
+        checked: this.state.round,
+        onChange: function onChange(e) {
+          return _this6.setPrefState('round', e.target.checked);
+        }
+      }), 'Округлять координаты при сохранении'), /*#__PURE__*/react_default.a.createElement("p", {
+        className: entry_default.a.hint
+      }, 'Ctrl+S — сохранить, Ctrl+Shift+S — сохранить как, Ctrl+Shift+E — выгрузить PNG')));
+    }
+  }, {
+    key: "copyCode",
+    value: function () {
+      var _copyCode = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6() {
+        return _regeneratorRuntime().wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              _context6.prev = 0;
+              _context6.next = 3;
+              return navigator.clipboard.writeText(this.out());
+            case 3:
+              this.say('Код svg скопирован');
+              _context6.next = 9;
+              break;
+            case 6:
+              _context6.prev = 6;
+              _context6.t0 = _context6["catch"](0);
+              this.say('Не удалось скопировать');
+            case 9:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6, this, [[0, 6]]);
       }));
       function copyCode() {
         return _copyCode.apply(this, arguments);
@@ -57726,18 +58534,18 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "render",
     value: function render() {
-      var _this5 = this;
-      var _this$state = this.state,
-        loaded = _this$state.loaded,
-        image = _this$state.image,
-        imageId = _this$state.imageId,
-        width = _this$state.width,
-        height = _this$state.height,
-        dirty = _this$state.dirty,
-        note = _this$state.note,
-        error = _this$state.error,
-        theme = _this$state.theme,
-        bitmap = _this$state.bitmap;
+      var _this7 = this;
+      var _this$state2 = this.state,
+        loaded = _this$state2.loaded,
+        image = _this$state2.image,
+        imageId = _this$state2.imageId,
+        width = _this$state2.width,
+        height = _this$state2.height,
+        dirty = _this$state2.dirty,
+        note = _this$state2.note,
+        error = _this$state2.error,
+        theme = _this$state2.theme,
+        bitmap = _this$state2.bitmap;
       return /*#__PURE__*/react_default.a.createElement("div", {
         className: entry_default.a.app
       }, /*#__PURE__*/react_default.a.createElement("header", {
@@ -57750,23 +58558,23 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
       }, note || (bitmap ? 'Растровый режим' : dirty ? 'Не сохранено' : 'Сохранено')), /*#__PURE__*/react_default.a.createElement("button", {
         className: entry_default.a.primary,
         onClick: function onClick() {
-          return _this5.save();
+          return _this7.save();
         },
         title: "Ctrl+S"
       }, 'Сохранить'), bm || isPng ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
-          return _this5.saveAs();
+          return _this7.saveAs();
         }
       }, 'Сохранить как…'), /*#__PURE__*/react_default.a.createElement("span", {
         className: entry_default.a.group
       }, /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
-          return _this5.exportPng();
+          return _this7.exportPng();
         }
       }, 'Выгрузить PNG'), /*#__PURE__*/react_default.a.createElement("select", {
         value: this.state.scale,
         onChange: function onChange(e) {
-          return _this5.setState({
+          return _this7.setState({
             scale: e.target.value
           });
         },
@@ -57781,15 +58589,48 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         value: "8"
       }, '×8'))), isPng ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
-          return _this5.copyCode();
+          return _this7.copyCode();
         }
       }, 'Копировать код'), bm ? null : /*#__PURE__*/react_default.a.createElement("button", {
         onClick: function onClick() {
           return api.filesOpen(file, true);
         }
-      }, 'Открыть как есть')), error ? /*#__PURE__*/react_default.a.createElement("div", {
+      }, 'Открыть как есть'), /*#__PURE__*/react_default.a.createElement("button", {
+        className: this.state.panel ? entry_default.a.on : '',
+        onClick: function onClick() {
+          return _this7.setPrefState('panel', !_this7.state.panel);
+        },
+        title: "\u041F\u0430\u043D\u0435\u043B\u044C \u0441\u0432\u043E\u0439\u0441\u0442\u0432: \u0440\u0430\u0437\u043C\u0435\u0440\u044B, \u0432\u044B\u0440\u0430\u0432\u043D\u0438\u0432\u0430\u043D\u0438\u0435, \u043A\u043E\u043D\u0442\u0443\u0440\u044B"
+      }, 'Свойства')), error ? /*#__PURE__*/react_default.a.createElement("div", {
         className: entry_default.a.error
-      }, error) : null, /*#__PURE__*/react_default.a.createElement("div", {
+      }, error) : null, this.state.code !== null ? /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.code
+      }, /*#__PURE__*/react_default.a.createElement("textarea", {
+        spellCheck: false,
+        value: this.state.code,
+        onChange: function onChange(e) {
+          return _this7.setState({
+            code: e.target.value
+          });
+        }
+      }), /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.row
+      }, /*#__PURE__*/react_default.a.createElement("button", {
+        className: entry_default.a.primary,
+        onClick: function onClick() {
+          return _this7.applyCode();
+        }
+      }, 'Применить'), /*#__PURE__*/react_default.a.createElement("button", {
+        onClick: function onClick() {
+          return _this7.setState({
+            code: _this7.out()
+          });
+        }
+      }, 'Взять из рисунка'), /*#__PURE__*/react_default.a.createElement("span", {
+        className: entry_default.a.hint
+      }, 'После применения история отмены начнётся заново'))) : null, /*#__PURE__*/react_default.a.createElement("div", {
+        className: entry_default.a.main
+      }, /*#__PURE__*/react_default.a.createElement("div", {
         className: entry_default.a.editor
       }, loaded ? /*#__PURE__*/react_default.a.createElement(tw_paint_editor_wrapper, {
         image: image,
@@ -57801,13 +58642,13 @@ var entry_App = /*#__PURE__*/function (_React$Component) {
         theme: theme,
         onUpdateImage: this.onUpdateImage,
         onUpdateName: function onUpdateName() {}
-      }) : null));
+      }) : null), this.state.panel ? this.renderPanel() : null));
     }
   }]);
   return App;
 }(react_default.a.Component);
 react_dom_default.a.render( /*#__PURE__*/react_default.a.createElement(es["Provider"], {
-  store: store
+  store: entry_store
 }, /*#__PURE__*/react_default.a.createElement(lib["IntlProvider"], null, /*#__PURE__*/react_default.a.createElement(entry_App, null))), document.getElementById('root'));
 
 /***/ })

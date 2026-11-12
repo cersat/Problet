@@ -2657,6 +2657,14 @@ handle('bm:icon-set', (id, svg) => {
 	}
 	store.updateBookmark(id, { customIcon: data });
 });
+// Картинка из редактора в буфер обмена (через систему: navigator.clipboard требует фокуса и не везде умеет картинки)
+handle('svg:copy-png', (dataUrl) => {
+	if (!/^data:image\/png;base64,/.test(String(dataUrl))) throw new Error('Неверная картинка');
+	const buf = Buffer.from(String(dataUrl).slice(String(dataUrl).indexOf(',') + 1), 'base64');
+	if (!buf.length) throw new Error('Пустая картинка');
+	const { ClipboardItem } = require('electron');
+	return clipboard.write([new ClipboardItem({ 'image/png': new Blob([buf], { type: 'image/png' }) })]);
+});
 handle('svg:save-png', async (dataUrl, name) => {
 	const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl));
 	if (!m) throw new Error('Неверное изображение');
