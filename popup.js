@@ -6,7 +6,7 @@ function makeRow(item, index, selected) {
 
 	const icon = document.createElement('span');
 	icon.className = 'icon';
-	icon.textContent = item.type === 'calc' ? '=' : item.type === 'page' ? '↗' : '↺';
+	icon.textContent = item.type === 'calc' ? '=' : item.type === 'page' ? '↗' : item.type === 'keyword' || item.type === 'remote' ? '⌕' : '↺';
 
 	const text = document.createElement('span');
 	text.className = 'text';
@@ -23,6 +23,13 @@ function makeRow(item, index, selected) {
 		url.className = 'dim';
 		url.textContent = '  —  ' + item.text;
 		text.append(url);
+	} else if (item.type === 'keyword') {
+		// «w кошки»: искать «кошки» в Википедии
+		text.append('Искать «' + item.query + '»');
+		const where = document.createElement('span');
+		where.className = 'dim';
+		where.textContent = '  —  ' + item.label;
+		text.append(where);
 	} else {
 		text.textContent = item.text;
 	}

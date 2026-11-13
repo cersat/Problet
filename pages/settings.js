@@ -24,7 +24,8 @@ function showCustom(on) {
 }
 
 async function load() {
-	const { settings, engines, accents, searchCount, version, arrowSets, themes: th } = await api.getSettings();
+	const { settings, engines, accents, searchCount, version, arrowSets, themes: th, defaultKeywords: dk } = await api.getSettings();
+	defaultKeywords = dk;
 	arrows = arrowSets;
 	themes = th;
 	accentSet = accents;
@@ -178,6 +179,7 @@ let current = {};
 let arrows = {};
 let themes = { presets: [], tints: {}, contrasts: {}, scales: [], keys: [], palettes: {} };
 let accentSet = [];
+let defaultKeywords = [];
 
 // ---------- Панели и кнопки ----------
 
@@ -414,9 +416,12 @@ $('preset-name').addEventListener('keydown', (e) => {
 $('view-history').addEventListener('click', () => run(() => api.openInNewTab('history')));
 
 $('clear-visits').addEventListener('click', () => run(async () => {
-	if (!confirm('Удалить всю историю посещений?')) return;
-	await api.clearVisits();
-	say('История посещений очищена');
+	const sel = $('clear-period');
+	const label = sel.selectedOptions[0].textContent.toLowerCase();
+	if (!confirm('Удалить историю посещений ' + label + '?')) return;
+	const n = await api.clearVisitsSince(sel.value);
+	say(n ? 'Удалено записей: ' + n : 'За этот период записей не было');
+	renderTop();
 }));
 
 $('clear-cache').addEventListener('click', () => run(async () => {
@@ -1074,4 +1079,101 @@ run(async () => {
 });
 api.onChange((kinds) => {
 	if (kinds.includes('bookmarks') || kinds.includes('all')) run(renderBmDefault);
+});
+
+// ---------- Префиксы поисковиков ----------
+
+let kwDraft = [];
+function kwDirty(on) {
+	$('kw-save').disabled = !on;
+}
+function renderKeywords() {
+	const box = $('kw-list');
+	box.textContent = '';
+	kwDraft.forEach((k, i) => {
+		const row = document.createElement('div');
+		row.className = 'kw-row';
+		const field = (key, ph, cls) => {
+			const inp = document.createElement('input');
+			inp.type = 'text';
+			inp.value = k[key];
+			inp.placeholder = ph;
+			inp.className = cls;
+			inp.spellcheck = false;
+			inp.addEventListener('input', () => {
+				k[key] = inp.value;
+				kwDirty(true);
+			});
+			return inp;
+		};
+		const del = document.createElement('button');
+		del.className = 'kw-del';
+		del.textContent = '✕';
+		del.title = 'Убрать префикс';
+		del.addEventListener('click', () => {
+			kwDraft.splice(i, 1);
+			kwDirty(true);
+			renderKeywords();
+		});
+		row.append(field('key', 'w', 'kw-key'), field('name', 'Название', 'kw-name'), field('url', 'https://…?q=%s', 'kw-url'), del);
+		box.append(row);
+	});
+}
+function loadKeywords() {
+	kwDraft = (current.searchKeywords || []).map((k) => ({ ...k }));
+	kwDirty(false);
+	renderKeywords();
+}
+$('kw-add').addEventListener('click', () => {
+	kwDraft.push({ key: '', name: '', url: '' });
+	kwDirty(true);
+	renderKeywords();
+	const keys = document.querySelectorAll('#kw-list .kw-key');
+	keys[keys.length - 1].focus();
+});
+$('kw-reset').addEventListener('click', () => run(async () => {
+	if (!confirm('Вернуть стандартный набор префиксов? Свои префиксы пропадут.')) return;
+	current = await api.setSettings({ searchKeywords: defaultKeywords });
+	loadKeywords();
+	say('Префиксы сброшены');
+}));
+$('kw-save').addEventListener('click', () => run(async () => {
+	const list = kwDraft.filter((k) => k.key.trim() || k.name.trim() || k.url.trim());
+	current = await api.setSettings({ searchKeywords: list });
+	loadKeywords();
+	say('Префиксы сохранены');
+}));
+
+// ---------- Счётчик посещений ----------
+
+async function renderTop() {
+	const box = $('top-list');
+	box.textContent = '';
+	const list = await api.topSites();
+	for (const s of list) {
+		const row = document.createElement('div');
+		row.className = 'top-row';
+		const host = document.createElement('span');
+		host.className = 'host';
+		host.textContent = s.host;
+		const n = document.createElement('span');
+		n.className = 'count';
+		n.textContent = s.count + ' ' + plural(s.count, 'посещение', 'посещения', 'посещений');
+		row.append(host, n);
+		box.append(row);
+	}
+}
+function plural(n, one, few, many) {
+	const m10 = n % 10;
+	const m100 = n % 100;
+	if (m10 === 1 && m100 !== 11) return one;
+	if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+	return many;
+}
+document.querySelector('[data-setting="topSites"]').addEventListener('change', () => setTimeout(() => run(renderTop), 100));
+
+run(async () => {
+	await loaded;
+	loadKeywords();
+	await renderTop();
 });

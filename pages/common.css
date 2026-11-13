@@ -603,6 +603,9 @@ body.newtab p.sub {
 	font-weight: 600;
 }
 
+.tile { position: relative; }
+.tile .count { position: absolute; top: 6px; right: 8px; color: var(--faint); font-size: 11px; }
+.tiles-head { margin: 26px 0 10px; text-align: left; font-size: 13px; font-weight: 600; color: var(--muted); }
 .tile .name {
 	max-width: 100%;
 	overflow: hidden;
@@ -1111,3 +1114,21 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .bm-list .item .warn { color: var(--star); }
 .bm-list .more { padding: 6px 0; color: var(--muted); font-size: 12px; }
 .bm-list .bm-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0; border-top: 1px solid var(--border); }
+
+/* Префиксы поисковиков */
+.kw-list { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 8px; }
+.kw-row { display: grid; grid-template-columns: 64px 140px 1fr 30px; gap: 6px; align-items: center; }
+.kw-row input { margin: 0 !important; min-width: 0; width: 100%; box-sizing: border-box; }
+.kw-row .kw-key { font-family: ui-monospace, monospace; text-align: center; }
+.kw-row .kw-url { font-family: ui-monospace, monospace; font-size: 12px; }
+.kw-del { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.kw-del:hover { background: var(--danger-bg); color: var(--danger); }
+.kw-actions { display: flex; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.kw-actions .gap { flex: 1; }
+
+/* Счётчик посещений */
+.top-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; padding: 4px 0 8px; }
+.top-list:empty { display: none; }
+.top-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.top-row .host { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-row .count { color: var(--muted); white-space: nowrap; }

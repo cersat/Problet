@@ -29,6 +29,24 @@
 				<div class="what">URL-подсказки<small>В подсказках предлагаются известные адреса из истории посещений</small></div>
 				<label class="switch"><input type="checkbox" data-setting="urlSuggest"><span></span></label>
 			</div>
+			<div class="setting">
+				<div class="what">Подсказки поисковика<small>Поисковик предлагает варианты по мере набора. Для этого каждый набранный запрос отправляется поисковику, даже если не нажать Enter. Не работает со своим поисковиком</small></div>
+				<label class="switch"><input type="checkbox" data-setting="engineSuggest"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Сколько подсказок показывать</div>
+				<select data-setting="suggestCount"><option value="5">5</option><option value="7">7</option><option value="10">10</option><option value="12">12</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Префиксы поисковиков<small>Набери префикс и запрос через пробел: «w кошки» ищет в Википедии, «yt лофи» — на YouTube. В адресе <code>%s</code> заменяется запросом</small></div>
+			</div>
+			<div class="kw-list" id="kw-list"></div>
+			<div class="kw-actions">
+				<button id="kw-add">Добавить префикс</button>
+				<button id="kw-reset">Вернуть стандартные</button>
+				<span class="gap"></span>
+				<button id="kw-save" class="primary" disabled>Сохранить префиксы</button>
+			</div>
 		</section>
 
 		<section>
@@ -324,9 +342,18 @@
 				<button id="view-history">Просмотреть историю</button>
 			</div>
 			<div class="setting">
-				<div class="what">Очистить историю посещений</div>
-				<button id="clear-visits" class="danger">Очистить</button>
+				<div class="what">Сколько хранить историю<small>Записи старше удаляются сами</small></div>
+				<select data-setting="historyKeep"><option value="0">Всегда</option><option value="365">Год</option><option value="180">Полгода</option><option value="90">3 месяца</option><option value="30">Месяц</option><option value="7">Неделю</option></select>
 			</div>
+			<div class="setting">
+				<div class="what">Очистить историю посещений</div>
+				<span class="inline-form"><select id="clear-period"><option value="hour">За последний час</option><option value="day">За последние сутки</option><option value="week">За неделю</option><option value="month">За месяц</option><option value="all">За всё время</option></select><button id="clear-visits" class="danger">Очистить</button></span>
+			</div>
+			<div class="setting">
+				<div class="what">Часто посещаемые сайты на новой вкладке<small>Счётчик посещений по сайтам из истории: на новой вкладке плитки сайтов, которые открываешь чаще всего</small></div>
+				<label class="switch"><input type="checkbox" data-setting="topSites"><span></span></label>
+			</div>
+			<div class="top-list" id="top-list"></div>
 		</section>
 
 		<section>

@@ -2189,18 +2189,78 @@ function buildSuggestions(text) {
 	const q = text.trim();
 	const items = [];
 	const s = settings();
+	const max = Number(s.suggestCount) || MAX_SUGGESTIONS;
+	// «w кошки» — сначала строка «Искать в Википедии»
+	const kw = q ? store.keywordSearch(q) : null;
+	if (kw) items.push({ type: 'keyword', text: q, label: kw.keyword.name, query: kw.query });
 	const calc = q && s.calcSuggest ? tryCalc(q) : null;
 	if (calc !== null) items.push({ type: 'calc', text: calc, label: q });
-	const searches = s.searchSuggest ? store.searchSuggestions(q, MAX_SUGGESTIONS) : [];
-	const pages = q && s.urlSuggest ? store.searchVisits(q, 12).filter((p) => !store.isSearchUrl(p.url)).slice(0, 4) : [];
-	for (const h of searches.slice(0, pages.length ? 3 : MAX_SUGGESTIONS)) items.push({ type: 'history', text: h });
+	const searches = s.searchSuggest ? store.searchSuggestions(q, max) : [];
+	const pages = q && s.urlSuggest ? store.searchVisits(q, 12).filter((p) => !store.isSearchUrl(p.url)).slice(0, Math.max(2, Math.round(max / 2))) : [];
+	// Подсказки поисковика приходят позже и встают после истории поиска
+	const remote = q && !kw && s.engineSuggest ? (engineSug.cache.get(engineSug.key(q)) || []).filter((t) => t.toLowerCase() !== q.toLowerCase() && !searches.includes(t)) : [];
+	const roomForSearches = Math.max(1, max - items.length - pages.length - Math.min(remote.length, Math.ceil(max / 3)));
+	for (const h of searches.slice(0, roomForSearches)) items.push({ type: 'history', text: h });
+	for (const t of remote.slice(0, Math.max(0, max - items.length - pages.length))) items.push({ type: 'remote', text: t });
 	for (const p of pages) items.push({ type: 'page', text: p.url, label: p.title });
-	return items.slice(0, MAX_SUGGESTIONS);
+	return items.slice(0, max);
+}
+
+// ---------- Подсказки поисковика ----------
+
+// Адреса подсказок у поисковиков (формат OpenSearch: [запрос, [подсказки…]])
+const SUGGEST_URLS = {
+	duckduckgo: 'https://duckduckgo.com/ac/?type=list&q=%s',
+	google: 'https://suggestqueries.google.com/complete/search?client=firefox&q=%s',
+	brave: 'https://search.brave.com/api/suggest?q=%s',
+	bing: 'https://api.bing.com/osjson.aspx?query=%s',
+	yandex: 'https://suggest.yandex.ru/suggest-ff.cgi?part=%s',
+};
+const engineSug = {
+	cache: new Map(),
+	key: (q) => settings().engine + ' ' + q.trim().toLowerCase(),
+	timer: null,
+	seq: 0,
+};
+function requestEngineSuggest(q) {
+	clearTimeout(engineSug.timer);
+	const s = settings();
+	const tpl = SUGGEST_URLS[s.engine];
+	const text = q.trim();
+	if (!s.engineSuggest || !tpl || !text || text.length > 200 || store.keywordSearch(text) || /^[a-z][a-z0-9+.-]*:/i.test(text)) return;
+	const key = engineSug.key(text);
+	if (engineSug.cache.has(key)) return;
+	const seq = ++engineSug.seq;
+	// ждём паузу в наборе, чтобы не слать запрос на каждую букву
+	engineSug.timer = setTimeout(async () => {
+		const ctl = new AbortController();
+		const timeout = setTimeout(() => ctl.abort(), 2500);
+		try {
+			const res = await net.fetch((process.env.PROBLET_TEST_SUGGEST_URL || tpl).split('%s').join(encodeURIComponent(text)), { signal: ctl.signal, bypassCustomProtocolHandlers: true, headers: { accept: 'application/json' } });
+			const buf = Buffer.from(await res.arrayBuffer());
+			let body;
+			try {
+				body = JSON.parse(buf.toString('utf8'));
+			} catch (e) {
+				body = JSON.parse(new TextDecoder('windows-1251').decode(buf)); // Яндекс иногда отвечает не в UTF-8
+			}
+			const list = (Array.isArray(body) && Array.isArray(body[1]) ? body[1] : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 200)).slice(0, 10);
+			if (engineSug.cache.size > 300) engineSug.cache.clear();
+			engineSug.cache.set(key, list);
+			// пока ждали ответ, человек мог набрать дальше — тогда подсказки не к месту
+			if (seq === engineSug.seq && sug.live && sug.original.trim() === text && sug.selected === -1) {
+				sug.items = buildSuggestions(sug.original);
+				renderSuggest();
+			}
+		} catch (e) { /* поисковик недоступен: обходимся без его подсказок */ } finally {
+			clearTimeout(timeout);
+		}
+	}, 180);
 }
 
 function renderSuggest() {
 	if (!sug.items.length) {
-		hideSuggest();
+		hideSuggest(true); // набор продолжается: подсказки поисковика ещё могут прийти
 		return;
 	}
 	ensurePopup();
@@ -2217,7 +2277,9 @@ function renderSuggest() {
 	win.webContents.send('suggest-visible', true);
 }
 
-function hideSuggest() {
+// typing — окошко прячется, пока подсказок нет, но человек ещё набирает
+function hideSuggest(typing) {
+	if (typing !== true) sug.live = false; // запоздавшие подсказки поисковика больше не показываем
 	sug.items = [];
 	sug.selected = -1;
 	if (popup) {
@@ -2234,11 +2296,13 @@ ipcMain.on('suggest-query', (e, msg) => {
 	if (!fromToolbar(e) || !msg || typeof msg.text !== 'string') return;
 	if (!Number.isFinite(msg.x) || !Number.isFinite(msg.width)) return;
 	sug.original = msg.text;
+	sug.live = true;
 	sug.x = uiPx(msg.x);
 	sug.width = uiPx(msg.width);
 	sug.items = buildSuggestions(msg.text);
 	sug.selected = -1;
 	renderSuggest();
+	requestEngineSuggest(msg.text);
 });
 
 ipcMain.on('suggest-move', (e, dir) => {
@@ -2263,6 +2327,8 @@ ipcMain.on('popup-pick', (e, i) => {
 	hideSuggest();
 	if (item.type === 'page') {
 		loadInActive(item.text);
+	} else if (item.type === 'keyword') {
+		navigate(item.text);
 	} else if (item.type === 'calc') {
 		// Результат калькулятора кладём в адресную строку, чтобы его можно было скопировать
 		win.webContents.focus();
@@ -2712,6 +2778,7 @@ ipcMain.on('update-get', (e) => {
 handle('settings:get', () => ({
 	settings: store.getSettings(),
 	engines: store.engineList(),
+	defaultKeywords: store.DEFAULT_KEYWORDS,
 	accents: accentList(),
 	themes: { presets: PRESETS, tints: TINTS, contrasts: CONTRASTS, scales: UI_SCALES, keys: THEME_KEYS, palettes: PALETTES },
 	arrowSets: store.ARROWS,
@@ -3003,6 +3070,14 @@ handle('visits:remove', (id) => {
 handle('visits:clear', () => {
 	store.clearVisits();
 });
+// Очистка за период: последний час, сутки, неделю, месяц или всё
+const CLEAR_PERIODS = { hour: 36e5, day: 864e5, week: 7 * 864e5, month: 30 * 864e5, all: 0 };
+handle('visits:clear-since', (period) => {
+	if (!Object.hasOwn(CLEAR_PERIODS, period)) throw new Error('Неизвестный период');
+	return store.clearVisitsSince(CLEAR_PERIODS[period]);
+});
+// Часто посещаемые сайты для новой вкладки
+handle('visits:top', () => (settings().topSites ? store.topSites(8).map((s) => ({ ...s, icon: settings().cacheIcons ? iconByOrigin.get(s.origin) || '' : '' })) : []));
 
 handle('downloads:list', () => downloadsView());
 handle('downloads:open', async (id) => {
@@ -3417,6 +3492,9 @@ app.whenReady().then(() => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
 		refreshTip();
 	});
+	// Старая история удаляется по сроку хранения: при запуске и раз в час
+	store.pruneVisits();
+	setInterval(() => store.pruneVisits(), 3600000);
 	// Копия закладок: при запуске и раз в час проверяем, не пора ли
 	setTimeout(backupIfDue, 30000);
 	setInterval(backupIfDue, 3600000);

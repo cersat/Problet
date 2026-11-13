@@ -76,6 +76,8 @@ if (location.protocol === 'problet:') {
 		visits: () => call('visits:list'),
 		removeVisit: (id) => call('visits:remove', id),
 		clearVisits: () => call('visits:clear'),
+		clearVisitsSince: (period) => call('visits:clear-since', period),
+		topSites: () => call('visits:top'),
 		downloads: () => call('downloads:list'),
 		openDownload: (id) => call('downloads:open', id),
 		showDownload: (id) => call('downloads:show', id),

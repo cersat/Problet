@@ -13,6 +13,22 @@ const ENGINES = {
 	bing: { name: 'Bing', url: 'https://www.bing.com/search?q=%s' },
 	yandex: { name: 'Яндекс', url: 'https://yandex.com/search/?text=%s' },
 };
+// Префиксы поисковиков: «w кошки» ищет в Википедии. Ключ — слово до пробела
+const DEFAULT_KEYWORDS = [
+	{ key: 'g', name: 'Google', url: 'https://www.google.com/search?q=%s' },
+	{ key: 'd', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' },
+	{ key: 'y', name: 'Яндекс', url: 'https://yandex.com/search/?text=%s' },
+	{ key: 'w', name: 'Википедия', url: 'https://ru.wikipedia.org/w/index.php?search=%s' },
+	{ key: 'yt', name: 'YouTube', url: 'https://www.youtube.com/results?search_query=%s' },
+	{ key: 'gh', name: 'GitHub', url: 'https://github.com/search?q=%s' },
+	{ key: 'map', name: 'Карты', url: 'https://www.openstreetmap.org/search?query=%s' },
+	{ key: 'tr', name: 'Переводчик', url: 'https://translate.google.com/?sl=auto&tl=ru&text=%s' },
+];
+const KEYWORD_RE = /^[\p{L}\p{N}!.-]{1,12}$/u;
+const KEYWORDS_LIMIT = 50;
+// Сколько дней хранить историю посещений; 0 — всегда
+const HISTORY_KEEP = ['0', '365', '180', '90', '30', '7'];
+
 // Панель вкладок можно растянуть до двойного размера; вкладки в два слоя — когда она растянута хотя бы настолько
 const TWO_ROWS_MIN = 1.8;
 
@@ -149,6 +165,11 @@ const SETTING_DEFAULTS = {
 	hideCookieBanners: false,
 	calcSuggest: true,
 	searchSuggest: true,
+	engineSuggest: false, // подсказки поисковика: каждая набранная буква уходит поисковику, поэтому по умолчанию выключено
+	suggestCount: '7',
+	searchKeywords: DEFAULT_KEYWORDS,
+	historyKeep: '0',
+	topSites: true, // плитки часто посещаемых сайтов на новой вкладке
 	dnt: false,
 	autoUpdate: true,
 	updateEvery: '360',
@@ -188,7 +209,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab'];
+const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab', 'engineSuggest', 'topSites'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -202,6 +223,8 @@ const ENUM_SETTINGS = {
 	updateEvery: ['15', '30', '60', '180', '360', '720', '1440'], // период авто-проверки обновлений в минутах
 	pwLock: ['5', '15', '60', '0'],
 	bmStar: ['dialog', 'toggle'],
+	suggestCount: ['5', '7', '10', '12'],
+	historyKeep: HISTORY_KEEP,
 	bmBackup: ['off', 'day', 'week'],
 	bmBackupKeep: ['3', '5', '10', '30'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
 };
@@ -335,6 +358,22 @@ function cleanPresets(list) {
 	return out;
 }
 
+function cleanKeywords(list) {
+	const out = [];
+	const keys = new Set();
+	for (const k of list) {
+		if (!k || typeof k !== 'object') continue;
+		const key = typeof k.key === 'string' ? k.key.trim().toLowerCase() : '';
+		const name = str(k.name, 40).trim();
+		const url = typeof k.url === 'string' ? k.url.trim() : '';
+		if (!KEYWORD_RE.test(key) || keys.has(key) || !name || !validTemplate(url)) continue;
+		keys.add(key);
+		out.push({ key, name, url });
+		if (out.length >= KEYWORDS_LIMIT) break;
+	}
+	return out;
+}
+
 // Ссылка на папку закладок в настройках: '' (без папки), 'last' (последняя выбранная) или id папки
 function cleanFolderRef(v, allowLast) {
 	if (typeof v !== 'string' || v.length > 64) return '';
@@ -380,6 +419,7 @@ function sanitizeSettings(raw) {
 	out.hotkeys = cleanHotkeys(r.hotkeys, customIds);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
+	out.searchKeywords = Array.isArray(r.searchKeywords) ? cleanKeywords(r.searchKeywords) : DEFAULT_KEYWORDS.map((k) => ({ ...k }));
 	out.bmBackupDir = typeof r.bmBackupDir === 'string' && r.bmBackupDir.length <= 1024 && path.isAbsolute(r.bmBackupDir) ? r.bmBackupDir : '';
 	out.bmDefaultFolder = cleanFolderRef(r.bmDefaultFolder, true);
 	out.bmLastFolder = cleanFolderRef(r.bmLastFolder, false);
@@ -637,6 +677,7 @@ function addVisit(url, title) {
 		data.visits.unshift({ id: newId(), url: u, title: str(title, 300), time: now });
 		if (data.visits.length > VISITS_LIMIT) data.visits.length = VISITS_LIMIT;
 	}
+	pruneVisits();
 	scheduleSave();
 	changed('visits');
 }
@@ -650,6 +691,67 @@ function updateVisitTitle(url, title) {
 		scheduleSave();
 		changed('visits');
 	}
+}
+
+// Старше срока хранения записи удаляются (при каждом посещении и раз в час)
+function pruneVisits() {
+	const days = Number(data.settings.historyKeep) || 0;
+	if (!days) return 0;
+	const since = Date.now() - days * 864e5;
+	const before = data.visits.length;
+	data.visits = data.visits.filter((v) => v.time >= since);
+	const n = before - data.visits.length;
+	if (n) {
+		scheduleSave();
+		changed('visits');
+	}
+	return n;
+}
+
+// Удалить записи за последние ms миллисекунд (0 — всю историю)
+function clearVisitsSince(ms) {
+	const before = data.visits.length;
+	if (!ms) data.visits = [];
+	else {
+		const since = Date.now() - ms;
+		data.visits = data.visits.filter((v) => v.time < since);
+	}
+	scheduleSave();
+	changed('visits');
+	return before - data.visits.length;
+}
+
+// Часто посещаемые сайты: число посещений по сайтам, адрес и название — самой посещаемой страницы сайта
+function topSites(limit) {
+	const sites = new Map();
+	for (const v of data.visits) {
+		let origin;
+		try {
+			const u = new URL(v.url);
+			if (!/^https?:$/.test(u.protocol)) continue;
+			origin = u.origin;
+		} catch (e) {
+			continue;
+		}
+		let s = sites.get(origin);
+		if (!s) {
+			s = { origin, count: 0, pages: new Map() };
+			sites.set(origin, s);
+		}
+		s.count++;
+		const p = s.pages.get(v.url) || { url: v.url, title: v.title, n: 0 };
+		p.n++;
+		if (!p.title && v.title) p.title = v.title;
+		s.pages.set(v.url, p);
+	}
+	return [...sites.values()]
+		.filter((s) => s.count >= 2)
+		.sort((a, b) => b.count - a.count)
+		.slice(0, limit)
+		.map((s) => {
+			const top = [...s.pages.values()].sort((a, b) => b.n - a.n)[0];
+			return { origin: s.origin, url: top.url, title: top.title || new URL(s.origin).hostname, host: new URL(s.origin).hostname, count: s.count };
+		});
 }
 
 function visitsList() {
@@ -789,6 +891,20 @@ function setSettings(patch) {
 		if (typeof p.customBlock !== 'string' || p.customBlock.length > 200000) throw new Error('Список слишком длинный');
 		next.customBlock = p.customBlock;
 	}
+	if (p.searchKeywords !== undefined) {
+		if (!Array.isArray(p.searchKeywords)) throw new Error('Некорректные префиксы поиска');
+		if (p.searchKeywords.length > KEYWORDS_LIMIT) throw new Error('Слишком много префиксов');
+		const keys = new Set();
+		for (const k of p.searchKeywords) {
+			const key = k && typeof k.key === 'string' ? k.key.trim().toLowerCase() : '';
+			if (!KEYWORD_RE.test(key)) throw new Error('Префикс — одно короткое слово (буквы, цифры), без пробелов: «' + (key || '…') + '»');
+			if (keys.has(key)) throw new Error('Префикс «' + key + '» уже есть');
+			keys.add(key);
+			if (!k.name || !String(k.name).trim()) throw new Error('У префикса «' + key + '» нет названия');
+			if (!validTemplate(k.url)) throw new Error('Адрес для «' + key + '» должен начинаться с http:// или https:// и содержать %s на месте запроса');
+		}
+		next.searchKeywords = cleanKeywords(p.searchKeywords);
+	}
 	if (p.bmBackupDir !== undefined) {
 		if (typeof p.bmBackupDir !== 'string' || p.bmBackupDir.length > 1024 || (p.bmBackupDir && !path.isAbsolute(p.bmBackupDir))) throw new Error('Некорректная папка для копий');
 		next.bmBackupDir = p.bmBackupDir;
@@ -816,10 +932,21 @@ function setSettings(patch) {
 function isSearchUrl(url) {
 	const templates = Object.values(ENGINES).map((e) => e.url);
 	if (data.settings.customTemplate) templates.push(data.settings.customTemplate);
+	for (const k of data.settings.searchKeywords) templates.push(k.url);
 	return templates.some((t) => url.startsWith(t.slice(0, t.indexOf('%s'))));
 }
 
+// «w кошки» → поисковик с префиксом w; без префикса — null
+function keywordSearch(text) {
+	const m = /^(\S+)\s+(\S[\s\S]*)$/u.exec(String(text || '').trim());
+	if (!m) return null;
+	const k = data.settings.searchKeywords.find((x) => x.key === m[1].toLowerCase());
+	return k ? { keyword: k, query: m[2].trim(), url: k.url.split('%s').join(encodeURIComponent(m[2].trim())) } : null;
+}
+
 function searchUrl(text) {
+	const kw = keywordSearch(text);
+	if (kw) return kw.url;
 	const s = data.settings;
 	const template = s.engine === 'custom' ? s.customTemplate : ENGINES[s.engine].url;
 	return template.split('%s').join(encodeURIComponent(text));
@@ -1179,5 +1306,5 @@ module.exports = {
 	onChange, notify: changed, DEFAULT_SPACE,
 	addBlocked, blockedTotal,
 	getZoom, setZoom,
-	addVisit, isSearchUrl, updateVisitTitle, visitsList, removeVisit, clearVisits, searchVisits, getDownloads, setDownloads,
+	addVisit, isSearchUrl, updateVisitTitle, visitsList, removeVisit, clearVisits, searchVisits, getDownloads, setDownloads, keywordSearch, pruneVisits, clearVisitsSince, topSites, DEFAULT_KEYWORDS,
 };
