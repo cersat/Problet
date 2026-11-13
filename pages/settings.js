@@ -697,7 +697,7 @@ $('clear').addEventListener('click', () => run(async () => {
 	await load();
 }));
 
-run(load);
+const loaded = run(load);
 run(loadExtensions);
 
 
@@ -932,4 +932,146 @@ api.onChange((kinds) => {
 		current = r.settings;
 		return loadExtensions(); // заодно перерисует «Панели»: в них названия расширений и аддонов
 	}).catch(() => {});
+});
+
+// ---------- Закладки: папка по умолчанию, резервные копии, битые закладки ----------
+
+async function renderBmDefault() {
+	const st = await api.bookmarks();
+	const sel = $('bm-default-folder');
+	sel.textContent = '';
+	sel.append(new Option('Без папки', ''), new Option('В последнюю выбранную', 'last'));
+	for (const f of st.folders) sel.append(new Option('В папку «' + f.name + '»', f.id));
+	sel.value = current.bmDefaultFolder || '';
+	if (sel.value !== (current.bmDefaultFolder || '')) sel.value = '';
+}
+$('bm-default-folder').addEventListener('change', () => run(async () => {
+	current = await api.setSettings({ bmDefaultFolder: $('bm-default-folder').value });
+	say('Сохранено');
+}));
+
+const kb = (n) => (n < 1024 ? n + ' Б' : (n / 1024).toFixed(1).replace('.0', '') + ' КБ');
+async function renderBackups() {
+	const { dir, list } = await api.bmBackupList();
+	$('bm-backup-dir').textContent = dir;
+	$('bm-backup-reset').classList.toggle('hidden', !current.bmBackupDir);
+	$('bm-backup-count').textContent = list.length ? 'Сохранено копий: ' + list.length + ', последняя ' + list[0].date : 'Копий пока нет';
+	const box = $('bm-backups');
+	box.textContent = '';
+	for (const b of list.slice(0, 5)) {
+		const item = document.createElement('div');
+		item.className = 'item';
+		const info = document.createElement('div');
+		info.className = 'info';
+		const t = document.createElement('b');
+		t.textContent = b.date;
+		const sub = document.createElement('small');
+		sub.textContent = (b.count === null ? 'файл повреждён' : 'закладок: ' + b.count) + ' · ' + kb(b.size);
+		info.append(t, sub);
+		const btn = document.createElement('button');
+		btn.textContent = 'Восстановить';
+		btn.disabled = b.count === null;
+		btn.addEventListener('click', () => run(async () => {
+			if (!confirm('Заменить все закладки и папки копией от ' + b.date + '? Текущие закладки перед этим сохранятся отдельной копией.')) return;
+			const r = await api.bmBackupRestore(b.name);
+			say(r.message);
+			await renderBackups();
+			await renderBmDefault();
+		}));
+		item.append(info, btn);
+		box.append(item);
+	}
+	if (list.length > 5) box.append(Object.assign(document.createElement('div'), { className: 'more', textContent: 'И ещё ' + (list.length - 5) + ' — в папке с копиями' }));
+}
+$('bm-backup-now').addEventListener('click', () => run(async () => {
+	say((await api.bmBackupNow()).message);
+	await renderBackups();
+}));
+$('bm-backup-pick').addEventListener('click', () => run(async () => {
+	const r = await api.bmBackupDirPick();
+	if (r.canceled) return;
+	current = await api.setSettings({ bmBackupDir: r.path });
+	await renderBackups();
+	say('Сохранено');
+}));
+$('bm-backup-reset').addEventListener('click', () => run(async () => {
+	current = await api.setSettings({ bmBackupDir: '' });
+	await renderBackups();
+	say('Сохранено');
+}));
+$('bm-backup-open').addEventListener('click', () => run(() => api.bmBackupOpen()));
+
+api.onBmCheckProgress((done, total) => {
+	$('bm-check-status').textContent = 'Проверено ' + done + ' из ' + total;
+});
+function renderBroken(list) {
+	const box = $('bm-broken');
+	box.textContent = '';
+	const broken = list.filter((x) => x.kind === 'broken');
+	for (const x of list) {
+		const item = document.createElement('div');
+		item.className = 'item';
+		const info = document.createElement('div');
+		info.className = 'info';
+		const t = document.createElement('b');
+		t.textContent = x.title;
+		const url = document.createElement('small');
+		url.textContent = (x.folder ? x.folder + ' · ' : '') + x.url;
+		const why = document.createElement('small');
+		why.className = x.kind === 'broken' ? 'bad' : 'warn';
+		why.textContent = (x.kind === 'broken' ? 'Не открывается: ' : 'Возможно, временно: ') + x.reason;
+		info.append(t, url, why);
+		const open = document.createElement('button');
+		open.textContent = 'Открыть';
+		open.addEventListener('click', () => run(() => api.folderOpen(x.url, true)));
+		const del = document.createElement('button');
+		del.className = 'danger';
+		del.textContent = 'Удалить';
+		del.addEventListener('click', () => run(async () => {
+			await api.removeBookmark(x.id);
+			renderBroken(list.filter((y) => y !== x));
+			say('Закладка удалена');
+		}));
+		item.append(info, open, del);
+		box.append(item);
+	}
+	if (broken.length > 1) {
+		const bar = document.createElement('div');
+		bar.className = 'bm-actions';
+		const all = document.createElement('button');
+		all.className = 'danger';
+		all.textContent = 'Удалить все неоткрывающиеся (' + broken.length + ')';
+		all.addEventListener('click', () => run(async () => {
+			if (!confirm('Удалить ' + broken.length + ' закладок, которые больше не открываются?')) return;
+			for (const x of broken) await api.removeBookmark(x.id);
+			renderBroken(list.filter((y) => y.kind !== 'broken'));
+			say('Удалено закладок: ' + broken.length);
+		}));
+		bar.append(all);
+		box.append(bar);
+	}
+}
+$('bm-check').addEventListener('click', () => run(async () => {
+	$('bm-check').disabled = true;
+	$('bm-broken').textContent = '';
+	$('bm-check-status').textContent = 'Проверяю…';
+	try {
+		const list = await api.bmCheck();
+		$('bm-check-status').textContent = list.length ? 'Не открываются: ' + list.filter((x) => x.kind === 'broken').length + ', под вопросом: ' + list.filter((x) => x.kind === 'maybe').length : 'Все закладки открываются';
+		renderBroken(list);
+	} catch (e) {
+		$('bm-check-status').textContent = 'Проверить, какие адреса больше не открываются';
+		throw e;
+	} finally {
+		$('bm-check').disabled = false;
+	}
+}));
+
+run(async () => {
+	await loaded;
+	await renderBmDefault();
+	await renderBackups();
+});
+api.onChange((kinds) => {
+	if (kinds.includes('bookmarks') || kinds.includes('all')) run(renderBmDefault);
 });

@@ -1,0 +1,9 @@
+.bmstar-page { margin: 0; padding: 14px 16px; border: 1px solid var(--border-strong); height: 100vh; box-sizing: border-box; background: var(--surface); color: var(--text); display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.bmstar-page h1 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-strong); }
+.bmstar-page label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.bmstar-page input[type=text], .bmstar-page select { width: 100%; box-sizing: border-box; margin: 0 !important; color: var(--text); font-size: 13px; }
+.bmstar-page .row { display: flex; gap: 8px; align-items: center; margin-top: auto; }
+.bmstar-page .gap { flex: 1; }
+.bmstar-page .err { margin: 0; min-height: 0; color: var(--danger); font-size: 12px; }
+.bmstar-page .err:empty { display: none; }
+.bmstar-page [hidden] { display: none; }

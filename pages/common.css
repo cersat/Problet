@@ -1099,3 +1099,15 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .preset .del:hover { background: var(--danger-bg); color: var(--danger); }
 .inline-form { display: flex; gap: 8px; }
 .inline-form input { margin-top: 0 !important; width: 200px; }
+
+/* Списки в разделе «Закладки»: копии и битые закладки */
+.bm-list { display: flex; flex-direction: column; }
+.bm-list:empty { display: none; }
+.bm-list .item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.bm-list .item .info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bm-list .item b { font-weight: 500; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-list .item small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-list .item .bad { color: var(--danger); }
+.bm-list .item .warn { color: var(--star); }
+.bm-list .more { padding: 6px 0; color: var(--muted); font-size: 12px; }
+.bm-list .bm-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0; border-top: 1px solid var(--border); }

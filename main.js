@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const { pathToFileURL } = require('url');
+const { pathToFileURL, fileURLToPath } = require('url');
 const store = require('./store');
 const cache = require('./cache');
 const adblock = require('./adblock');
@@ -104,7 +104,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -461,17 +461,212 @@ function goForward() {
 	if (wc && wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward();
 }
 
-function toggleBookmark() {
+// ☆ и Ctrl+D: закладка сразу добавляется в папку по умолчанию и открывается окошко, где её можно переименовать, перенести или убрать.
+// Если в настройках выбрано «молча», звёздочка просто добавляет или убирает закладку
+let bmStarCreated = '';
+async function toggleBookmark() {
 	const tab = activeTab();
 	if (!tab) return;
 	const wc = tab.view.webContents;
 	const url = wc.getURL();
 	if (!isBookmarkable(url)) return;
 	const existing = store.findBookmarkByUrl(url);
-	if (existing) store.removeBookmark(existing.id);
-	else store.addBookmark({ title: wc.getTitle(), url, icon: tab.icon });
-	sendState();
+	if (settings().bmStar === 'toggle') {
+		if (existing) store.removeBookmark(existing.id);
+		else store.addBookmark({ title: wc.getTitle(), url, icon: tab.icon, folder: store.defaultFolder() });
+		sendState();
+		return;
+	}
+	let bm = existing;
+	if (!bm) {
+		bm = store.addBookmark({ title: wc.getTitle(), url, icon: tab.icon, folder: store.defaultFolder() });
+		bmStarCreated = bm.id;
+		sendState();
+	} else if (!(panelOpen && panelKind === 'bmstar' && panelArg === bm.id)) bmStarCreated = '';
+	let rect = null;
+	try {
+		rect = await win.webContents.executeJavaScript("(() => { const e = document.getElementById('star'); if (!e || !e.offsetParent) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()");
+	} catch (e) { /* звёздочки нет на панели */ }
+	openPanel('bmstar', rect ? { ...uiRect(rect), addr: false } : { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8), addr: false }, bm.id);
 }
+
+// Окошко закладки
+handle('bm:star-get', (id) => {
+	const st = store.bookmarksState();
+	const b = st.bookmarks.find((x) => x.id === id);
+	if (!b) throw new Error('Закладка не найдена');
+	return { bookmark: { id: b.id, title: b.title, url: b.url, folder: b.folder || '' }, folders: st.folders.map((f) => ({ id: f.id, name: f.name, color: f.color })), created: bmStarCreated === id };
+});
+handle('bm:star-save', (id, p) => {
+	const patch = p && typeof p === 'object' ? p : {};
+	let folder = typeof patch.folder === 'string' ? patch.folder : '';
+	if (typeof patch.newFolder === 'string' && patch.newFolder.trim()) folder = store.addFolder(patch.newFolder).id;
+	store.updateBookmark(id, { title: String(patch.title || ''), folder: folder || null });
+	store.setSettings({ bmLastFolder: folder });
+	bmStarCreated = '';
+	sendState();
+});
+handle('bm:star-remove', (id) => {
+	store.removeBookmark(id);
+	bmStarCreated = '';
+	sendState();
+});
+
+// ---------- Резервные копии закладок ----------
+
+const backupDir = () => settings().bmBackupDir || path.join(app.getPath('userData'), 'bookmark-backups');
+const BACKUP_RE = /^bookmarks-(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})(?:-(\d+))?\.json$/;
+function listBackups() {
+	let names = [];
+	try {
+		names = fs.readdirSync(backupDir()).filter((n) => BACKUP_RE.test(n));
+	} catch (e) {
+		return [];
+	}
+	const order = (n) => { const m = BACKUP_RE.exec(n); return m.slice(1, 7).join('') + String(m[7] || 1).padStart(4, '0'); };
+	return names.sort((a, b) => order(b).localeCompare(order(a))).map((name) => {
+		const m = BACKUP_RE.exec(name);
+		let count = null;
+		let size = 0;
+		try {
+			const full = path.join(backupDir(), name);
+			size = fs.statSync(full).size;
+			count = JSON.parse(fs.readFileSync(full, 'utf8')).bookmarks.length;
+		} catch (e) { /* повреждённая копия */ }
+		return { name, date: m[3] + '.' + m[2] + '.' + m[1] + ' ' + m[4] + ':' + m[5], time: new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime(), count, size };
+	});
+}
+// force — по кнопке: копия делается, даже если ничего не поменялось
+function makeBackup(force) {
+	const st = store.bookmarksState();
+	if (!st.bookmarks.length && !st.folders.length) {
+		if (force) throw new Error('Закладок пока нет');
+		return null;
+	}
+	const dir = backupDir();
+	fs.mkdirSync(dir, { recursive: true });
+	const data = store.bookmarksBackup();
+	const list = listBackups();
+	if (!force && list[0]) {
+		try {
+			const last = JSON.parse(fs.readFileSync(path.join(dir, list[0].name), 'utf8'));
+			if (JSON.stringify([last.folders, last.bookmarks]) === JSON.stringify([data.folders, data.bookmarks])) return null; // с прошлой копии ничего не поменялось
+		} catch (e) { /* прошлая копия повреждена: делаем новую */ }
+	}
+	const d = new Date();
+	const p2 = (n) => String(n).padStart(2, '0');
+	const base = 'bookmarks-' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '_' + p2(d.getHours()) + '-' + p2(d.getMinutes()) + '-' + p2(d.getSeconds());
+	let name = base + '.json';
+	for (let n = 2; fs.existsSync(path.join(dir, name)); n++) name = base + '-' + n + '.json'; // две копии в одну секунду не затирают друг друга
+	fs.writeFileSync(path.join(dir, name), JSON.stringify(data, null, '\t'));
+	// старые копии сверх заданного числа удаляются
+	const keep = Number(settings().bmBackupKeep) || 10;
+	for (const old of listBackups().slice(keep)) {
+		try {
+			fs.rmSync(path.join(dir, old.name), { force: true });
+		} catch (e) { /* занято */ }
+	}
+	log('копия закладок', name);
+	return name;
+}
+function backupIfDue() {
+	const every = { day: 864e5, week: 7 * 864e5 }[settings().bmBackup];
+	if (!every) return;
+	const last = listBackups()[0];
+	if (last && Date.now() - last.time < every) return;
+	try {
+		makeBackup(false);
+	} catch (e) {
+		log('не удалось сохранить копию закладок', e);
+	}
+}
+handle('bm:backup-list', () => ({ dir: backupDir(), list: listBackups() }));
+handle('bm:backup-now', () => {
+	const name = makeBackup(true);
+	return { message: 'Копия сохранена: ' + name };
+});
+handle('bm:backup-restore', (name) => {
+	if (!BACKUP_RE.test(String(name))) throw new Error('Нет такой копии');
+	const raw = JSON.parse(fs.readFileSync(path.join(backupDir(), String(name)), 'utf8'));
+	try {
+		makeBackup(false); // текущие закладки тоже сохраняются: восстановление можно откатить
+	} catch (e) { /* без страховочной копии */ }
+	const r = store.restoreBookmarks(raw);
+	sendState();
+	return { message: 'Восстановлено закладок: ' + r.bookmarks + ', папок: ' + r.folders };
+});
+handle('bm:backup-dir-pick', async () => {
+	const r = await dialog.showOpenDialog(win, { title: 'Папка для копий закладок', defaultPath: backupDir(), properties: ['openDirectory', 'createDirectory'] });
+	if (r.canceled || !r.filePaths[0]) return { canceled: true };
+	return { path: r.filePaths[0] };
+});
+handle('bm:backup-open', () => {
+	fs.mkdirSync(backupDir(), { recursive: true });
+	return shell.openPath(backupDir());
+});
+
+// ---------- Проверка закладок: какие адреса больше не открываются ----------
+
+// broken — страницы точно нет (404, 410, сайта нет, файла нет); maybe — сервер ошибся или не ответил, может быть временно
+async function checkLink(url) {
+	let u;
+	try {
+		u = new URL(url);
+	} catch (e) {
+		return { kind: 'broken', reason: 'неверный адрес' };
+	}
+	if (u.protocol === 'file:') return fs.existsSync(fileURLToPath(u)) ? null : { kind: 'broken', reason: 'файла больше нет' };
+	const ask = async (method) => {
+		const ctl = new AbortController();
+		const timer = setTimeout(() => ctl.abort(), 15000);
+		try {
+			const res = await net.fetch(u.href, { method, signal: ctl.signal, redirect: 'follow', bypassCustomProtocolHandlers: true });
+			if (res.body) res.body.cancel().catch(() => {});
+			return res.status;
+		} finally {
+			clearTimeout(timer);
+		}
+	};
+	try {
+		let status = await ask('HEAD');
+		if (status === 405 || status === 501 || status === 404 || status === 403) status = await ask('GET'); // некоторые сайты не понимают HEAD
+		if (status === 404 || status === 410) return { kind: 'broken', reason: 'страницы нет (' + status + ')' };
+		if (status >= 500) return { kind: 'maybe', reason: 'ошибка сервера (' + status + ')' };
+		return null;
+	} catch (e) {
+		if (e && e.name === 'AbortError') return { kind: 'maybe', reason: 'сайт не ответил за 15 секунд' };
+		const msg = String((e && e.message) || e);
+		if (/NAME_NOT_RESOLVED|ADDRESS_UNREACHABLE|CONNECTION_REFUSED/.test(msg)) return { kind: 'broken', reason: /NAME_NOT_RESOLVED/.test(msg) ? 'сайта больше нет' : 'сайт не принимает соединения' };
+		return { kind: 'maybe', reason: 'не удалось открыть: ' + msg.replace(/^net::/, '') };
+	}
+}
+let bmChecking = false;
+ipcMain.handle('bm:check', async (e) => {
+	guard(e);
+	if (bmChecking) throw new Error('Проверка уже идёт');
+	bmChecking = true;
+	try {
+		const st = store.bookmarksState();
+		const folderName = new Map(st.folders.map((f) => [f.id, f.name]));
+		const list = st.bookmarks.slice();
+		const out = [];
+		let done = 0;
+		let next = 0;
+		const worker = async () => {
+			while (next < list.length) {
+				const b = list[next++];
+				const r = await checkLink(b.url);
+				if (r) out.push({ id: b.id, title: b.title, url: b.url, folder: folderName.get(b.folder) || '', ...r });
+				done++;
+				if (!e.sender.isDestroyed()) e.sender.send('bm-check-progress', done, list.length);
+			}
+		};
+		await Promise.all(Array.from({ length: Math.min(6, list.length) }, worker));
+		return out.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'broken' ? -1 : 1));
+	} finally {
+		bmChecking = false;
+	}
+});
 
 // ---------- Вкладки ----------
 
@@ -1330,7 +1525,7 @@ const ACTION_RUN = {
 	reload: () => toggleReload(),
 	reload2: () => toggleReload(),
 	find: () => openFind(),
-	bookmark: () => toggleBookmark(),
+	bookmark: () => toggleBookmark().catch((e) => log('закладка', e)),
 	bookmarks: () => openInternal('bookmarks'),
 	history: () => openInternal('history'),
 	downloads: () => openInternal('downloads'),
@@ -2097,7 +2292,7 @@ ipcMain.on('go', (e, text) => {
 ipcMain.on('back', (e) => fromToolbar(e) && goBack());
 ipcMain.on('forward', (e) => fromToolbar(e) && goForward());
 ipcMain.on('reload', (e) => fromToolbar(e) && toggleReload());
-ipcMain.on('toggle-bookmark', (e) => fromToolbar(e) && toggleBookmark());
+ipcMain.on('toggle-bookmark', (e) => fromToolbar(e) && toggleBookmark().catch((err) => log('закладка', err)));
 ipcMain.on('open-internal', (e, name) => fromToolbar(e) && openInternal(name));
 ipcMain.on('tab-new', (e) => fromToolbar(e) && createTab(NEWTAB));
 ipcMain.on('tab-activate', (e, id) => fromToolbar(e) && activateTab(id));
@@ -2221,7 +2416,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0], ext: [380, 440] };
+const PANEL_SIZE = { bmstar: [340, 250], chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0], ext: [380, 440] };
 let panelArg = '';
 
 let panelTimer = null;
@@ -3222,6 +3417,9 @@ app.whenReady().then(() => {
 		if (win && !win.isDestroyed()) win.webContents.send('update-state', st);
 		refreshTip();
 	});
+	// Копия закладок: при запуске и раз в час проверяем, не пора ли
+	setTimeout(backupIfDue, 30000);
+	setInterval(backupIfDue, 3600000);
 	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster }));
 });
 function startHeadless() {

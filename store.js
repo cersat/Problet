@@ -180,6 +180,12 @@ const SETTING_DEFAULTS = {
 	warnInsecure: false,
 	customBlock: '',
 	bmNewTab: false,
+	bmDefaultFolder: '', // куда класть новую закладку: '' — без папки, 'last' — в последнюю выбранную, иначе id папки
+	bmLastFolder: '', // последняя папка, выбранная в окошке закладки
+	bmStar: 'dialog', // что делает ☆: dialog — добавить и показать окошко, toggle — молча добавить или убрать
+	bmBackup: 'week', // автоматическая резервная копия закладок: off, day, week
+	bmBackupDir: '', // папка для копий; пустая — папка данных браузера
+	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
 const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab'];
@@ -194,7 +200,10 @@ const ENUM_SETTINGS = {
 	arrows: Object.keys(ARROWS),
 	freezeAfter: ['1', '2', '5', '10', '30', '60', '120', '300', '600', '1440', '0'], // через сколько минут без просмотра вкладка замораживается; 0 — никогда
 	updateEvery: ['15', '30', '60', '180', '360', '720', '1440'], // период авто-проверки обновлений в минутах
-	pwLock: ['5', '15', '60', '0'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
+	pwLock: ['5', '15', '60', '0'],
+	bmStar: ['dialog', 'toggle'],
+	bmBackup: ['off', 'day', 'week'],
+	bmBackupKeep: ['3', '5', '10', '30'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
 };
 
 let file = null;
@@ -326,6 +335,13 @@ function cleanPresets(list) {
 	return out;
 }
 
+// Ссылка на папку закладок в настройках: '' (без папки), 'last' (последняя выбранная) или id папки
+function cleanFolderRef(v, allowLast) {
+	if (typeof v !== 'string' || v.length > 64) return '';
+	if (v === 'last') return allowLast ? 'last' : '';
+	return /^[\w-]+$/.test(v) ? v : '';
+}
+
 function sanitizeSettings(raw) {
 	const r = raw && typeof raw === 'object' ? raw : {};
 	const out = { ...SETTING_DEFAULTS };
@@ -364,6 +380,9 @@ function sanitizeSettings(raw) {
 	out.hotkeys = cleanHotkeys(r.hotkeys, customIds);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
+	out.bmBackupDir = typeof r.bmBackupDir === 'string' && r.bmBackupDir.length <= 1024 && path.isAbsolute(r.bmBackupDir) ? r.bmBackupDir : '';
+	out.bmDefaultFolder = cleanFolderRef(r.bmDefaultFolder, true);
+	out.bmLastFolder = cleanFolderRef(r.bmLastFolder, false);
 	out.downloadDir = typeof r.downloadDir === 'string' && r.downloadDir.length <= 1024 && path.isAbsolute(r.downloadDir) ? r.downloadDir : '';
 	keepSettingsButton(out);
 	out.customTemplate = validTemplate(r.customTemplate) ? r.customTemplate.trim() : '';
@@ -770,6 +789,16 @@ function setSettings(patch) {
 		if (typeof p.customBlock !== 'string' || p.customBlock.length > 200000) throw new Error('Список слишком длинный');
 		next.customBlock = p.customBlock;
 	}
+	if (p.bmBackupDir !== undefined) {
+		if (typeof p.bmBackupDir !== 'string' || p.bmBackupDir.length > 1024 || (p.bmBackupDir && !path.isAbsolute(p.bmBackupDir))) throw new Error('Некорректная папка для копий');
+		next.bmBackupDir = p.bmBackupDir;
+	}
+	for (const key of ['bmDefaultFolder', 'bmLastFolder']) {
+		if (p[key] === undefined) continue;
+		const v = cleanFolderRef(p[key], key === 'bmDefaultFolder');
+		if (v !== p[key] || (v && v !== 'last' && !data.folders.some((f) => f.id === v))) throw new Error('Нет такой папки');
+		next[key] = v;
+	}
 	if (p.downloadDir !== undefined) {
 		if (typeof p.downloadDir !== 'string' || p.downloadDir.length > 1024 || (p.downloadDir && !path.isAbsolute(p.downloadDir))) throw new Error('Некорректная папка загрузок');
 		next.downloadDir = p.downloadDir;
@@ -957,6 +986,7 @@ function removeFolder(id) {
 	for (const b of data.bookmarks) {
 		if (b.folder === id) b.folder = null;
 	}
+	for (const key of ['bmDefaultFolder', 'bmLastFolder']) if (data.settings[key] === id) data.settings[key] = ''; // папки больше нет: закладки снова кладутся без папки
 	scheduleSave();
 	changed('bookmarks');
 }
@@ -1022,6 +1052,34 @@ function exportBookmarksHtml() {
 	}
 	out.push('</DL><p>', '');
 	return out.join('\n');
+}
+
+// Резервная копия только закладок и папок
+function bookmarksBackup() {
+	return { app: 'problet', kind: 'bookmarks', version: 1, exported: new Date().toISOString(), folders: data.folders, bookmarks: data.bookmarks };
+}
+
+// Восстановление из копии: закладки и папки заменяются целиком, остальное не трогается
+function restoreBookmarks(raw) {
+	if (!raw || typeof raw !== 'object' || !Array.isArray(raw.bookmarks)) throw new Error('Это не копия закладок');
+	const inc = sanitize({ folders: raw.folders, bookmarks: raw.bookmarks });
+	data.folders = inc.folders;
+	data.bookmarks = inc.bookmarks;
+	const ids = new Set(data.folders.map((f) => f.id));
+	for (const key of ['bmDefaultFolder', 'bmLastFolder']) {
+		const v = data.settings[key];
+		if (v && v !== 'last' && !ids.has(v)) data.settings[key] = '';
+	}
+	scheduleSave();
+	changed('bookmarks');
+	return { bookmarks: data.bookmarks.length, folders: data.folders.length };
+}
+
+// Папка, куда класть новую закладку по настройке
+function defaultFolder() {
+	const s = data.settings;
+	const id = s.bmDefaultFolder === 'last' ? s.bmLastFolder : s.bmDefaultFolder;
+	return id && data.folders.some((f) => f.id === id) ? id : null;
 }
 
 // ---------- Резервная копия ----------
@@ -1115,7 +1173,7 @@ module.exports = {
 	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
-	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, exportBookmarksHtml,
+	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
 	exportData, looksLikeBackup, importData,
 	getSession, setSession, getCacheClearedAt, setCacheClearedAt,
 	onChange, notify: changed, DEFAULT_SPACE,

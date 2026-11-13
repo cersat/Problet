@@ -90,6 +90,36 @@
 				<label class="switch"><input type="checkbox" data-setting="bmNewTab"><span></span></label>
 			</div>
 			<div class="setting">
+				<div class="what">Куда класть новые закладки</div>
+				<select id="bm-default-folder"></select>
+			</div>
+			<div class="setting">
+				<div class="what">Звёздочка в адресной строке и Ctrl+D<small>Окошко: закладка добавляется и сразу можно поменять название и папку или удалить её</small></div>
+				<select data-setting="bmStar"><option value="dialog">Добавить и показать окошко</option><option value="toggle">Молча добавить или убрать</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Резервные копии закладок<small>Копия сохраняется, только если закладки поменялись с прошлого раза</small></div>
+				<select data-setting="bmBackup"><option value="off">Не делать</option><option value="day">Каждый день</option><option value="week">Каждую неделю</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Сколько копий хранить<small>Старые удаляются</small></div>
+				<select data-setting="bmBackupKeep"><option value="3">3</option><option value="5">5</option><option value="10">10</option><option value="30">30</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Папка для копий<small id="bm-backup-dir"></small></div>
+				<span class="inline-form"><button id="bm-backup-pick">Выбрать</button><button id="bm-backup-reset" class="hidden">По умолчанию</button><button id="bm-backup-open">Открыть</button></span>
+			</div>
+			<div class="setting">
+				<div class="what">Копии<small id="bm-backup-count"></small></div>
+				<button id="bm-backup-now">Сделать копию сейчас</button>
+			</div>
+			<div id="bm-backups" class="bm-list"></div>
+			<div class="setting">
+				<div class="what">Битые закладки<small id="bm-check-status">Проверить, какие адреса больше не открываются</small></div>
+				<button id="bm-check">Проверить закладки</button>
+			</div>
+			<div id="bm-broken" class="bm-list"></div>
+			<div class="setting">
 				<div class="what">Менеджер закладок</div>
 				<button id="open-bookmarks">Открыть менеджер закладок</button>
 			</div>

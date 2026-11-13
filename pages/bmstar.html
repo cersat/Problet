@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<title>Закладка</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="bmstar.css">
+</head>
+<body class="bmstar-page">
+	<h1 id="head">Закладка добавлена</h1>
+	<label>Название
+		<input type="text" id="title" maxlength="300" autocomplete="off" spellcheck="false">
+	</label>
+	<label>Папка
+		<select id="folder"></select>
+	</label>
+	<input type="text" id="new-folder" maxlength="100" autocomplete="off" placeholder="Название новой папки" hidden>
+	<p id="err" class="err"></p>
+	<div class="row">
+		<button id="remove" class="danger">Удалить</button>
+		<span class="gap"></span>
+		<button id="done" class="primary">Готово</button>
+	</div>
+	<script src="bmstar.js"></script>
+</body>
+</html>
