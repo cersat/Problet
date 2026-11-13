@@ -806,7 +806,7 @@
 		['Язык', 'Language'],
 		['Язык интерфейса', 'Interface language'],
 		['Авто (как в системе)', 'Auto (as in the system)'],
-		['Меняет язык браузера: настройки, меню, окна и страницы Problet. Сайты не переводятся. Часть системных надписей Chromium обновится после перезапуска', 'Changes the language of the browser: settings, menus, windows and Problet pages. Sites are not translated. Some of Chromium’s system labels will update after a restart'],
+		['Меняет язык самого браузера: настройки, меню, окна и страницы Problet. Часть системных надписей Chromium обновится после перезапуска', 'Changes the language of the browser: settings, menus, windows and Problet pages. Some of Chromium’s system labels will update after a restart'],
 		['Перезапустить для полной смены языка', 'Restart to fully change the language'],
 		['Сохранено запросов: {}', 'Saved searches: {}'],
 		['Выбрать свой цвет', 'Choose a custom color'],
@@ -1005,6 +1005,13 @@
 		['Применить', 'Apply'],
 		['Взять из рисунка', 'Take from the drawing'],
 		['После применения история отмены начнётся заново', 'After applying, the undo history starts over'],
+		['Переводить страницы автоматически', 'Translate pages automatically'],
+		['Каждая открытая страница переводится через Google Переводчик. Текст страницы уходит в Google. Если страница уже на нужном языке, ничего не меняется. Вручную: кнопка «Перевод страницы» на панелях (в «Панелях» по умолчанию скрыта) или Ctrl+Shift+Y', 'Every opened page is translated with Google Translate. The page text is sent to Google. If the page is already in the target language, nothing changes. Manually: the “Page translation” button on the bars (hidden by default in “Bars”) or Ctrl+Shift+Y'],
+		['Переводить на язык', 'Translate into'],
+		['Как язык интерфейса', 'Same as the interface language'],
+		['Перевод страницы', 'Page translation'],
+		['Перевести страницу', 'Translate page'],
+		['Перевести страницу (Ctrl+Shift+Y)', 'Translate page (Ctrl+Shift+Y)'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

@@ -44,13 +44,13 @@ const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmba
 const SPACERS = ['sp1', 'sp2', 'sp3'];
 // x:<id расширения> — кнопка расширения, у каждого своя
 const EXT_BTN = /^x:([a-p]{32}|@[a-z0-9][a-z0-9-]{0,39})$/; // расширение Chrome или @аддон Problet
-const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
+const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {
 		tabs: ['spaces', 'm:tabs', 'newtab', 'sp1', 'winctl'],
 		toolbar: ['back', 'forward', 'reload', 'm:address', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'],
 		bmbar: ['m:bookmarks', 'sp3'],
-		hidden: ['sp2', 'darkpage'],
+		hidden: ['sp2', 'darkpage', 'translate'],
 	};
 }
 
@@ -207,10 +207,12 @@ const SETTING_DEFAULTS = {
 	bmBackup: 'week', // автоматическая резервная копия закладок: off, day, week
 	bmBackupDir: '', // папка для копий; пустая — папка данных браузера
 	language: 'auto', // язык интерфейса: auto — как в системе, ru, en
+	pageTranslate: false, // переводить каждую открытую страницу через Google Переводчик
+	translateTo: 'auto', // на какой язык: auto — язык интерфейса
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab', 'engineSuggest', 'topSites'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab', 'engineSuggest', 'topSites'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -228,6 +230,7 @@ const ENUM_SETTINGS = {
 	historyKeep: HISTORY_KEEP,
 	bmBackup: ['off', 'day', 'week'],
 	language: ['auto', 'ru', 'en'],
+	translateTo: ['auto', 'ru', 'en', 'uk', 'de', 'fr', 'es', 'it', 'pt', 'pl', 'tr', 'zh-CN', 'ja', 'ko'],
 	bmBackupKeep: ['3', '5', '10', '30'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
 };
 

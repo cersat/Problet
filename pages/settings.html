@@ -17,8 +17,16 @@
 		<section>
 			<h2>Язык</h2>
 			<div class="setting">
-				<div class="what">Язык интерфейса<small>Меняет язык браузера: настройки, меню, окна и страницы Problet. Сайты не переводятся. Часть системных надписей Chromium обновится после перезапуска</small></div>
+				<div class="what">Язык интерфейса<small>Меняет язык самого браузера: настройки, меню, окна и страницы Problet. Часть системных надписей Chromium обновится после перезапуска</small></div>
 				<select data-setting="language"><option value="auto" translate="no">Auto / Авто</option><option value="ru" translate="no">Русский</option><option value="en" translate="no">English</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Переводить страницы автоматически<small>Каждая открытая страница переводится через Google Переводчик. Текст страницы уходит в Google. Если страница уже на нужном языке, ничего не меняется. Вручную: кнопка «Перевод страницы» на панелях (в «Панелях» по умолчанию скрыта) или Ctrl+Shift+Y</small></div>
+				<label class="switch"><input type="checkbox" data-setting="pageTranslate"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Переводить на язык</div>
+				<select data-setting="translateTo"><option value="auto">Как язык интерфейса</option><option value="ru" translate="no">Русский</option><option value="en" translate="no">English</option><option value="uk" translate="no">Українська</option><option value="de" translate="no">Deutsch</option><option value="fr" translate="no">Français</option><option value="es" translate="no">Español</option><option value="it" translate="no">Italiano</option><option value="pt" translate="no">Português</option><option value="pl" translate="no">Polski</option><option value="tr" translate="no">Türkçe</option><option value="zh-CN" translate="no">中文</option><option value="ja" translate="no">日本語</option><option value="ko" translate="no">한국어</option></select>
 			</div>
 			<div class="setting">
 				<div class="what">Перезапустить для полной смены языка</div>

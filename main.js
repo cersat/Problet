@@ -13,6 +13,7 @@ const importer = require('./importer');
 const extensions = require('./extensions');
 const addons = require('./addons');
 const accel = require('./pages/accel');
+const pageTranslate = require('./pagetranslate');
 const vault = require('./vault');
 const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
@@ -450,6 +451,8 @@ function sendState(navigated, reset) {
 		reset: !!reset,
 		zoom: levelToPercent(wc.getZoomLevel()),
 		pwOffer: offerFor(tab),
+		translated: !!tab.translated,
+		canTranslate: pageTranslate.translatable(url),
 	});
 }
 
@@ -812,6 +815,7 @@ function wireTab(tab) {
 		if (!details.isMainFrame || details.isSameDocument) return;
 		// Если иконка этого сайта уже известна (и кеш иконок включён), показываем её сразу
 		tab.icon = (!tab.incognito && settings().cacheIcons && iconByOrigin.get(originOf(details.url))) || '';
+		translator.reset(tab);
 		tab.title = ''; // старое название не должно переходить на новую страницу, у которой своего может не быть (например, 404)
 		sendTabs();
 	});
@@ -848,6 +852,7 @@ function wireTab(tab) {
 	});
 	// Страница новой вкладки при загрузке забирает фокус себе: возвращаем его в адресную строку, чтобы можно было сразу печатать
 	wc.on('did-finish-load', () => {
+		if (settings().pageTranslate && !tab.translated && !tab.translateOff) translator.start(tab, translateTarget());
 		if (!tab.incognito) addons.emit('tabUpdated', { id: tab.id, url: wc.getURL(), title: wc.getTitle() });
 		if (tab.id === activeId && isNewTab(wc.getURL()) && Date.now() - tab.created < 5000 && win && win.isFocused()) focusAddress();
 	});
@@ -1513,12 +1518,20 @@ handle('pw:pending-drop', (tabId) => {
 
 let capturingHotkey = false; // пока на странице настроек записывают сочетание, команды не выполняем
 
+// Перевод страниц: целевой язык — из настроек, «авто» берёт язык интерфейса
+const translator = pageTranslate.create({ onChange: (tab) => { if (tab.id === activeId) sendState(); }, log });
+const translateTarget = () => (settings().translateTo && settings().translateTo !== 'auto' ? settings().translateTo : i18nMain.lang());
+
 // Тёмная тема любой страницы: инверсия цветов, повторный вызов возвращает как было
 const DARK_PAGE_JS = "document.documentElement.style.filter = document.documentElement.style.filter ? '' : 'invert(1) hue-rotate(180deg)'";
 const ACTION_RUN = {
 	darkPage: () => {
 		const wc = activeContents();
 		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(DARK_PAGE_JS, true).catch(() => {});
+	},
+	translate: () => {
+		const tab = activeTab();
+		if (tab) translator.toggle(tab, translateTarget());
 	},
 	address: () => focusAddress(),
 	newTab: () => createTab(NEWTAB),
@@ -2409,6 +2422,7 @@ function runCustom(id) {
 }
 ipcMain.on('custom-button', (e, id) => fromToolbar(e) && runCustom(id));
 ipcMain.on('dark-page', (e) => fromToolbar(e) && ACTION_RUN.darkPage());
+ipcMain.on('translate-page', (e) => fromToolbar(e) && ACTION_RUN.translate());
 ipcMain.on('tab-move', (e, id, to) => fromToolbar(e) && moveTab(id, to));
 
 // ---------- Подсказка у иконки обновления ----------

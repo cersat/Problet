@@ -31,6 +31,7 @@
 		{ id: 'print', label: 'Печать', key: 'Ctrl+P' },
 		{ id: 'pdf', label: 'Сохранить как PDF', key: 'Ctrl+Alt+P' },
 		{ id: 'source', label: 'Код страницы', key: 'Ctrl+U' },
+		{ id: 'translate', label: 'Перевести страницу', key: 'Ctrl+Shift+Y' },
 		{ id: 'darkPage', label: 'Тёмная тема страницы', key: 'Ctrl+Shift+L' },
 		{ id: 'devtools', label: 'Инструменты разработчика', key: 'F12' },
 	];
