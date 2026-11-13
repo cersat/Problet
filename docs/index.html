@@ -12,7 +12,9 @@
 	main { max-width: 720px; margin: 0 auto; padding: 56px 20px 72px; }
 	header { display: flex; align-items: center; gap: 18px; margin-bottom: 8px; }
 	header img { width: 72px; height: 72px; }
-	h1 { margin: 0; font-size: 40px; }
+	h1 { margin: 0; font-size: 40px; flex: 1; }
+	.lang { color: var(--dim); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 14px; text-decoration: none; }
+	.lang:hover { color: var(--text); border-color: var(--accent); }
 	p.lead { color: var(--dim); font-size: 18px; margin: 12px 0 32px; }
 	h2 { font-size: 20px; margin: 40px 0 14px; }
 	.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
@@ -35,6 +37,7 @@
 	<header>
 		<img src="icon.png" alt="">
 		<h1>Problet</h1>
+		<a class="lang" id="lang" href="?lang=en" title="English / Русский">EN</a>
 	</header>
 	<p class="lead">Браузер, написанный с нуля на Electron. Свои панели и кнопки, пространства, заморозка вкладок, блокировщик рекламы, менеджер паролей и встроенные инструменты вместо расширений.</p>
 
@@ -61,6 +64,53 @@
 	<footer><a href="https://github.com/cersat/Problet">Исходный код на GitHub</a></footer>
 </main>
 <script>
+	// Язык страницы: ?lang=en или ?lang=ru, иначе по языку браузера; выбор запоминается
+	const EN = {
+		'.lead': 'A browser written from scratch on Electron. Your own bars and buttons, spaces, tab freezing, an ad blocker, a password manager and built-in tools instead of extensions.',
+		'#installed': '<b>Problet is already installed</b> — you are viewing this page in it. Updates arrive on their own: Settings → Updates.',
+		'h2:nth-of-type(1)': 'Download',
+		'#dl a[data-os="linux"] small': 'AppImage or tar.gz',
+		'#dl a[data-os="win"] small': 'installer or zip',
+		'#dl a[data-os="mac"] small': 'dmg or zip',
+		'#ver': 'All builds: <a href="https://github.com/cersat/Problet/releases">Releases</a>. Linux: after downloading, make the AppImage executable (<code>chmod +x</code>). macOS: the app is not signed; on first launch open it through the context menu → “Open”. You can update right in the browser: Settings → Updates.',
+		'h2:nth-of-type(2)': 'What’s inside',
+		'li:nth-child(1)': 'The tab, tool and bookmark bars can be rearranged any way you like; every button lives on any bar',
+		'li:nth-child(2)': 'Spaces, freezing and unloading of tabs, incognito mode',
+		'li:nth-child(3)': 'An ad and tracker blocker, including on YouTube',
+		'li:nth-child(4)': 'An encrypted password manager, bookmarks with import from other browsers',
+		'li:nth-child(5)': 'Problet’s own addons with permissions for dangerous actions, and Chrome extensions',
+		'li:nth-child(6)': 'A built-in SVG editor, a character map, a calculator in the address bar',
+		'footer': '<a href="https://github.com/cersat/Problet">Source code on GitHub</a>',
+	};
+	const RU = {};
+	const q = new URLSearchParams(location.search).get('lang');
+	let lang = q === 'en' || q === 'ru' ? q : null;
+	try {
+		if (lang) localStorage.setItem('lang', lang);
+		else lang = localStorage.getItem('lang');
+	} catch (e) { /* без запоминания */ }
+	if (lang !== 'en' && lang !== 'ru') lang = /^ru/i.test(navigator.language || '') ? 'ru' : 'en';
+	function applyLang() {
+		document.documentElement.lang = lang;
+		for (const [sel, en] of Object.entries(EN)) {
+			const el = document.querySelector(sel);
+			if (!el) continue;
+			if (!(sel in RU)) RU[sel] = el.innerHTML;
+			el.innerHTML = lang === 'en' ? en : RU[sel];
+		}
+		const btn = document.getElementById('lang');
+		btn.textContent = lang === 'en' ? 'RU' : 'EN';
+		btn.href = '?lang=' + (lang === 'en' ? 'ru' : 'en');
+		window.dispatchEvent(new Event('langchange'));
+	}
+	document.getElementById('lang').addEventListener('click', (e) => {
+		e.preventDefault();
+		lang = lang === 'en' ? 'ru' : 'en';
+		try { localStorage.setItem('lang', lang); } catch (err) { /* без запоминания */ }
+		applyLang();
+	});
+	applyLang();
+
 	// Problet сообщает о себе через window.isProblet (только когда не маскируется под другой браузер)
 	if (window.isProblet === true) document.body.classList.add('is-problet');
 
@@ -73,9 +123,16 @@
 		set('win', find(/-win-.*\.exe$/));
 		set('mac', find(/-mac-arm64\.dmg$/));
 		const intel = find(/-mac-x64\.dmg$/);
-		if (intel) document.querySelector('#dl a[data-os="mac"] small').innerHTML = 'dmg для Apple Silicon · <span data-href="' + intel.browser_download_url + '">для Intel</span>';
-		const span = document.querySelector('#dl a[data-os="mac"] span');
-		if (span) span.addEventListener('click', (e) => { e.preventDefault(); location.href = span.dataset.href; });
+		if (intel) {
+			const small = document.querySelector('#dl a[data-os="mac"] small');
+			const show = () => {
+				small.innerHTML = (lang === 'en' ? 'dmg for Apple Silicon · <span data-href="' : 'dmg для Apple Silicon · <span data-href="') + intel.browser_download_url + '">' + (lang === 'en' ? 'for Intel' : 'для Intel') + '</span>';
+				const span = small.querySelector('span');
+				span.addEventListener('click', (e) => { e.preventDefault(); location.href = span.dataset.href; });
+			};
+			show();
+			window.addEventListener('langchange', show);
+		}
 	}).catch(() => {});
 </script>
 </body>
