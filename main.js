@@ -16,7 +16,7 @@ const accel = require('./pages/accel');
 const vault = require('./vault');
 const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
-const { themePayload, accentList } = require('./theme');
+const { themePayload, accentList, PRESETS, TINTS, CONTRASTS, UI_SCALES, THEME_KEYS, PALETTES } = require('./theme');
 const headless = require('./headless');
 
 // Память: молодое поколение кучи V8 в каждом процессе ограничено 2 МБ (по умолчанию растёт до 16). Страницы с большим числом
@@ -136,7 +136,16 @@ const tabs = []; // { id, view, title, url, icon, loading, pendingUrl, pinned }
 const sug = { items: [], selected: -1, original: '', x: 0, width: 0 };
 
 const settings = () => store.getSettings();
-const bgColor = () => (settings().darkTheme ? '#1e1e20' : '#fbfbfd');
+const bgColor = () => themePayload(settings()).vars['--bg'];
+const surfaceColor = () => themePayload(settings()).vars['--surface'];
+// Масштаб интерфейса: панели и окошки браузера рисуются крупнее, их размеры в окне умножаются на него
+const uiZ = () => themePayload(settings()).scale;
+const uiPx = (n) => Math.round(n * uiZ());
+// Положение кнопки, которое прислали панели, — в их единицах; в окне оно больше во столько же раз
+const uiRect = (r) => (r && Number.isFinite(r.x) && Number.isFinite(r.y) ? { ...r, x: r.x * uiZ(), y: r.y * uiZ(), width: (Number(r.width) || 0) * uiZ(), height: (Number(r.height) || 0) * uiZ() } : r);
+function uiZoom(wc) {
+	if (wc && !wc.isDestroyed() && Math.abs(wc.getZoomFactor() - uiZ()) > 0.001) wc.setZoomFactor(uiZ());
+}
 const activeTab = () => tabs.find((t) => t.id === activeId) || null;
 const activeContents = () => {
 	const t = activeTab();
@@ -239,11 +248,11 @@ function internalIcon(url) {
 
 // Панель вкладок можно растянуть до двойного размера (tabsScale от 1 до 2)
 function panelHeight(k) {
-	return k === 'tabs' ? Math.round(TABBAR_HEIGHT * settings().tabsScale) : k === 'toolbar' ? TOOLBAR_HEIGHT : BMBAR_HEIGHT;
+	return uiPx(k === 'tabs' ? Math.round(TABBAR_HEIGHT * settings().tabsScale) : k === 'toolbar' ? TOOLBAR_HEIGHT : BMBAR_HEIGHT);
 }
 
 function sideWidth() {
-	return Math.round(SIDE_WIDTH * settings().tabsScale);
+	return uiPx(Math.round(SIDE_WIDTH * settings().tabsScale));
 }
 
 // Где что стоит: какие панели над страницей, какие под ней, нужна ли узкая полоса заголовка для кнопок окна.
@@ -269,7 +278,7 @@ function toolbarTop() {
 	const p = panelPlan();
 	const at = p.before.indexOf('toolbar');
 	if (at < 0) return null;
-	return (p.strip ? TITLEBAR_HEIGHT : 0) + panelsHeight(p.before.slice(0, at));
+	return (p.strip ? uiPx(TITLEBAR_HEIGHT) : 0) + panelsHeight(p.before.slice(0, at));
 }
 
 const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'tabsScale', 'tabsTwoRows'];
@@ -352,7 +361,7 @@ ipcMain.on('bar:menu', (e, id) => {
 	]);
 });
 // Папка на панели закладок: нажатие раскрывает её окошко, правая кнопка даёт меню
-const folderRect = (rect) => ({ ...(rect || {}), addr: false });
+const folderRect = (rect) => ({ ...(uiRect(rect) || {}), addr: false });
 const folderItems = (id) => store.bookmarksState().bookmarks.filter((b) => b.folder === id);
 function openFolderAll(id) {
 	const items = folderItems(id);
@@ -476,7 +485,7 @@ function contentSize() {
 function insets() {
 	const p = panelPlan();
 	return {
-		top: (p.strip ? TITLEBAR_HEIGHT : 0) + panelsHeight(p.before),
+		top: (p.strip ? uiPx(TITLEBAR_HEIGHT) : 0) + panelsHeight(p.before),
 		bottom: panelsHeight(p.after),
 		left: p.side === 'left' ? sideWidth() : 0,
 		right: p.side === 'right' ? sideWidth() : 0,
@@ -1128,7 +1137,7 @@ ipcMain.on('pw:submit', (e, data) => {
 	}
 	if (tab.id === activeId) {
 		sendState();
-		if (!panelOpen) openPanel('pwsave', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+		if (!panelOpen) openPanel('pwsave', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8) });
 	}
 });
 
@@ -1151,7 +1160,7 @@ ipcMain.on('pw:need-fill', (e, hasPass) => {
 	if (fillAsked.size > 2000) fillAsked.clear();
 	fillAsked.add(key);
 	fillCtx = { tabId: tab.id, origin };
-	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: TOOLBAR_HEIGHT - 8 });
+	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8) });
 });
 handle('pw:fill-options', () => {
 	if (!fillCtx) return null;
@@ -1546,9 +1555,10 @@ const LAYER_IDLE_MS = 45000;
 
 function createLayer(preload, file) {
 	const v = new WebContentsView({ webPreferences: { preload: path.join(__dirname, preload), contextIsolation: true } });
-	v.setBackgroundColor(settings().darkTheme ? '#2c2c2f' : '#f0f0f5');
+	v.setBackgroundColor(surfaceColor());
 	v.setVisible(false);
 	win.contentView.addChildView(v);
+	v.webContents.on('did-finish-load', () => uiZoom(v.webContents));
 	v.webContents.loadFile(file);
 	return v;
 }
@@ -1598,7 +1608,7 @@ let findReady = false;
 function layoutFind() {
 	if (!findView || !win) return;
 	const [w] = contentSize();
-	findView.setBounds({ x: Math.max(0, w - FIND_WIDTH - 12 - insets().right), y: insets().top + 6, width: FIND_WIDTH, height: FIND_HEIGHT });
+	findView.setBounds({ x: Math.max(0, w - uiPx(FIND_WIDTH) - 12 - insets().right), y: insets().top + 6, width: uiPx(FIND_WIDTH), height: uiPx(FIND_HEIGHT) });
 }
 
 function showFind() {
@@ -1955,8 +1965,10 @@ function applySettings() {
 	refreshIdentity();
 	nativeTheme.themeSource = s.darkTheme ? 'dark' : 'light';
 	win.setBackgroundColor(bgColor());
-	if (popup) popup.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
-	if (findView) findView.setBackgroundColor(s.darkTheme ? '#2c2c2f' : '#f0f0f5');
+	if (popup) popup.setBackgroundColor(surfaceColor());
+	if (findView) findView.setBackgroundColor(surfaceColor());
+	if (panel) panel.setBackgroundColor(bgColor());
+	for (const v of [win, popup, findView, panel, tipView]) if (v) uiZoom(v.webContents);
 	for (const t of tabs) t.view.setBackgroundColor(bgColor());
 	broadcastTheme();
 	if (mergedWas !== s.spacesMerged) {
@@ -1998,10 +2010,10 @@ function renderSuggest() {
 	}
 	ensurePopup();
 	if (!popupReady) return; // покажем, как только слой загрузится
-	const height = sug.items.length * ROW_HEIGHT + POPUP_PADDING * 2;
+	const height = uiPx(sug.items.length * ROW_HEIGHT + POPUP_PADDING * 2);
 	popup.setBounds({
 		x: sug.x,
-		y: toolbarTop() !== null ? toolbarTop() + TOOLBAR_HEIGHT - 2 : toolbarY() - height + 2, // сразу под адресной строкой, а если панель инструментов под страницей — над ней
+		y: toolbarTop() !== null ? toolbarTop() + panelHeight('toolbar') - 2 : toolbarY() - height + 2, // сразу под адресной строкой, а если панель инструментов под страницей — над ней
 		width: sug.width,
 		height,
 	});
@@ -2027,8 +2039,8 @@ ipcMain.on('suggest-query', (e, msg) => {
 	if (!fromToolbar(e) || !msg || typeof msg.text !== 'string') return;
 	if (!Number.isFinite(msg.x) || !Number.isFinite(msg.width)) return;
 	sug.original = msg.text;
-	sug.x = Math.round(msg.x);
-	sug.width = Math.round(msg.width);
+	sug.x = uiPx(msg.x);
+	sug.width = uiPx(msg.width);
 	sug.items = buildSuggestions(msg.text);
 	sug.selected = -1;
 	renderSuggest();
@@ -2146,7 +2158,7 @@ function ensureTip() {
 	if (tipView) return;
 	const t = themePayload(settings());
 	const html = '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden}'
-		+ 'body{box-sizing:border-box;padding:8px 12px;font:13px system-ui,sans-serif;background:' + (settings().darkTheme ? '#2c2c2f' : '#f0f0f5') + ';color:' + (settings().darkTheme ? '#ececf0' : '#222') + ';border:1px solid ' + (settings().darkTheme ? '#4a4a50' : '#c9c9d2') + ';border-radius:8px}'
+		+ 'body{box-sizing:border-box;padding:8px 12px;font:13px system-ui,sans-serif;background:' + t.vars['--surface'] + ';color:' + t.vars['--text'] + ';border:1px solid ' + t.vars['--border-strong'] + ';border-radius:8px}'
 		+ '#b{height:4px;margin-top:6px;border-radius:2px;background:rgba(128,128,128,.3);overflow:hidden}#p{height:100%;width:0;background:' + t.accent + ';transition:width .3s}</style>'
 		+ '<div id="t"></div><div id="b"><div id="p"></div></div>';
 	tipView = new WebContentsView({ webPreferences: { contextIsolation: true, sandbox: true } });
@@ -2160,6 +2172,7 @@ function ensureTip() {
 		tipReady = true;
 		if (tipJs) mine.webContents.executeJavaScript(tipJs).catch(() => {});
 	});
+	tipView.webContents.on('did-finish-load', () => uiZoom(tipView && tipView.webContents));
 	tipView.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
 }
 
@@ -2169,8 +2182,8 @@ function refreshTip() {
 	if (!c) return hideTip();
 	ensureTip();
 	const [cw, ch] = contentSize();
-	const w = 270;
-	const h = c.progress === undefined ? 34 : 50;
+	const w = uiPx(270);
+	const h = uiPx(c.progress === undefined ? 34 : 50);
 	const below = tipRect.y + tipRect.height + 6;
 	tipView.setBounds({ x: Math.round(Math.min(Math.max(8, tipRect.x + tipRect.width / 2 - w / 2), cw - w - 8)), y: Math.round(below + h <= ch ? below : Math.max(0, tipRect.y - h - 6)), width: w, height: h });
 	win.contentView.addChildView(tipView);
@@ -2195,7 +2208,7 @@ function hideTip() {
 ipcMain.on('update-tip', (e, rect) => {
 	if (!fromToolbar0(e)) return;
 	if (rect && Number.isFinite(rect.x) && Number.isFinite(rect.y)) {
-		tipRect = { x: rect.x, y: rect.y, width: Number(rect.width) || 0, height: Number(rect.height) || 0 };
+		tipRect = uiRect({ x: rect.x, y: rect.y, width: Number(rect.width) || 0, height: Number(rect.height) || 0 });
 		refreshTip();
 	} else hideTip();
 });
@@ -2226,6 +2239,7 @@ function ensurePanel() {
 	panel.setVisible(false);
 	win.contentView.addChildView(panel);
 	const made = panel;
+	panel.webContents.on('did-finish-load', () => uiZoom(made.webContents)); // масштаб хранится по адресу страницы: у новой страницы окошка его надо выставить заново
 	panel.webContents.on('destroyed', () => {
 		if (panel !== made) return;
 		try {
@@ -2270,14 +2284,16 @@ function openPanel(kind, rect, arg = '') {
 	ensurePanel();
 	// Куда вернуть фокус и вставить символ: в адресную строку, только если курсор стоял в ней, иначе в страницу (кнопка на панели сама забирает фокус окна)
 	panelReturn = rect && typeof rect.addr === 'boolean' ? (rect.addr ? 'toolbar' : 'tab') : win.webContents.isFocused() ? 'toolbar' : 'tab';
-	const [w, h0] = PANEL_SIZE[kind];
-	const h = kind === 'folder' ? Math.min(440, 112 + Math.max(1, folderItems(arg).length) * 36) : h0; // шапка и подвал плюс строки закладок
+	const [w0, h0] = PANEL_SIZE[kind];
+	const w = uiPx(w0);
+	const h = uiPx(kind === 'folder' ? Math.min(440, 112 + Math.max(1, folderItems(arg).length) * 36) : h0); // шапка и подвал плюс строки закладок
 	const place = (pw, ph) => {
 		const [cw, ch] = contentSize();
 		const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - pw / 2, y: insets().top - 4, width: 0, height: 0 };
 		const x = Math.round(Math.min(Math.max(8, r.x + r.width / 2 - pw / 2), Math.max(8, cw - pw - 8)));
 		const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
 		panel.setBounds({ x, y, width: pw, height: Math.min(ph, Math.max(160, ch - y - 8)) });
+		uiZoom(panel.webContents);
 	};
 	place(w, h);
 	panelKind = kind;
@@ -2294,7 +2310,7 @@ function openPanel(kind, rect, arg = '') {
 			if (!panelOpen || panel !== mine || panelArg !== arg) return;
 			try {
 				const d = await mine.webContents.executeJavaScript('[document.documentElement.scrollWidth, document.documentElement.scrollHeight]');
-				place(Math.min(720, Math.max(280, d[0])), Math.min(600, Math.max(120, d[1])));
+				place(uiPx(Math.min(720, Math.max(280, d[0]))), uiPx(Math.min(600, Math.max(120, d[1]))));
 			} catch (e) { /* остаётся прежний размер */ }
 		});
 		// В Electron у расширений нет chrome.runtime.openOptionsPage: подставляем своё, оно открывает страницу настроек вкладкой
@@ -2318,7 +2334,7 @@ function openPanel(kind, rect, arg = '') {
 ipcMain.on('applet-open', (e, kind, rect) => {
 	if (!fromToolbar0(e)) return;
 	if (kind === 'spaces') openSpacesApplet();
-	else openPanel(kind, rect);
+	else openPanel(kind, uiRect(rect));
 });
 
 // Апплет пространств: страница; если так выбрано в настройках, у неё нет вкладки в панели
@@ -2502,6 +2518,7 @@ handle('settings:get', () => ({
 	settings: store.getSettings(),
 	engines: store.engineList(),
 	accents: accentList(),
+	themes: { presets: PRESETS, tints: TINTS, contrasts: CONTRASTS, scales: UI_SCALES, keys: THEME_KEYS, palettes: PALETTES },
 	arrowSets: store.ARROWS,
 	searchCount: store.searchCount(),
 	version: app.getVersion(),
@@ -3113,6 +3130,7 @@ function createWindow() {
 	win.on('maximize', sendLayout);
 	win.on('unmaximize', sendLayout);
 	win.webContents.on('before-input-event', hotkeys);
+	win.webContents.on('did-finish-load', () => uiZoom(win.webContents));
 	win.webContents.on('did-finish-load', sendExtActions);
 	win.webContents.on('did-finish-load', () => {
 		if (started) return;

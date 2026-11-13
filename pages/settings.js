@@ -24,8 +24,14 @@ function showCustom(on) {
 }
 
 async function load() {
-	const { settings, engines, accents, searchCount, version, arrowSets } = await api.getSettings();
+	const { settings, engines, accents, searchCount, version, arrowSets, themes: th } = await api.getSettings();
 	arrows = arrowSets;
+	themes = th;
+	accentSet = accents;
+	fillSelect($('bg-tint'), Object.entries(th.tints));
+	fillSelect($('contrast'), Object.entries(th.contrasts));
+	fillSelect($('ui-scale'), th.scales.map((n) => [String(n), n + '%']));
+	$('ui-scale').value = String(settings.uiScale);
 	$('app-version').textContent = version;
 	current = settings;
 	renderHotkeys();
@@ -52,21 +58,126 @@ async function load() {
 	showDownloadDir();
 	$('startup-url-row').classList.toggle('hidden', settings.startup !== 'url');
 
+	renderSwatches();
+	renderPresets();
+}
+
+function fillSelect(sel, pairs) {
+	const v = sel.value;
+	sel.textContent = '';
+	for (const [value, label] of pairs) sel.append(new Option(label, value));
+	if (v) sel.value = v;
+}
+
+const isHex = (v) => /^#[0-9a-f]{6}$/i.test(v || '');
+const accentHex = (v) => (isHex(v) ? v : ((accentSet.find((a) => a.id === v) || accentSet[0] || {}).color || '#7c9cf5'));
+
+function renderSwatches() {
 	const box = $('swatches');
 	box.textContent = '';
-	for (const a of accents) {
+	for (const a of accentSet) {
 		const b = document.createElement('button');
-		b.className = 'swatch' + (a.id === settings.accent ? ' active' : '');
+		b.className = 'swatch' + (a.id === current.accent ? ' active' : '');
 		b.dataset.accent = a.id;
 		const dot = document.createElement('i');
 		dot.style.background = a.color;
 		b.append(dot, a.name);
 		box.append(b);
 	}
+	// Свой цвет: палитра системы
+	const own = document.createElement('label');
+	own.className = 'swatch own' + (isHex(current.accent) ? ' active' : '');
+	own.title = 'Выбрать свой цвет';
+	const dot = document.createElement('i');
+	dot.style.background = isHex(current.accent) ? current.accent : 'conic-gradient(#f28b9b, #f5d77a, #7fcf9a, #6cb2f0, #b79cf0, #f28b9b)';
+	const input = document.createElement('input');
+	input.type = 'color';
+	input.value = accentHex(current.accent);
+	input.addEventListener('input', () => { dot.style.background = input.value; });
+	input.addEventListener('change', () => applyTheme({ accent: input.value.toLowerCase() }));
+	own.append(dot, isHex(current.accent) ? 'Свой ' + current.accent : 'Свой цвет', input);
+	box.append(own);
+}
+
+// Набор темы: превью из фона, панели и акцента
+function presetCard(p, own) {
+	const t = p.theme;
+	const card = document.createElement('div');
+	card.className = 'preset';
+	card.tabIndex = 0;
+	card.setAttribute('role', 'button');
+	const same = themes.keys.every((k) => String(t[k]) === String(current[k]));
+	card.classList.toggle('active', same);
+	const look = document.createElement('div');
+	look.className = 'look';
+	const pal = themes.palettes[t.darkTheme ? 'dark' : 'light'][t.bgTint];
+	for (const color of [pal[0], pal[2], accentHex(t.accent)]) {
+		const sp = document.createElement('span');
+		sp.style.background = color;
+		if (color === accentHex(t.accent)) sp.className = 'acc';
+		look.append(sp);
+	}
+	const name = document.createElement('b');
+	name.textContent = p.name;
+	const info = document.createElement('small');
+	info.textContent = [t.darkTheme ? 'тёмная' : 'светлая', themes.tints[t.bgTint].split(' ')[0].toLowerCase(), t.contrast === 'high' ? 'контрастная' : '', t.uiScale !== 100 ? t.uiScale + '%' : ''].filter(Boolean).join(', ');
+	card.append(look, name, info);
+	const apply = () => applyTheme({ ...t }, 'Набор «' + p.name + '» применён');
+	card.addEventListener('click', apply);
+	card.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			apply();
+		}
+	});
+	if (own) {
+		const del = document.createElement('button');
+		del.className = 'del';
+		del.textContent = '✕';
+		del.title = 'Удалить набор';
+		del.addEventListener('click', (e) => {
+			e.stopPropagation();
+			run(async () => {
+				const r = await api.setSettings({ themePresets: current.themePresets.filter((x) => x.id !== p.id) });
+				current = r;
+				renderPresets();
+				say('Набор «' + p.name + '» удалён');
+			});
+		});
+		card.append(del);
+	}
+	return card;
+}
+
+function renderPresets() {
+	const box = $('presets');
+	box.textContent = '';
+	for (const p of themes.presets) box.append(presetCard(p, false));
+	for (const p of current.themePresets || []) box.append(presetCard(p, true));
+}
+
+// Меняет параметры темы и перерисовывает весь раздел
+function applyTheme(patch, message) {
+	return run(async () => {
+		current = await api.setSettings(patch);
+		for (const el of document.querySelectorAll('[data-setting]')) {
+			const k = el.dataset.setting;
+			if (!Object.hasOwn(patch, k)) continue;
+			if (el.type === 'checkbox') el.checked = !!current[k];
+			else el.value = current[k];
+		}
+		$('ui-scale').value = String(current.uiScale);
+		renderSwatches();
+		renderPresets();
+		if (Object.hasOwn(patch, 'arrows')) renderPanels();
+		say(message || 'Сохранено');
+	});
 }
 
 let current = {};
 let arrows = {};
+let themes = { presets: [], tints: {}, contrasts: {}, scales: [], keys: [], palettes: {} };
+let accentSet = [];
 
 // ---------- Панели и кнопки ----------
 
@@ -262,6 +373,10 @@ for (const el of document.querySelectorAll('[data-setting]')) {
 			renderPanels();
 		}
 		if (el.dataset.setting === 'startup') $('startup-url-row').classList.toggle('hidden', value !== 'url');
+		if (themes.keys.includes(el.dataset.setting)) {
+			current = { ...current, [el.dataset.setting]: value };
+			renderPresets(); // подсветка набора, который совпадает с текущей темой
+		}
 		say('Сохранено');
 	}));
 }
@@ -275,10 +390,25 @@ $('swatches').addEventListener('click', (e) => {
 	const b = e.target.closest('.swatch');
 	if (!b) return;
 	run(async () => {
-		await api.setSettings({ accent: b.dataset.accent });
-		for (const s of document.querySelectorAll('.swatch')) s.classList.toggle('active', s === b);
-		say('Сохранено');
+		await applyTheme({ accent: b.dataset.accent });
 	});
+});
+
+$('ui-scale').addEventListener('change', () => applyTheme({ uiScale: Number($('ui-scale').value) }));
+
+$('preset-save').addEventListener('click', () => run(async () => {
+	const name = $('preset-name').value.trim();
+	if (!name) throw new Error('Введи название набора');
+	const theme = {};
+	for (const k of themes.keys) theme[k] = current[k];
+	const id = 't:' + Date.now().toString(36);
+	current = await api.setSettings({ themePresets: [...(current.themePresets || []), { id, name, theme }] });
+	$('preset-name').value = '';
+	renderPresets();
+	say('Набор «' + name + '» сохранён');
+}));
+$('preset-name').addEventListener('keydown', (e) => {
+	if (e.key === 'Enter') $('preset-save').click();
 });
 
 $('view-history').addEventListener('click', () => run(() => api.openInNewTab('history')));

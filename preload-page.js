@@ -7,6 +7,7 @@ function applyTheme(t) {
 	root.style.setProperty('--accent', t.accent);
 	root.style.setProperty('--accent-soft', t.accentSoft);
 	root.style.setProperty('--on-accent', t.onAccent);
+	for (const [k, v] of Object.entries(t.vars || {})) root.style.setProperty(k, v); // оттенок фона и контраст
 }
 function watchTheme() {
 	let current = ipcRenderer.sendSync('theme:get');

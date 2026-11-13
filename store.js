@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { ACCENTS } = require('./theme');
+const { ACCENTS, HEX, TINTS, CONTRASTS, UI_SCALES, PRESETS } = require('./theme');
 const accel = require('./pages/accel');
 
 const ENGINES = {
@@ -132,7 +132,11 @@ const SETTING_DEFAULTS = {
 	tabOverflow: 'shrink',
 	settingsAsTab: true,
 	darkTheme: true,
-	accent: 'default',
+	accent: 'default', // имя готового цвета или свой цвет #rrggbb
+	bgTint: 'neutral',
+	contrast: 'normal',
+	uiScale: 100, // масштаб панелей и окошек браузера, %
+	themePresets: [], // свои наборы тем
 	cacheKeep: 'always',
 	cacheIcons: true,
 	cachePages: true,
@@ -182,7 +186,8 @@ const BOOL_SETTINGS = ['showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTh
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
-	accent: Object.keys(ACCENTS),
+	bgTint: Object.keys(TINTS),
+	contrast: Object.keys(CONTRASTS),
 	cacheKeep: ['always', 'month', 'week', 'day', 'hour', 'restart'],
 	maskAs: ['chrome', 'problet', 'firefox'],
 	tabsPos: ['row', 'left', 'right'], // row — панель вкладок в ряду остальных панелей, left/right — сбоку от страницы
@@ -285,6 +290,42 @@ function cleanScale(v) {
 	return Number.isFinite(n) ? Math.round(Math.min(2, Math.max(1, n)) * 100) / 100 : 1;
 }
 
+// Цвет акцента: готовый по имени или свой #rrggbb
+function cleanAccent(v) {
+	if (typeof v !== 'string') return '';
+	if (Object.hasOwn(ACCENTS, v)) return v;
+	return HEX.test(v) ? v.toLowerCase() : '';
+}
+
+// Набор темы: все параметры раздела «Тема». Чего нет или что записано неверно — берётся из стандартного набора
+const PRESET_LIMIT = 40;
+function cleanTheme(t) {
+	const base = PRESETS[0].theme;
+	const r = t && typeof t === 'object' ? t : {};
+	return {
+		darkTheme: typeof r.darkTheme === 'boolean' ? r.darkTheme : base.darkTheme,
+		accent: cleanAccent(r.accent) || base.accent,
+		bgTint: Object.hasOwn(TINTS, r.bgTint) ? r.bgTint : base.bgTint,
+		contrast: Object.hasOwn(CONTRASTS, r.contrast) ? r.contrast : base.contrast,
+		uiScale: UI_SCALES.includes(r.uiScale) ? r.uiScale : base.uiScale,
+		arrows: Object.hasOwn(ARROWS, r.arrows) ? r.arrows : base.arrows,
+	};
+}
+function cleanPresets(list) {
+	const out = [];
+	const seen = new Set();
+	for (const p of Array.isArray(list) ? list : []) {
+		if (!p || typeof p !== 'object') continue;
+		const name = str(p.name, 40).trim();
+		const id = typeof p.id === 'string' && /^t:[a-z0-9]{1,16}$/.test(p.id) ? p.id : '';
+		if (!name || !id || seen.has(id)) continue;
+		seen.add(id);
+		out.push({ id, name, theme: cleanTheme(p.theme) });
+		if (out.length >= PRESET_LIMIT) break;
+	}
+	return out;
+}
+
 function sanitizeSettings(raw) {
 	const r = raw && typeof raw === 'object' ? raw : {};
 	const out = { ...SETTING_DEFAULTS };
@@ -317,6 +358,9 @@ function sanitizeSettings(raw) {
 		out.btnLayout = cleanButtons(r.btnLayout, customIds);
 	}
 	out.tabsScale = cleanScale(r.tabsScale);
+	out.accent = cleanAccent(r.accent) || 'default';
+	out.uiScale = UI_SCALES.includes(r.uiScale) ? r.uiScale : 100;
+	out.themePresets = cleanPresets(r.themePresets);
 	out.hotkeys = cleanHotkeys(r.hotkeys, customIds);
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
@@ -669,6 +713,21 @@ function setSettings(patch) {
 		if (p[key] === undefined) continue;
 		if (!values.includes(p[key])) throw new Error('Некорректное значение настройки: ' + key);
 		next[key] = p[key];
+	}
+	if (p.accent !== undefined) {
+		const a = cleanAccent(p.accent);
+		if (!a) throw new Error('Некорректный цвет: нужен вид #rrggbb');
+		next.accent = a;
+	}
+	if (p.uiScale !== undefined) {
+		if (!UI_SCALES.includes(p.uiScale)) throw new Error('Некорректный масштаб интерфейса');
+		next.uiScale = p.uiScale;
+	}
+	if (p.themePresets !== undefined) {
+		if (!Array.isArray(p.themePresets)) throw new Error('Некорректные наборы тем');
+		const clean = cleanPresets(p.themePresets);
+		if (clean.length !== Math.min(p.themePresets.length, PRESET_LIMIT)) throw new Error(p.themePresets.length > PRESET_LIMIT ? 'Слишком много наборов тем' : 'У набора темы нужно название');
+		next.themePresets = clean;
 	}
 	if (p.hotkeys !== undefined) {
 		if (!p.hotkeys || typeof p.hotkeys !== 'object' || Array.isArray(p.hotkeys)) throw new Error('Некорректные горячие клавиши');

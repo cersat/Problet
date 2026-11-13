@@ -137,6 +137,14 @@
 		<section>
 			<h2>Тема</h2>
 			<div class="setting">
+				<div class="what">Наборы тем<small>Набор меняет сразу всё в этом разделе: тему, акцентный цвет, оттенок фона, контраст, масштаб и стрелки</small></div>
+			</div>
+			<div class="presets" id="presets"></div>
+			<div class="setting">
+				<div class="what">Сохранить текущую тему набором</div>
+				<span class="inline-form"><input id="preset-name" type="text" maxlength="40" placeholder="Название набора" autocomplete="off"><button id="preset-save">Сохранить</button></span>
+			</div>
+			<div class="setting">
 				<div class="what">Тёмная тема</div>
 				<label class="switch"><input type="checkbox" data-setting="darkTheme"><span></span></label>
 			</div>
@@ -144,6 +152,18 @@
 				<div class="what">Акцентный цвет</div>
 			</div>
 			<div class="swatches" id="swatches"></div>
+			<div class="setting">
+				<div class="what">Оттенок фона<small>Глубокий — чистый чёрный в тёмной теме (экономит заряд на OLED-экранах) и чистый белый в светлой</small></div>
+				<select data-setting="bgTint" id="bg-tint"></select>
+			</div>
+			<div class="setting">
+				<div class="what">Контраст<small>Высокий: ярче текст, заметнее рамки и выделение</small></div>
+				<select data-setting="contrast" id="contrast"></select>
+			</div>
+			<div class="setting">
+				<div class="what">Масштаб интерфейса<small>Панели, кнопки и окошки браузера. Масштаб страниц меняется отдельно: Ctrl+плюс и Ctrl+минус</small></div>
+				<select id="ui-scale"></select>
+			</div>
 			<div class="setting">
 				<div class="what">Стрелки «назад» и «вперёд»<small>В панели инструментов и в кнопках перемещения в настройках</small></div>
 				<select data-setting="arrows"><option value="tri">◀ ▶</option><option value="arrow">← →</option><option value="angle">‹ ›</option><option value="heavy">❮ ❯</option><option value="double">« »</option><option value="dbl">⇐ ⇒</option><option value="outline">◁ ▷</option><option value="curved">↩ ↪</option></select>
