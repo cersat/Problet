@@ -15,6 +15,9 @@ import * as tools from './tools';
 
 addLocaleData([...ruData, ...enData]);
 
+// Язык редактора берётся у окна браузера: в нём же проставлен data-lang
+const LANG = document.documentElement.dataset.lang === 'en' ? 'en' : 'ru';
+
 const api = window.api;
 const file = new URLSearchParams(location.search).get('p') || '';
 const params = new URLSearchParams(location.search);
@@ -61,7 +64,7 @@ const baseName = bm ? 'icon' : (file.split(/[\\/]/).pop() || 'image.svg').replac
 
 const store = createStore(
     combineReducers({intl: intlReducer, scratchPaint: ScratchPaintReducer}),
-    {intl: {defaultLocale: 'ru', locale: 'ru', messages: {...paintMessages.en, ...paintMessages.ru, 'paint.paintEditor.costume': 'Имя'}}}
+    {intl: {defaultLocale: 'ru', locale: LANG, messages: {...paintMessages.en, ...(LANG === 'en' ? {} : paintMessages.ru), 'paint.paintEditor.costume': LANG === 'en' ? 'Name' : 'Имя'}}}
 );
 
 const EMPTY = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360"></svg>';

@@ -34,6 +34,24 @@ const PERMS = {
 
 let dir = '';
 let ctx = null; // функции главного процесса: вкладки, окно, раскладка
+
+// Переводы названия и описания: "locales": { "en": { "name", "description", "buttonTitle" } } в addon.json (и в записи каталога)
+function cleanLocales(v) {
+	const out = {};
+	if (!v || typeof v !== 'object') return out;
+	for (const [k, x] of Object.entries(v)) {
+		if (!/^[a-z]{2}$/.test(k) || !x || typeof x !== 'object') continue;
+		out[k] = { name: str(x.name, 60).trim(), description: str(x.description, 300), buttonTitle: str(x.buttonTitle, 80) };
+	}
+	return out;
+}
+const curLang = () => (ctx && ctx.lang ? ctx.lang() : 'ru');
+// Поле с учётом языка интерфейса; если перевода нет, остаётся исходный текст аддона
+function loc(m, field) {
+	const l = curLang() !== 'ru' && m.locales && m.locales[curLang()];
+	if (l && l[field]) return l[field];
+	return field === 'buttonTitle' ? m.button && m.button.title : m[field];
+}
 let state = {}; // id -> { granted: { perm: 'always' | 'denied' }, source }
 const addons = new Map(); // id -> { id, dir, manifest, error, world, bg }
 const storageCache = new Map();
@@ -55,6 +73,7 @@ function validate(m) {
 		name: str(m.name, 60).trim(),
 		version: str(m.version, 20) || '1.0',
 		description: str(m.description, 300),
+		locales: cleanLocales(m.locales),
 		icon: '',
 		permissions: [],
 		content: [],
@@ -283,7 +302,7 @@ const asking = new Map(); // id -> цепочка вопросов, чтобы �
 async function ask(a, title, detail, canAlways) {
 	if (process.env.PROBLET_TEST_ADDON_ANSWER) return process.env.PROBLET_TEST_ADDON_ANSWER; // ответ для автотестов: once | always | deny
 	const buttons = canAlways ? ['Разрешить один раз', 'Разрешать всегда', 'Запретить'] : ['Разрешить', 'Запретить'];
-	const r = await dialog.showMessageBox(ctx.window(), { type: 'warning', title: 'Разрешение для аддона', message: 'Аддон «' + a.manifest.name + '» хочет ' + title, detail, buttons, defaultId: buttons.length - 1, cancelId: buttons.length - 1, noLink: true });
+	const r = await dialog.showMessageBox(ctx.window(), { type: 'warning', title: 'Разрешение для аддона', message: 'Аддон «' + loc(a.manifest, 'name') + '» хочет ' + title, detail, buttons, defaultId: buttons.length - 1, cancelId: buttons.length - 1, noLink: true });
 	if (canAlways) return ['once', 'always', 'deny'][r.response];
 	return r.response === 0 ? 'always' : 'deny';
 }
@@ -465,8 +484,8 @@ const API = {
 		}
 		const w = ctx.window();
 		const r = opts.save
-			? await dialog.showSaveDialog(w, { title: 'Аддон «' + a.manifest.name + '»: куда сохранить', defaultPath: opts.name ? String(opts.name) : undefined })
-			: await dialog.showOpenDialog(w, { title: 'Аддон «' + a.manifest.name + '»: выбери файл', properties: [opts.folder ? 'openDirectory' : 'openFile'] });
+			? await dialog.showSaveDialog(w, { title: 'Аддон «' + loc(a.manifest, 'name') + '»: куда сохранить', defaultPath: opts.name ? String(opts.name) : undefined })
+			: await dialog.showOpenDialog(w, { title: 'Аддон «' + loc(a.manifest, 'name') + '»: выбери файл', properties: [opts.folder ? 'openDirectory' : 'openFile'] });
 		const p = opts.save ? r.filePath : r.filePaths && r.filePaths[0];
 		if (r.canceled || !p) return null;
 		picked(a).add(path.resolve(p)); // выбранный человеком файл не требует отдельного вопроса
@@ -515,6 +534,7 @@ const API = {
 	'button.setTitle': async (a, title) => {
 		if (!a.manifest.button) throw new Error('У аддона нет кнопки');
 		a.manifest.button.title = String(title || a.manifest.name).slice(0, 80);
+		a.manifest.button.custom = true; // название задано самим аддоном: перевод не подменяет его
 		ctx.buttonsChanged();
 	},
 	'options.open': async (a) => {
@@ -617,7 +637,7 @@ function actions() {
 	const out = [];
 	for (const a of addons.values()) {
 		if (!a.manifest || !a.manifest.button) continue;
-		out.push({ id: '@' + a.id, name: a.manifest.name, title: a.manifest.button.title, popup: !!a.manifest.button.popup, ...iconData(a) });
+		out.push({ id: '@' + a.id, name: loc(a.manifest, 'name'), title: a.manifest.button.custom ? a.manifest.button.title : loc(a.manifest, 'buttonTitle'), popup: !!a.manifest.button.popup, ...iconData(a) });
 	}
 	return out;
 }
@@ -636,9 +656,9 @@ function list() {
 		return {
 			id: '@' + a.id,
 			addon: true,
-			name: m ? m.name : a.id,
+			name: m ? loc(m, 'name') : a.id,
 			version: m ? m.version : '',
-			description: m ? m.description : '',
+			description: m ? loc(m, 'description') : '',
 			icon: m ? iconData(a) : { icon: '', letter: '' },
 			path: a.dir,
 			error: a.error,
@@ -653,7 +673,7 @@ function list() {
 
 function describe(m, from) {
 	const lines = [];
-	if (m.description) lines.push(m.description, '');
+	if (loc(m, 'description')) lines.push(loc(m, 'description'), '');
 	if (from) lines.push('Источник: ' + from, '');
 	const perms = m.permissions.map((p) => '• ' + PERMS[p].label + (PERMS[p].ask ? ' (спросит отдельно)' : ''));
 	const sites = [...new Set(m.content.flatMap((c) => c.matches))].map((s) => (s === '<all_urls>' || s === '*://*/*' ? 'все сайты' : s));
@@ -665,7 +685,7 @@ function describe(m, from) {
 async function confirmInstall(m, from) {
 	if (process.env.PROBLET_TEST_ADDON_ANSWER) return process.env.PROBLET_TEST_ADDON_ANSWER !== 'deny';
 	const old = addons.get(m.id);
-	const r = await dialog.showMessageBox(ctx.window(), { type: 'question', title: 'Аддон Problet', message: (old ? 'Обновить' : 'Установить') + ' аддон «' + m.name + '» ' + m.version + '?', detail: describe(m, from), buttons: [old ? 'Обновить' : 'Установить', 'Отмена'], defaultId: 0, cancelId: 1, noLink: true });
+	const r = await dialog.showMessageBox(ctx.window(), { type: 'question', title: 'Аддон Problet', message: (old ? 'Обновить' : 'Установить') + ' аддон «' + loc(m, 'name') + '» ' + m.version + '?', detail: describe(m, from), buttons: [old ? 'Обновить' : 'Установить', 'Отмена'], defaultId: 0, cancelId: 1, noLink: true });
 	return r.response === 0;
 }
 
@@ -690,7 +710,7 @@ async function finish(tmp, from) {
 	assignWorlds();
 	startBackground(a);
 	ctx.buttonsChanged();
-	return { message: 'Аддон «' + m.name + '» установлен', id: m.id };
+	return { message: 'Аддон «' + loc(m, 'name') + '» установлен', id: m.id };
 }
 
 const tmpDir = () => fs.mkdtempSync(path.join(dir, '.new-'));
@@ -820,7 +840,9 @@ async function catalog() {
 	for (const x of Array.isArray(j.addons) ? j.addons : []) {
 		if (!x || !ID_RE.test(x.id || '') || !isRel(x.path || '')) continue;
 		const a = addons.get(x.id);
-		out.push({ id: x.id, name: str(x.name, 60) || x.id, description: str(x.description, 300), version: str(x.version, 20), icon: typeof x.icon === 'string' && [...x.icon].length <= 4 ? x.icon : '', installed: a && a.manifest ? a.manifest.version : '' });
+		const lo = cleanLocales(x.locales);
+		const l = lo[curLang()] || {};
+		out.push({ id: x.id, name: l.name || str(x.name, 60) || x.id, description: l.description || str(x.description, 300), version: str(x.version, 20), icon: typeof x.icon === 'string' && [...x.icon].length <= 4 ? x.icon : '', installed: a && a.manifest ? a.manifest.version : '' });
 	}
 	return out;
 }

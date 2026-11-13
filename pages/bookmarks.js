@@ -220,7 +220,7 @@ async function removeBookmark(b) {
 }
 
 async function removeFolder(f) {
-	if (!confirm('Удалить папку «' + f.name + '»? Закладки из неё останутся в разделе «Без папки».')) return;
+	if (!confirm(probletTr('Удалить папку «' + f.name + '»? Закладки из неё останутся в разделе «Без папки».'))) return;
 	await act(() => api.removeFolder(f.id));
 }
 

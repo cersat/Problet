@@ -4,6 +4,7 @@ function applyTheme(t) {
 	const root = document.documentElement;
 	if (!root) return;
 	root.dataset.theme = t.dark ? 'dark' : 'light';
+	root.dataset.lang = t.lang === 'en' ? 'en' : 'ru'; // язык интерфейса: по нему pages/i18n.js переводит надписи
 	root.style.setProperty('--accent', t.accent);
 	root.style.setProperty('--accent-soft', t.accentSoft);
 	root.style.setProperty('--on-accent', t.onAccent);

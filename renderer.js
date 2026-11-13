@@ -79,9 +79,9 @@ document.getElementById('win-close').addEventListener('click', () => api.winClos
 
 function tabLabel(t, showUrl) {
 	const isNew = t.url.startsWith('problet://newtab');
-	if (isNew) return 'Новая вкладка';
-	if (showUrl) return t.url || t.title || 'Новая вкладка';
-	return t.title || t.url || 'Загрузка…';
+	if (isNew) return probletTr('Новая вкладка');
+	if (showUrl) return t.url || t.title || probletTr('Новая вкладка');
+	return t.title || t.url || probletTr('Загрузка…');
 }
 
 function makeTab(t, state) {
@@ -89,6 +89,7 @@ function makeTab(t, state) {
 	el.className = 'tab' + (t.id === state.activeId ? ' active' : '') + (t.pinned ? ' pinned' : '') + (t.incognito ? ' incognito' : '') + (t.frozen ? ' frozen' : '');
 	el.draggable = true;
 	el.dataset.id = t.id;
+	el.setAttribute('translate', 'no'); // названия вкладок — чужие данные: их не переводим (внутренние страницы переводят себя сами)
 	const label = tabLabel(t, state.showUrl);
 	el.title = label;
 
@@ -120,6 +121,7 @@ function makeTab(t, state) {
 		const mark = document.createElement('span');
 		mark.className = 'incog';
 		mark.title = 'Режим инкогнито';
+		mark.setAttribute('translate', 'yes');
 		mark.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 11h18M6 11l1.5-6h9L18 11"/><circle cx="8" cy="16" r="2.5"/><circle cx="16" cy="16" r="2.5"/><path d="M10.5 16h3"/></svg>';
 		el.append(mark);
 	}
@@ -132,9 +134,9 @@ function makeTab(t, state) {
 		name.textContent = label;
 		const sp = document.createElement('small');
 		sp.className = 'sp';
-		sp.textContent = t.space;
+		sp.textContent = probletTr(t.space);
 		text.append(name, sp);
-		el.title = label + ' — ' + t.space;
+		el.title = label + ' — ' + probletTr(t.space);
 	} else {
 		text.textContent = label;
 	}
@@ -142,6 +144,7 @@ function makeTab(t, state) {
 	close.className = 'close';
 	close.dataset.close = t.id;
 	close.title = 'Закрыть вкладку (Ctrl+W)';
+	close.setAttribute('translate', 'yes');
 	close.textContent = '×';
 	el.append(text, close);
 	return el;
@@ -590,6 +593,7 @@ function renderBar() {
 	for (const f of barData.folders) {
 		const b = document.createElement('button');
 		b.className = 'bm folder';
+		b.setAttribute('translate', 'no'); // имена папок и закладок — данные пользователя
 		b.title = f.name;
 		b.innerHTML = folderIcon;
 		b.dataset.folder = f.id;
@@ -614,6 +618,7 @@ function renderBar() {
 	for (const m of barData.bookmarks.filter((x) => !x.folder)) {
 		const b = document.createElement('button');
 		b.className = 'bm';
+		b.setAttribute('translate', 'no');
 		b.title = m.title + '\n' + m.url;
 		let fav;
 		const letter = () => {

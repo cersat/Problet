@@ -12,7 +12,7 @@ function dayLabel(t) {
 	const yesterday = new Date(today.getTime() - 86400000);
 	if (dayKey(t) === today.toDateString()) return 'Сегодня';
 	if (dayKey(t) === yesterday.toDateString()) return 'Вчера';
-	return new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+	return new Date(t).toLocaleDateString(probletLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function render() {
@@ -75,7 +75,7 @@ function render() {
 
 search.addEventListener('input', render);
 document.getElementById('clear').addEventListener('click', async () => {
-	if (!visits.length || !confirm('Удалить всю историю посещений?')) return;
+	if (!visits.length || !confirm(probletTr('Удалить всю историю посещений?'))) return;
 	await api.clearVisits();
 	visits = [];
 	render();

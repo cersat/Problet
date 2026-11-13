@@ -42,7 +42,7 @@ function fmtSize(n) {
 	} while (n >= 1024 && i < u.length - 1);
 	return n.toFixed(n < 10 ? 1 : 0) + ' ' + u[i];
 }
-const fmtDate = (t) => new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtDate = (t) => new Date(t).toLocaleString(probletLocale(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 const go = (p) => { location.href = 'problet://files/?p=' + encodeURIComponent(p); };
 
 function crumbs() {

@@ -57599,6 +57599,9 @@ function entry_arrayLikeToArray(arr, len) { if (len == null || len > arr.length)
 
 
 Object(index_es["addLocaleData"])([].concat(entry_toConsumableArray(ru_default.a), entry_toConsumableArray(en_default.a)));
+
+// Язык редактора берётся у окна браузера: в нём же проставлен data-lang
+var LANG = document.documentElement.dataset.lang === 'en' ? 'en' : 'ru';
 var api = window.api;
 var file = new URLSearchParams(location.search).get('p') || '';
 var params = new URLSearchParams(location.search);
@@ -57660,9 +57663,9 @@ var entry_store = Object(redux_es["c" /* createStore */])(Object(redux_es["b" /*
 }), {
   intl: {
     defaultLocale: 'ru',
-    locale: 'ru',
-    messages: entry_objectSpread(entry_objectSpread(entry_objectSpread({}, paint_editor_msgs.en), paint_editor_msgs.ru), {}, {
-      'paint.paintEditor.costume': 'Имя'
+    locale: LANG,
+    messages: entry_objectSpread(entry_objectSpread(entry_objectSpread({}, paint_editor_msgs.en), LANG === 'en' ? {} : paint_editor_msgs.ru), {}, {
+      'paint.paintEditor.costume': LANG === 'en' ? 'Name' : 'Имя'
     })
   }
 });

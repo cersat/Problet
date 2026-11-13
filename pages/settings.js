@@ -418,7 +418,7 @@ $('view-history').addEventListener('click', () => run(() => api.openInNewTab('hi
 $('clear-visits').addEventListener('click', () => run(async () => {
 	const sel = $('clear-period');
 	const label = sel.selectedOptions[0].textContent.toLowerCase();
-	if (!confirm('Удалить историю посещений ' + label + '?')) return;
+	if (!confirm(probletTr('Удалить историю посещений ' + label + '?'))) return;
 	const n = await api.clearVisitsSince(sel.value);
 	say(n ? 'Удалено записей: ' + n : 'За этот период записей не было');
 	renderTop();
@@ -696,7 +696,7 @@ $('ext-add').addEventListener('click', () => run(async () => {
 }));
 
 $('clear').addEventListener('click', () => run(async () => {
-	if (!confirm('Удалить всю историю поиска? Подсказки в адресной строке исчезнут.')) return;
+	if (!confirm(probletTr('Удалить всю историю поиска? Подсказки в адресной строке исчезнут.'))) return;
 	await api.clearSearchHistory();
 	say('История поиска очищена');
 	await load();
@@ -919,8 +919,8 @@ $('open-version').addEventListener('click', () => run(() => api.openInNewTab('ve
 
 async function refreshBlocked() {
 	const s = await api.adblockStats();
-	$('blocked-total').textContent = s.total.toLocaleString('ru-RU');
-	$('blocked-note').textContent = 'С запуска браузера: ' + s.session.toLocaleString('ru-RU') + '. Число идёт с момента, когда включён блокировщик';
+	$('blocked-total').textContent = s.total.toLocaleString(probletLocale());
+	$('blocked-note').textContent = 'С запуска браузера: ' + s.session.toLocaleString(probletLocale()) + '. Число идёт с момента, когда включён блокировщик';
 }
 
 refreshBlocked().catch(() => {});
@@ -977,7 +977,7 @@ async function renderBackups() {
 		btn.textContent = 'Восстановить';
 		btn.disabled = b.count === null;
 		btn.addEventListener('click', () => run(async () => {
-			if (!confirm('Заменить все закладки и папки копией от ' + b.date + '? Текущие закладки перед этим сохранятся отдельной копией.')) return;
+			if (!confirm(probletTr('Заменить все закладки и папки копией от ' + b.date + '? Текущие закладки перед этим сохранятся отдельной копией.'))) return;
 			const r = await api.bmBackupRestore(b.name);
 			say(r.message);
 			await renderBackups();
@@ -1047,7 +1047,7 @@ function renderBroken(list) {
 		all.className = 'danger';
 		all.textContent = 'Удалить все неоткрывающиеся (' + broken.length + ')';
 		all.addEventListener('click', () => run(async () => {
-			if (!confirm('Удалить ' + broken.length + ' закладок, которые больше не открываются?')) return;
+			if (!confirm(probletTr('Удалить ' + broken.length + ' закладок, которые больше не открываются?'))) return;
 			for (const x of broken) await api.removeBookmark(x.id);
 			renderBroken(list.filter((y) => y.kind !== 'broken'));
 			say('Удалено закладок: ' + broken.length);
@@ -1132,7 +1132,7 @@ $('kw-add').addEventListener('click', () => {
 	keys[keys.length - 1].focus();
 });
 $('kw-reset').addEventListener('click', () => run(async () => {
-	if (!confirm('Вернуть стандартный набор префиксов? Свои префиксы пропадут.')) return;
+	if (!confirm(probletTr('Вернуть стандартный набор префиксов? Свои префиксы пропадут.'))) return;
 	current = await api.setSettings({ searchKeywords: defaultKeywords });
 	loadKeywords();
 	say('Префиксы сброшены');
@@ -1170,6 +1170,7 @@ function plural(n, one, few, many) {
 	if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
 	return many;
 }
+$('lang-restart').addEventListener('click', () => run(() => api.restart()));
 document.querySelector('[data-setting="topSites"]').addEventListener('change', () => setTimeout(() => run(renderTop), 100));
 
 run(async () => {

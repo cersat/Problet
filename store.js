@@ -206,6 +206,7 @@ const SETTING_DEFAULTS = {
 	bmStar: 'dialog', // что делает ☆: dialog — добавить и показать окошко, toggle — молча добавить или убрать
 	bmBackup: 'week', // автоматическая резервная копия закладок: off, day, week
 	bmBackupDir: '', // папка для копий; пустая — папка данных браузера
+	language: 'auto', // язык интерфейса: auto — как в системе, ru, en
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
@@ -226,6 +227,7 @@ const ENUM_SETTINGS = {
 	suggestCount: ['5', '7', '10', '12'],
 	historyKeep: HISTORY_KEEP,
 	bmBackup: ['off', 'day', 'week'],
+	language: ['auto', 'ru', 'en'],
 	bmBackupKeep: ['3', '5', '10', '30'], // через сколько минут бездействия хранилище паролей запирается; 0 — никогда
 };
 

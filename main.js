@@ -18,6 +18,8 @@ const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
 const { themePayload, accentList, PRESETS, TINTS, CONTRASTS, UI_SCALES, THEME_KEYS, PALETTES } = require('./theme');
 const headless = require('./headless');
+const i18nMain = require('./i18n-main');
+const { tr } = i18nMain;
 
 // Память: молодое поколение кучи V8 в каждом процессе ограничено 2 МБ (по умолчанию растёт до 16). Страницы с большим числом
 // недолговечных объектов собирают мусор чаще, зато каждая вкладка занимает заметно меньше (в замерах около 20 МБ на 7 вкладок)
@@ -33,6 +35,17 @@ if (headless.enabled && !process.argv.some((a) => a.startsWith('--user-data-dir=
 		} catch (e) { /* не страшно: папка во временных файлах */ }
 	});
 }
+
+// Язык: перевод меню и диалогов ставится сразу, язык самого Chromium — до запуска приложения
+i18nMain.applyChromiumLang();
+i18nMain.install(() => {
+	try {
+		return store.getSettings().language;
+	} catch (e) {
+		return 'auto'; // настройки ещё не загружены
+	}
+});
+const curLang = () => i18nMain.lang();
 
 // ---------- Журнал: /tmp/problet/log (на Windows — в папке временных файлов) ----------
 
@@ -79,7 +92,7 @@ function showError(title, text) {
 			minWidth: 380,
 			minHeight: 260,
 			backgroundColor: '#1f1f23',
-			title: 'Ошибка Problet',
+			title: tr('Ошибка Problet'),
 			autoHideMenuBar: true,
 			icon: path.join(__dirname, 'icon.png'),
 			webPreferences: { preload: path.join(__dirname, 'preload-error.js'), contextIsolation: true, sandbox: true },
@@ -137,6 +150,7 @@ const sug = { items: [], selected: -1, original: '', x: 0, width: 0 };
 
 const settings = () => store.getSettings();
 const bgColor = () => themePayload(settings()).vars['--bg'];
+const themeMsg = () => ({ ...themePayload(settings()), lang: curLang() }); // тема и язык уходят в окна одним сообщением
 const surfaceColor = () => themePayload(settings()).vars['--surface'];
 // Масштаб интерфейса: панели и окошки браузера рисуются крупнее, их размеры в окне умножаются на него
 const uiZ = () => themePayload(settings()).scale;
@@ -217,7 +231,7 @@ function isBookmarkable(url) {
 
 function tabTitle(t) {
 	if (t.customTitle) return t.customTitle; // переименованная вкладка держит своё имя до закрытия
-	if (t.url.startsWith('data:') && t.title.startsWith('data:')) return 'HTML-страница';
+	if (t.url.startsWith('data:') && t.title.startsWith('data:')) return tr('HTML-страница');
 	return t.title;
 }
 
@@ -1733,12 +1747,12 @@ function toggleDevTools() {
 
 function errorPage(code, description, url) {
 	const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-	const html = '<!doctype html><meta charset="utf-8"><title>Ошибка</title><style>'
+	const html = '<!doctype html><meta charset="utf-8"><title>' + tr('Ошибка') + '</title><style>'
 		+ ':root{color-scheme:dark light}'
 		+ 'body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font:16px system-ui,sans-serif;background:#1e1e20;color:#e4e4e8}'
 		+ '@media (prefers-color-scheme:light){body{background:#fbfbfd;color:#2c2c30}}'
 		+ 'div{max-width:560px;padding:24px}h2{margin:0 0 12px}p{margin:0 0 8px;word-break:break-all}.u{color:#999}.e{color:#e57373}'
-		+ '</style><div><h2>Не удалось открыть страницу</h2><p class="u">' + esc(url) + '</p><p class="e">' + esc(description) + ' (' + code + ')</p></div>';
+		+ '</style><div><h2>' + tr('Не удалось открыть страницу') + '</h2><p class="u">' + esc(url) + '</p><p class="e">' + esc(description) + ' (' + code + ')</p></div>';
 	return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
 }
 
@@ -2145,7 +2159,7 @@ ipcMain.on('identity:get', (e) => {
 // ---------- Тема и применение настроек ----------
 
 function broadcastTheme() {
-	const payload = themePayload(settings());
+	const payload = themeMsg();
 	if (win && !win.isDestroyed()) win.webContents.send('theme', payload);
 	if (popup) popup.webContents.send('theme', payload);
 	if (findView) findView.webContents.send('theme', payload);
@@ -2180,7 +2194,7 @@ function applySettings() {
 }
 
 ipcMain.on('theme:get', (e) => {
-	e.returnValue = themePayload(settings());
+	e.returnValue = themeMsg();
 });
 
 // ---------- Подсказки в адресной строке ----------
@@ -2691,6 +2705,17 @@ const DEBUG_ASK = {
 	'clear-site-data': 'Удалить все данные сайтов (куки, локальные хранилища, базы, кеш сервис-воркеров)? Придётся входить на сайты заново.',
 	'clear-cookies': 'Удалить все куки? Придётся входить на сайты заново.',
 };
+function restartApp() {
+	store.flush();
+	if (process.env.APPIMAGE) updater.restartAppImage();
+	else {
+		app.relaunch();
+		app.exit(0);
+	}
+}
+handle('app:restart', () => {
+	restartApp();
+});
 const allSessions = () => [session.defaultSession, ...(incSession ? [incSession] : [])];
 ipcMain.handle('debug:run', async (e, action) => {
 	guard(e);
@@ -2740,12 +2765,7 @@ ipcMain.handle('debug:run', async (e, action) => {
 			win.webContents.openDevTools({ mode: 'detach' });
 			return { message: 'Инструменты разработчика интерфейса открыты' };
 		case 'restart':
-			store.flush();
-			if (process.env.APPIMAGE) updater.restartAppImage();
-			else {
-				app.relaunch();
-				app.exit(0);
-			}
+			restartApp();
 			return { message: 'Перезапуск…' };
 		default:
 			throw new Error('Неизвестное действие');
@@ -3309,9 +3329,10 @@ function notFoundResponse(request) {
 	};
 	const dest = request.headers.get('sec-fetch-dest');
 	if (dest && dest !== 'document' && dest !== 'iframe') return new Response('Not found', { status: 404 });
-	const html = read(__dirname, 'pages', '404.html')
+	let html = read(__dirname, 'pages', '404.html')
 		.replace('/*THEME*/', read(__dirname, 'theme.css') + read(__dirname, 'pages', 'common.css'))
 		.replace('{{url}}', request.url.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]));
+	if (curLang() === 'en') html = html.replace(/>([^<>]*[А-Яа-яЁё][^<>]*)</g, (_m, t) => '>' + tr(t) + '<'); // у неизвестного адреса нет своих скриптов: переводим сразу
 	return new Response(html, { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
@@ -3469,6 +3490,7 @@ app.whenReady().then(() => {
 	try {
 		addons.init(app.getPath('userData'), {
 			log,
+			lang: curLang,
 			window: () => win,
 			store,
 			tabs: () => tabs.filter((t) => !t.hidden).map((t) => ({ id: t.id, url: t.view.webContents && !t.view.webContents.isDestroyed() ? t.view.webContents.getURL() || t.pendingUrl || t.url : t.url, title: t.title, active: t.id === activeId, incognito: !!t.incognito })),

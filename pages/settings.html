@@ -3,6 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<script src="i18n-en.js"></script>
+	<script src="i18n.js"></script>
 	<title>Настройки</title>
 	<link rel="stylesheet" href="theme.css">
 	<link rel="stylesheet" href="common.css">
@@ -13,10 +15,22 @@
 		<nav id="cats" class="cats"></nav>
 
 		<section>
+			<h2>Язык</h2>
+			<div class="setting">
+				<div class="what">Язык интерфейса<small>Меняет язык браузера: настройки, меню, окна и страницы Problet. Сайты не переводятся. Часть системных надписей Chromium обновится после перезапуска</small></div>
+				<select data-setting="language"><option value="auto" translate="no">Auto / Авто</option><option value="ru" translate="no">Русский</option><option value="en" translate="no">English</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Перезапустить для полной смены языка</div>
+				<button id="lang-restart">Перезапустить</button>
+			</div>
+		</section>
+
+		<section>
 			<h2>Поиск</h2>
 			<label class="field"><span>Поисковик</span><select id="engine"></select></label>
 			<label class="field hidden" id="custom-row"><span>Шаблон адреса</span><input id="custom" type="text" spellcheck="false" placeholder="https://example.com/search?q=%s"></label>
-			<p class="hint hidden" id="custom-hint">Вместо <code>%s</code> подставится текст запроса.</p>
+			<p class="hint hidden" id="custom-hint" data-html>Вместо <code>%s</code> подставится текст запроса.</p>
 			<div class="setting">
 				<div class="what">Использовать калькулятор в подсказках<small>Выражение вроде 2+2*3 сразу показывает результат</small></div>
 				<label class="switch"><input type="checkbox" data-setting="calcSuggest"><span></span></label>
@@ -38,7 +52,7 @@
 				<select data-setting="suggestCount"><option value="5">5</option><option value="7">7</option><option value="10">10</option><option value="12">12</option></select>
 			</div>
 			<div class="setting">
-				<div class="what">Префиксы поисковиков<small>Набери префикс и запрос через пробел: «w кошки» ищет в Википедии, «yt лофи» — на YouTube. В адресе <code>%s</code> заменяется запросом</small></div>
+				<div class="what">Префиксы поисковиков<small data-html>Набери префикс и запрос через пробел: «w кошки» ищет в Википедии, «yt лофи» — на YouTube. В адресе <code>%s</code> заменяется запросом</small></div>
 			</div>
 			<div class="kw-list" id="kw-list"></div>
 			<div class="kw-actions">

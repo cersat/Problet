@@ -121,7 +121,7 @@ function itemRow(i) {
 		}),
 		btn('Изменить', async () => edit(row, i)),
 		btn('Удалить', async () => {
-			if (!confirm('Удалить пароль для ' + hostOf(i.origin) + '?')) return;
+			if (!confirm(probletTr('Удалить пароль для ' + hostOf(i.origin) + '?'))) return;
 			await api.pwRemove(i.id);
 			await refresh();
 		}, 'danger'));

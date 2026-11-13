@@ -138,6 +138,8 @@ async function first(base) {
 	check('кнопка тёмной темы в скрытых по умолчанию', cur.btnLayout.hidden.includes('darkpage'), cur.btnLayout.hidden);
 	const set = await c.ev(s.id, `api.setSettings({ adblock: true, customBlock: '127.0.0.1/ads/', downloadDir: ${JSON.stringify(dl)}, saveHistory: true, startup: 'session' }).then(r => [r.adblock, r.downloadDir, r.startup])`);
 	check('настройки сохраняются', set[0] === true && set[1] === dl && set[2] === 'session', set);
+	const langs = await c.ev(s.id, `(async () => { await api.setSettings({ language: 'en' }); await new Promise((r) => setTimeout(r, 500)); const en = [document.querySelector('h1').textContent, document.title, document.documentElement.dataset.lang]; await api.setSettings({ language: 'ru' }); await new Promise((r) => setTimeout(r, 500)); return en.concat(document.querySelector('h1').textContent); })()`);
+	check('язык интерфейса переключается на лету', langs[0] === 'Settings' && langs[1] === 'Settings' && langs[2] === 'en' && langs[3] === 'Настройки', langs);
 	const bad = await c.ev(s.id, `api.setSettings({ engine: 'нет такого' }).then(() => 'принято', e => 'отказ')`);
 	check('неверная настройка отклоняется', bad === 'отказ', bad);
 	const cb = await c.ev(s.id, `(async () => { const st = (await api.getSettings()).settings; const e = { id: 'cb:smoke001', name: 'Проверка', icon: 'П', svg: '', type: 'script', value: 'document.title = "HK"', newTab: false }; let r = await api.setSettings({ customButtons: [...st.customButtons, e] }); r = await api.setSettings({ hotkeys: { ...r.hotkeys, 'cb:smoke001': 'Ctrl+Alt+J' } }); return [r.btnLayout.toolbar.includes('cb:smoke001'), r.hotkeys['cb:smoke001']]; })()`);
@@ -145,10 +147,10 @@ async function first(base) {
 	const dup = await c.ev(s.id, `api.getSettings().then(r => api.setSettings({ hotkeys: { ...r.settings.hotkeys, find: 'Ctrl+Alt+J' } })).then(() => 'принято', () => 'отказ')`);
 	check('занятое сочетание отклоняется', dup === 'отказ', dup);
 	await sleep(900); // страница настроек узнаёт об изменениях с небольшой задержкой
-	const hk = await c.ev(s.id, `[...document.querySelectorAll('#hotkeys .what')].map(e => e.textContent).filter(t => /Проверка|Тёмная тема/.test(t)).length`);
+	const hk = await c.ev(s.id, `[...document.querySelectorAll('#hotkeys .what')].map(e => e.textContent).filter(t => /Проверка|Тёмная тема|Dark theme/.test(t)).length`);
 	check('в списке клавиш есть тёмная тема и своя кнопка', hk === 2, hk);
 	const rows = await c.ev(s.id, `[...document.querySelectorAll('#btn-lists .pname')].map(e => e.textContent).join('|')`);
-	check('в «Панелях» есть своя кнопка и тёмная тема', /Проверка/.test(rows) && /Тёмная тема страницы/.test(rows), rows);
+	check('в «Панелях» есть своя кнопка и тёмная тема', /Проверка/.test(rows) && /Тёмная тема страницы|Dark theme for the page/.test(rows), rows);
 	const ver = await c.ev(s.id, 'api.versionInfo()');
 	check('сведения о версии', ver && ver.name === 'Problet' && /^\d+\./.test(ver.version) && !!ver.data, ver);
 	const src = await c.ev(s.id, `api.importSources().then(l => Array.isArray(l), e => String(e))`);
@@ -225,7 +227,7 @@ async function first(base) {
 	const nf = await c.open(base + '/нет', 800);
 	check('страница с ошибкой 404 показывается', (await c.text(nf.id)).includes('нет'), nf);
 	const dead = await c.open('http://127.0.0.1:9/', 1200);
-	check('недоступный сайт даёт страницу ошибки', /Не удалось открыть страницу/.test(await c.text(dead.id)), dead);
+	check('недоступный сайт даёт страницу ошибки', /Не удалось открыть страницу|Could not open the page/.test(await c.text(dead.id)), dead);
 
 	// --- аддон Problet: установка по ссылке, скрипт на странице, фон, exec, isProblet
 	const ad = await c.ev(s.id, `api.addonInstallUrl(${JSON.stringify(base + '/addon/addon.json')}).then((r) => r.message, (e) => 'ошибка: ' + e.message)`);

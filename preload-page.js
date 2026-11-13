@@ -4,6 +4,7 @@ function applyTheme(t) {
 	const root = document.documentElement;
 	if (!root) return;
 	root.dataset.theme = t.dark ? 'dark' : 'light';
+	root.dataset.lang = t.lang === 'en' ? 'en' : 'ru'; // язык интерфейса: по нему pages/i18n.js переводит надписи
 	root.style.setProperty('--accent', t.accent);
 	root.style.setProperty('--accent-soft', t.accentSoft);
 	root.style.setProperty('--on-accent', t.onAccent);
@@ -63,6 +64,7 @@ if (location.protocol === 'problet:') {
 		svgSaveAs: (text) => call('svg:save-as', text),
 		svgCopyPng: (dataUrl) => call('svg:copy-png', dataUrl),
 		debug: (action) => call('debug:run', action),
+		restart: () => call('app:restart'),
 		insecureProceed: (url) => call('insecure:proceed', url),
 		openInNewTab: (name) => call('page:open-tab', name),
 		spaces: () => call('spaces:state'),
@@ -187,6 +189,7 @@ if (location.protocol === 'problet-addon:') {
 	});
 	const m = (name) => (...args) => call(name, ...args);
 	contextBridge.exposeInMainWorld('problet', {
+		lang: ipcRenderer.sendSync('theme:get').lang === 'en' ? 'en' : 'ru', // язык интерфейса браузера: на нём аддон показывает свои надписи
 		info: m('info'),
 		on: (name, cb) => {
 			if (typeof cb !== 'function') return;
@@ -222,10 +225,12 @@ if (/^(https?|file):$/.test(location.protocol) && window === window.top) {
 				} catch (e) { /* ошибка в скрипте аддона */ }
 			}
 		});
+		const lang = ipcRenderer.sendSync('theme:get').lang === 'en' ? 'en' : 'ru';
 		for (const x of list) {
 			const send = (kind, args) => ipcRenderer.invoke('addon:content', x.id, kind, args);
 			contextBridge.exposeInIsolatedWorld(x.world, 'problet', {
 				id: x.id,
+				lang,
 				send: (msg) => send('send', [msg]),
 				onMessage: (cb) => {
 					if (typeof cb !== 'function') return;
