@@ -1045,6 +1045,10 @@
 		['Страница ещё загружается', 'The page is still loading'],
 		['Не удалось сохранить: {}', 'Could not save: {}'],
 		['Файл не сохранился', 'The file was not saved'],
+		['Четвёртая панель', 'Fourth bar'],
+		['скрыта, пока пуста', 'hidden while empty'],
+		['Переменный промежуток 4', 'Flexible spacer 4'],
+		['Часы', 'Clock'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

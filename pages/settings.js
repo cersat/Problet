@@ -183,8 +183,8 @@ let defaultKeywords = [];
 
 // ---------- Панели и кнопки ----------
 
-const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', page: 'Окно вкладки' };
-const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
+const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', extra: 'Четвёртая панель', page: 'Окно вкладки' };
+const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', sp4: 'Переменный промежуток 4', clock: 'Часы', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
 const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
 
 function moveButton(text, title, disabled, onClick) {
@@ -293,7 +293,7 @@ function renderPanels() {
 	const box = $('panel-order');
 	box.textContent = '';
 	order.forEach((k, i) => {
-		const note = k === 'tabs' && current.tabsPos !== 'row' ? ' (сбоку)' : k === 'bmbar' && !current.bookmarksBar ? ' (выключена)' : '';
+		const note = k === 'tabs' && current.tabsPos !== 'row' ? ' (сбоку)' : k === 'bmbar' && !current.bookmarksBar ? ' (выключена)' : k === 'extra' && !current.btnLayout.extra.length ? ' (скрыта, пока пуста)' : '';
 		const row = listRow(PANEL_NAMES[k] + note, k === 'page');
 		const swap = (d) => {
 			const next = [...order];
@@ -306,7 +306,7 @@ function renderPanels() {
 	const lists = $('btn-lists');
 	lists.textContent = '';
 	const L = current.btnLayout;
-	for (const key of ['tabs', 'toolbar', 'bmbar', 'hidden']) {
+	for (const key of ['tabs', 'toolbar', 'bmbar', 'extra', 'hidden']) {
 		const head = document.createElement('div');
 		head.className = 'plist-head';
 		head.textContent = key === 'hidden' ? 'Скрытые' : PANEL_NAMES[key];
@@ -322,7 +322,7 @@ function renderPanels() {
 			const custom = (current.customButtons || []).find((c) => c.id === id);
 			const row = listRow(custom ? custom.icon + '  ' + custom.name : id.startsWith('x:') ? 'Расширение: ' + (extNames[id] || 'удалено') : BTN_NAMES[id]);
 			const sel = document.createElement('select');
-			for (const p of ['tabs', 'toolbar', 'bmbar']) sel.append(new Option(PANEL_NAMES[p], p));
+			for (const p of ['tabs', 'toolbar', 'bmbar', 'extra']) sel.append(new Option(PANEL_NAMES[p], p));
 			sel.append(new Option('Скрыть', 'hidden'));
 			sel.value = key;
 			sel.addEventListener('change', () => {

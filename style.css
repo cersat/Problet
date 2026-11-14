@@ -24,10 +24,11 @@ body {
 .titlebar { grid-column: 1 / -1; display: none; justify-content: flex-end; align-items: stretch; height: 28px; background: var(--tabbar); -webkit-app-region: drag; }
 body[data-title="on"] .titlebar { display: flex; }
 .titlebar .winctl { margin-right: 0; }
-.tabbar, .toolbar, .bmbar { grid-column: 1 / -1; }
+.tabbar, .toolbar, .bmbar, .xbar { grid-column: 1 / -1; }
 .edge-b { border-bottom: 1px solid var(--border); }
 .edge-t { border-top: 1px solid var(--border); }
 body[data-bm="off"] .bmbar { display: none; }
+body[data-extra="off"] .xbar { display: none; }
 body[data-tabs="bottom"] .tabbar { align-items: flex-start; padding: 0 6px 4px; }
 
 /* Перетаскивать окно можно за пустые места панелей */
@@ -428,6 +429,30 @@ body[data-tabs="bottom"] .tab.incognito.active { box-shadow: inset 0 -2px 0 #a68
 	background: #d94b4b;
 	color: #fff;
 }
+
+/* ---------- Четвёртая панель: пустая скрыта, кнопки на ней как на панели закладок ---------- */
+
+.xbar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 32px;
+	padding: 0 8px;
+	background: var(--bg);
+}
+
+.xbar > button:not(.spaces) { width: 28px; height: 28px; }
+.xbar > .spaces { height: 26px; }
+.xbar > .custom-btn { font-size: 14px; }
+.xbar .winctl { margin-right: -8px; }
+.xbar, .xbar button { -webkit-app-region: no-drag; }
+.xbar:not(.has-sp) > .address, .xbar > .address { flex: 1; }
+
+/* ---------- Часы ---------- */
+
+.clock { width: auto; padding: 0 8px; font: 13px system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; cursor: default; }
+.xbar > .clock { width: auto; }
+.toolbar > .clock, .tabbar > .clock { height: 30px; }
 
 /* ---------- Панель закладок ---------- */
 

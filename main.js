@@ -136,6 +136,7 @@ const TABBAR_HEIGHT = 36;
 const TITLEBAR_HEIGHT = 28;
 const TOOLBAR_HEIGHT = 44;
 const BMBAR_HEIGHT = 32;
+const XBAR_HEIGHT = 32;
 const SIDE_WIDTH = 220; // ширина вертикальной панели вкладок
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
@@ -286,7 +287,7 @@ function internalIcon(url) {
 
 // Панель вкладок можно растянуть до двойного размера (tabsScale от 1 до 2)
 function panelHeight(k) {
-	return uiPx(k === 'tabs' ? Math.round(TABBAR_HEIGHT * settings().tabsScale) : k === 'toolbar' ? TOOLBAR_HEIGHT : BMBAR_HEIGHT);
+	return uiPx(k === 'tabs' ? Math.round(TABBAR_HEIGHT * settings().tabsScale) : k === 'toolbar' ? TOOLBAR_HEIGHT : k === 'extra' ? XBAR_HEIGHT : BMBAR_HEIGHT);
 }
 
 function sideWidth() {
@@ -298,7 +299,7 @@ function sideWidth() {
 function panelPlan() {
 	const s = settings();
 	const side = s.tabsPos === 'left' || s.tabsPos === 'right' ? s.tabsPos : '';
-	const order = s.panelOrder.filter((k) => (k === 'tabs' ? !side : k !== 'bmbar' || s.bookmarksBar));
+	const order = s.panelOrder.filter((k) => (k === 'tabs' ? !side : k === 'extra' ? s.btnLayout.extra.length > 0 : k !== 'bmbar' || s.bookmarksBar));
 	const at = order.indexOf('page');
 	const before = order.slice(0, at);
 	const after = order.slice(at + 1);
@@ -3279,8 +3280,8 @@ function sendExtActions() {
 	if (extReady) {
 		const ids = [...extensions.actions(), ...addons.actions()].map((x) => 'x:' + x.id);
 		const L = settings().btnLayout;
-		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.hidden]);
-		const next = { tabs: [...L.tabs], toolbar: [...L.toolbar], bmbar: [...L.bmbar], hidden: [...L.hidden] };
+		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.extra, ...L.hidden]);
+		const next = { tabs: [...L.tabs], toolbar: [...L.toolbar], bmbar: [...L.bmbar], extra: [...L.extra], hidden: [...L.hidden] };
 		let changed = false;
 		for (const key of Object.keys(next)) {
 			const keep = next[key].filter((id) => !store.EXT_BTN.test(id) || ids.includes(id));

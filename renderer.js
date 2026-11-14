@@ -481,7 +481,7 @@ function syncExt(list) {
 	}
 }
 const elFor = (id) => (id.startsWith('cb:') ? customEls.get(id) : id.startsWith('x:') ? extEls.get(id) : $id(id));
-const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar };
+const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar, extra: $id('xbar') };
 // Главный элемент каждой панели: вокруг него расставляются кнопки
 // Ручка растягивания панели вкладок: до двойного размера (по высоте, а сбоку по ширине)
 const grip = document.createElement('div');
@@ -535,11 +535,14 @@ function applyLayout(l) {
 	document.body.style.gridTemplateRows = rows.map((r) => (r === 'page' ? 'minmax(0, 1fr)' : 'auto')).join(' ');
 	document.body.dataset.tabs = p.side || (p.before.includes('tabs') ? 'top' : 'bottom');
 	document.body.dataset.bm = l.bookmarksBar ? (p.after.includes('bmbar') ? 'bottom' : 'top') : 'off';
+	document.body.dataset.extra = p.before.includes('extra') || p.after.includes('extra') ? 'on' : 'off';
 	document.body.dataset.title = p.strip ? 'on' : 'off';
 	PANEL_EL.toolbar.classList.toggle('edge-b', p.before.includes('toolbar'));
 	PANEL_EL.toolbar.classList.toggle('edge-t', p.after.includes('toolbar'));
 	bmbar.classList.toggle('edge-b', p.before.includes('bmbar'));
 	bmbar.classList.toggle('edge-t', p.after.includes('bmbar'));
+	PANEL_EL.extra.classList.toggle('edge-b', p.before.includes('extra'));
+	PANEL_EL.extra.classList.toggle('edge-t', p.after.includes('extra'));
 	// Кнопки: каждая в своей панели в заданном порядке; кнопки окна на панели вкладок могут уйти в полосу заголовка
 	syncCustom(l.customButtons);
 	syncExt(l.extButtons || []);
@@ -585,6 +588,18 @@ function applyLayout(l) {
 	renderBar();
 	if (lastUpdate) showUpdate(lastUpdate);
 }
+
+// Часы: 24-часовой формат, дата во всплывающей подсказке
+const clockEl = $id('clock');
+function tickClock() {
+	const now = new Date();
+	const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+	if (clockEl.textContent !== time) clockEl.textContent = time;
+	const date = now.toLocaleDateString(probletLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+	if (clockEl.title !== date) clockEl.title = date;
+}
+tickClock();
+setInterval(tickClock, 5000);
 
 function renderBar() {
 	bmlist.textContent = '';

@@ -36,21 +36,22 @@ const TWO_ROWS_MIN = 1.8;
 const ARROWS = { tri: ['◀', '▶'], arrow: ['←', '→'], angle: ['‹', '›'], heavy: ['❮', '❯'], double: ['«', '»'], dbl: ['⇐', '⇒'], outline: ['◁', '▷'], curved: ['↩', '↪'] };
 
 // Панели в порядке сверху вниз; page — окно со страницей. Всё, что выше page, находится над страницей, ниже — под ней
-const PANELS = ['tabs', 'toolbar', 'bmbar'];
-const DEFAULT_ORDER = ['tabs', 'toolbar', 'bmbar', 'page'];
+const PANELS = ['tabs', 'toolbar', 'bmbar', 'extra']; // extra — четвёртая панель: пока на ней нет кнопок, её не видно
+const DEFAULT_ORDER = ['tabs', 'toolbar', 'bmbar', 'extra', 'page'];
 // Кнопки на панелях. m:… — главный элемент панели (вкладки, адресная строка, закладки): его нельзя убрать или переселить, он нужен только как точка отсчёта
 const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmbar' };
-// sp1–sp3 — переменные промежутки: занимают свободное место на панели; на одной панели не больше одного
-const SPACERS = ['sp1', 'sp2', 'sp3'];
+// sp1–sp4 — переменные промежутки: занимают свободное место на панели; на одной панели не больше одного
+const SPACERS = ['sp1', 'sp2', 'sp3', 'sp4'];
 // x:<id расширения> — кнопка расширения, у каждого своя
 const EXT_BTN = /^x:([a-p]{32}|@[a-z0-9][a-z0-9-]{0,39})$/; // расширение Chrome или @аддон Problet
-const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
+const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'clock', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {
 		tabs: ['spaces', 'm:tabs', 'newtab', 'sp1', 'winctl'],
 		toolbar: ['back', 'forward', 'reload', 'm:address', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'],
 		bmbar: ['m:bookmarks', 'sp3'],
-		hidden: ['sp2', 'darkpage', 'translate'],
+		extra: [],
+		hidden: ['sp2', 'sp4', 'darkpage', 'translate', 'clock'],
 	};
 }
 
@@ -76,8 +77,15 @@ function cleanCustom(raw) {
 	return out;
 }
 
-// Порядок панелей: перестановка из tabs, toolbar, bmbar, page; что угодно другое — порядок по умолчанию
+// Порядок панелей: перестановка из tabs, toolbar, bmbar, extra, page; что угодно другое — порядок по умолчанию.
+// Порядок из старых версий (без четвёртой панели) сохраняется: extra встаёт сразу после панели закладок
 function cleanOrder(raw) {
+	const old = DEFAULT_ORDER.filter((k) => k !== 'extra');
+	if (Array.isArray(raw) && raw.length === old.length && old.every((k) => raw.includes(k))) {
+		const next = [...raw];
+		next.splice(next.indexOf('bmbar') + 1, 0, 'extra');
+		return next;
+	}
 	if (Array.isArray(raw) && raw.length === DEFAULT_ORDER.length && DEFAULT_ORDER.every((k) => raw.includes(k))) return [...raw];
 	return [...DEFAULT_ORDER];
 }
@@ -86,7 +94,7 @@ function cleanOrder(raw) {
 function cleanButtons(raw, customIds = []) {
 	const def = defaultButtons();
 	const r = raw && typeof raw === 'object' ? raw : {};
-	const out = { tabs: [], toolbar: [], bmbar: [], hidden: [] };
+	const out = { tabs: [], toolbar: [], bmbar: [], extra: [], hidden: [] };
 	const seen = new Set();
 	for (const key of [...PANELS, 'hidden']) {
 		if (!Array.isArray(r[key])) continue;
@@ -408,7 +416,7 @@ function sanitizeSettings(raw) {
 		const tabsBottom = r.tabsPos === 'bottom';
 		const bmBottom = r.bmPos === 'bottom';
 		const rest = bmBottom ? ['toolbar', 'page', 'bmbar'] : ['toolbar', 'bmbar', 'page'];
-		out.panelOrder = tabsBottom ? [...rest, 'tabs'] : ['tabs', ...rest];
+		out.panelOrder = cleanOrder(tabsBottom ? [...rest, 'tabs'] : ['tabs', ...rest]);
 		const hide = [['appSpaces', 'spaces'], ['tabsNewButton', 'newtab'], ['winButtons', 'winctl'], ['appUpdate', 'update'], ['appChars', 'chars'], ['appBookmarks', 'bookmarks'], ['appPasswords', 'passwords'], ['appHistory', 'history'], ['appDownloads', 'downloads'], ['appSettings', 'settings']];
 		const b = defaultButtons();
 		for (const [old, id] of hide) {
