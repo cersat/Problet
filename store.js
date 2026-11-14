@@ -157,6 +157,10 @@ const SETTING_DEFAULTS = {
 	cacheIcons: true,
 	cachePages: true,
 	cacheImages: true,
+	cacheFonts: true,
+	cacheMedia: true, // видео и звук
+	cacheScripts: true,
+	cacheDir: '', // папка кеша; пустая — стандартная, меняется после перезапуска
 	askDownload: false,
 	saveHistory: true,
 	adblock: false,
@@ -212,7 +216,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab', 'engineSuggest', 'topSites'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'bmNewTab', 'engineSuggest', 'topSites'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -425,6 +429,7 @@ function sanitizeSettings(raw) {
 	out.startupUrl = str(r.startupUrl, 2048).trim();
 	out.customBlock = str(r.customBlock, 200000);
 	out.searchKeywords = Array.isArray(r.searchKeywords) ? cleanKeywords(r.searchKeywords) : DEFAULT_KEYWORDS.map((k) => ({ ...k }));
+	out.cacheDir = typeof r.cacheDir === 'string' && r.cacheDir.length <= 1024 && path.isAbsolute(r.cacheDir) ? r.cacheDir : '';
 	out.bmBackupDir = typeof r.bmBackupDir === 'string' && r.bmBackupDir.length <= 1024 && path.isAbsolute(r.bmBackupDir) ? r.bmBackupDir : '';
 	out.bmDefaultFolder = cleanFolderRef(r.bmDefaultFolder, true);
 	out.bmLastFolder = cleanFolderRef(r.bmLastFolder, false);
@@ -909,6 +914,10 @@ function setSettings(patch) {
 			if (!validTemplate(k.url)) throw new Error('Адрес для «' + key + '» должен начинаться с http:// или https:// и содержать %s на месте запроса');
 		}
 		next.searchKeywords = cleanKeywords(p.searchKeywords);
+	}
+	if (p.cacheDir !== undefined) {
+		if (typeof p.cacheDir !== 'string' || p.cacheDir.length > 1024 || (p.cacheDir && !path.isAbsolute(p.cacheDir))) throw new Error('Некорректная папка кеша');
+		next.cacheDir = p.cacheDir;
 	}
 	if (p.bmBackupDir !== undefined) {
 		if (typeof p.bmBackupDir !== 'string' || p.bmBackupDir.length > 1024 || (p.bmBackupDir && !path.isAbsolute(p.bmBackupDir))) throw new Error('Некорректная папка для копий');

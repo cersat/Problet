@@ -259,6 +259,26 @@
 				<label class="switch"><input type="checkbox" data-setting="cacheImages"><span></span></label>
 			</div>
 			<div class="setting">
+				<div class="what">Кешировать шрифты</div>
+				<label class="switch"><input type="checkbox" data-setting="cacheFonts"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Кешировать видео и звук</div>
+				<label class="switch"><input type="checkbox" data-setting="cacheMedia"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Кешировать скрипты</div>
+				<label class="switch"><input type="checkbox" data-setting="cacheScripts"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Папка кеша<small id="cache-dir">По умолчанию</small><small>Новая папка начинает работать после перезапуска. Старый кеш в прежней папке не переносится</small></div>
+				<span class="inline-form"><button id="cache-dir-pick">Выбрать</button><button id="cache-dir-reset" class="hidden">По умолчанию</button><button id="cache-restart">Перезапустить</button></span>
+			</div>
+			<div class="setting">
+				<div class="what">Размер кеша<small id="cache-size">…</small></div>
+				<button id="cache-size-refresh">Обновить</button>
+			</div>
+			<div class="setting">
 				<div class="what">Очистить кеш<small>Удаляет сохранённые файлы сайтов. Закладки, история и входы не затрагиваются.</small></div>
 				<button id="clear-cache" class="danger">Очистить кеш</button>
 			</div>
@@ -320,6 +340,10 @@
 			<div class="setting">
 				<div class="what">Спрашивать при скачивании из режима инкогнито<small>Перед скачиванием из инкогнито спрашивает, точно ли сохранить файл</small></div>
 				<label class="switch"><input type="checkbox" data-setting="incognitoAsk"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Страницы для офлайна<small>Сохранённые страницы открываются без интернета. Сохранить текущую: Ctrl+Alt+S или правая кнопка на вкладке</small></div>
+				<button id="offline-open">Открыть список</button>
 			</div>
 		</section>
 

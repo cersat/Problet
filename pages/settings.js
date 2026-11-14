@@ -424,9 +424,44 @@ $('clear-visits').addEventListener('click', () => run(async () => {
 	renderTop();
 }));
 
+const cacheBytes = (n) => {
+	if (n < 1024) return n + ' Б';
+	const u = ['КБ', 'МБ', 'ГБ', 'ТБ'];
+	let i = -1;
+	do {
+		n /= 1024;
+		i++;
+	} while (n >= 1024 && i < u.length - 1);
+	return n.toFixed(n < 10 ? 1 : 0) + ' ' + u[i];
+};
+async function renderCache() {
+	$('cache-dir').textContent = current.cacheDir || 'По умолчанию (в папке данных браузера)';
+	$('cache-dir-reset').classList.toggle('hidden', !current.cacheDir);
+	try {
+		$('cache-size').textContent = cacheBytes(await api.cacheSize());
+	} catch (e) {
+		$('cache-size').textContent = 'Не удалось узнать';
+	}
+}
+$('offline-open').addEventListener('click', () => run(() => api.openInNewTab('offline')));
+$('cache-size-refresh').addEventListener('click', () => run(renderCache));
+$('cache-dir-pick').addEventListener('click', () => run(async () => {
+	const r = await api.cacheDirPick();
+	if (r.canceled) return;
+	current = await api.setSettings({ cacheDir: r.path });
+	await renderCache();
+	say('Сохранено. Перезапусти браузер, чтобы кеш перешёл в новую папку');
+}));
+$('cache-dir-reset').addEventListener('click', () => run(async () => {
+	current = await api.setSettings({ cacheDir: '' });
+	await renderCache();
+	say('Сохранено. Перезапусти браузер');
+}));
+$('cache-restart').addEventListener('click', () => run(() => api.restart()));
 $('clear-cache').addEventListener('click', () => run(async () => {
 	const r = await api.clearCache();
 	say(r.message);
+	await renderCache();
 }));
 
 async function saveCustom() {
@@ -1076,6 +1111,7 @@ run(async () => {
 	await loaded;
 	await renderBmDefault();
 	await renderBackups();
+	await renderCache();
 });
 api.onChange((kinds) => {
 	if (kinds.includes('bookmarks') || kinds.includes('all')) run(renderBmDefault);

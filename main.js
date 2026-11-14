@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, protocol, net, dialog, nativeTheme, session, Menu, clipboard, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, protocol, net, dialog, nativeTheme, session, Menu, clipboard, shell, nativeImage, Notification } = require('electron');
 const crypto = require('crypto');
 const path = require('path');
 const os = require('os');
@@ -19,6 +19,7 @@ const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
 const { themePayload, accentList, PRESETS, TINTS, CONTRASTS, UI_SCALES, THEME_KEYS, PALETTES } = require('./theme');
 const headless = require('./headless');
+const offline = require('./offline');
 const i18nMain = require('./i18n-main');
 const { tr } = i18nMain;
 
@@ -39,6 +40,27 @@ if (headless.enabled && !process.argv.some((a) => a.startsWith('--user-data-dir=
 
 // Язык: перевод меню и диалогов ставится сразу, язык самого Chromium — до запуска приложения
 i18nMain.applyChromiumLang();
+// Папка кеша: Electron сам выбирает путь кеша (флаг --disk-cache-dir он не слушает), поэтому подменяем папку «Cache» ссылкой на нужную. Делается до запуска Chromium, настройка берётся прямо из файла
+try {
+	const raw = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'data.json'), 'utf8'));
+	const dir = raw && raw.settings && raw.settings.cacheDir;
+	const link = path.join(app.getPath('userData'), 'Cache');
+	let st = null;
+	try {
+		st = fs.lstatSync(link);
+	} catch (e) { /* кеша ещё нет */ }
+	if (typeof dir === 'string' && dir && path.isAbsolute(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+		const same = st && st.isSymbolicLink() && path.resolve(fs.readlinkSync(link)) === path.resolve(dir);
+		if (!same) {
+			if (st && st.isSymbolicLink()) fs.unlinkSync(link);
+			else if (st) fs.rmSync(link, { recursive: true, force: true });
+			fs.symlinkSync(dir, link, 'junction');
+		}
+	} else if (st && st.isSymbolicLink()) {
+		fs.unlinkSync(link); // вернули стандартную папку: Chromium создаст кеш заново
+	}
+} catch (e) { /* профиль ещё пустой или папка недоступна: стандартный кеш */ }
 i18nMain.install(() => {
 	try {
 		return store.getSettings().language;
@@ -118,7 +140,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -245,6 +267,7 @@ const INTERNAL_ICONS = {
 	version: svgIcon('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/>'),
 	passwords: svgIcon('<circle cx="8.5" cy="14" r="3.5"/><path d="M11 12l8-8M16 7l2.5 2.5M13.5 9.5L15 11"/>'),
 	downloads: svgIcon('<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>'),
+	offline: svgIcon('<path d="M6 4h9l3 3v13H6z"/><path d="M12 10v6M9.5 13.5L12 16l2.5-2.5"/>'),
 	files: svgIcon('<path d="M3.5 7.5a1.5 1.5 0 011.5-1.5h4l2 2.5h8a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5H5a1.5 1.5 0 01-1.5-1.5z"/>'),
 	svgedit: svgIcon('<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19z"/><path d="M14.5 6.5l3 3"/>'),
 	spaces: svgIcon('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
@@ -1556,6 +1579,11 @@ const ACTION_RUN = {
 	bookmarks: () => openInternal('bookmarks'),
 	history: () => openInternal('history'),
 	downloads: () => openInternal('downloads'),
+	offlinePage: () => openInternal('offline'),
+	saveOffline: () => {
+		const tab = activeTab();
+		if (tab) saveOfflineNotify(tab);
+	},
 	passwords: () => openInternal('passwords'),
 	settings: () => openInternal('settings'),
 	zoomIn: () => zoomBy(1),
@@ -1989,12 +2017,62 @@ function showTabMenu(id) {
 		{ label: 'Дублировать', click: () => createTab(tab.pendingUrl || tab.view.webContents.getURL() || tab.url, { duplicate: true, afterId: tab.id, title: tab.title, icon: tab.icon }) },
 		{ label: 'Обновить', click: () => tab.view.webContents.reload() },
 		{ label: 'Переименовать вкладку', click: () => win.webContents.send('tab-rename', tab.id) },
+		{ label: 'Сохранить для офлайна', enabled: !tab.incognito && pageTranslate.translatable(tab.view.webContents.getURL()) && /^https?:/i.test(tab.view.webContents.getURL()), click: () => saveOfflineNotify(tab) },
 		{ type: 'separator' },
 		{ label: 'Закрыть вкладку', click: () => closeTab(tab.id) },
 		{ label: 'Закрыть вкладки справа', enabled: vis.slice(index + 1).some((x) => !x.pinned), click: () => vis.slice(index + 1).filter((x) => !x.pinned).forEach((x) => closeTab(x.id)) },
 		{ label: 'Закрыть остальные', enabled: vis.some((x) => x !== tab && !x.pinned), click: () => vis.filter((x) => x !== tab && !x.pinned).forEach((x) => closeTab(x.id)) },
 	]);
 }
+
+// ---------- Страницы для офлайна ----------
+
+offline.init(app.getPath('userData'));
+
+// Одна вкладка → один файл .mhtml. Возвращает { ok } или { ok: false, reason }
+async function saveOffline(tab) {
+	const wc = tab.view.webContents;
+	if (tab.incognito) return { ok: false, reason: 'Из приватного окна страницы не сохраняются' };
+	const url = wc.isDestroyed() ? '' : wc.getURL();
+	if (!/^https?:\/\//i.test(url)) return { ok: false, reason: 'Сохраняются только страницы из интернета' };
+	if (wc.isLoading()) return { ok: false, reason: 'Страница ещё загружается' };
+	const slot = offline.reserve();
+	try {
+		await wc.savePage(slot.file, 'MHTML');
+		offline.commit(slot.id, { url, title: tab.title || wc.getTitle() });
+		return { ok: true };
+	} catch (e) {
+		try {
+			fs.rmSync(slot.file, { force: true });
+		} catch (err) { /* нечего убирать */ }
+		return { ok: false, reason: 'Не удалось сохранить: ' + e.message };
+	}
+}
+
+async function saveOfflineNotify(tab) {
+	const r = await saveOffline(tab);
+	if (Notification.isSupported()) new Notification({ title: tr(r.ok ? 'Страница сохранена для офлайна' : 'Страница не сохранена'), body: r.ok ? tab.title || tab.view.webContents.getURL() : tr(r.reason), silent: true }).show();
+}
+
+handle('offline:list', () => offline.all());
+handle('offline:open', (id) => {
+	const file = offline.pathOf(String(id));
+	if (!file) throw new Error('Файл удалён');
+	createTab(pathToFileURL(file).toString(), { activate: true });
+});
+handle('offline:delete', (id) => offline.remove(String(id)));
+handle('offline:save-all', async () => {
+	let saved = 0;
+	const failed = [];
+	for (const tab of tabs.slice()) {
+		const url = tab.view.webContents.isDestroyed() ? '' : tab.view.webContents.getURL();
+		if (!/^https?:\/\//i.test(url) || tab.incognito) continue;
+		const r = await saveOffline(tab);
+		if (r.ok) saved++;
+		else failed.push((tab.title || url) + ': ' + tr(r.reason));
+	}
+	return { saved, failed };
+});
 
 // ---------- Загрузки ----------
 
@@ -2831,6 +2909,12 @@ handle('dir:pick', async () => {
 });
 handle('history:clear', () => {
 	store.clearSearches();
+});
+handle('cache:size', () => cache.size());
+handle('cache:dir-pick', async () => {
+	const r = await dialog.showOpenDialog(win, { title: 'Папка кеша', defaultPath: settings().cacheDir || app.getPath('userData'), properties: ['openDirectory', 'createDirectory'] });
+	if (r.canceled || !r.filePaths[0]) return { canceled: true };
+	return { path: r.filePaths[0] };
 });
 handle('cache:clear', async () => {
 	await cache.clearNow();

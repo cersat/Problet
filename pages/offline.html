@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:">
+	<script src="i18n-en.js"></script>
+	<script src="i18n.js"></script>
+	<title>Сохранённые страницы</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+</head>
+<body class="list-page">
+	<main>
+		<header>
+			<h1>Сохранённые страницы</h1>
+			<input id="q" type="search" placeholder="Поиск" autocomplete="off">
+			<button id="save-all">Сохранить все вкладки</button>
+		</header>
+		<p class="hint">Страницы хранятся файлами на этом компьютере и открываются без интернета, вместе с картинками и стилями. Сохранить текущую: Ctrl+Alt+S или правая кнопка на вкладке.</p>
+		<p id="status" class="status"></p>
+		<p id="fails" class="status bad"></p>
+		<div id="list"></div>
+	</main>
+	<script src="offline.js"></script>
+</body>
+</html>

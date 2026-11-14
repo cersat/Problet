@@ -22,6 +22,8 @@
 		{ id: 'bookmarks', label: 'Закладки', key: 'Ctrl+Shift+O' },
 		{ id: 'history', label: 'История', key: 'Ctrl+H' },
 		{ id: 'downloads', label: 'Загрузки', key: 'Ctrl+J' },
+		{ id: 'saveOffline', label: 'Сохранить страницу для офлайна', key: 'Ctrl+Alt+S' },
+		{ id: 'offlinePage', label: 'Сохранённые страницы', key: '' },
 		{ id: 'passwords', label: 'Пароли', key: 'Ctrl+Shift+K' },
 		{ id: 'settings', label: 'Настройки', key: 'Ctrl+,' },
 		{ id: 'zoomIn', label: 'Увеличить масштаб', key: 'Ctrl+=' },

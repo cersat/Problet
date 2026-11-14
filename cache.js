@@ -3,7 +3,7 @@
 
 const HOUR = 3600 * 1000;
 const PERIODS = { hour: HOUR, day: 24 * HOUR, week: 7 * 24 * HOUR, month: 30 * 24 * HOUR };
-const PAGE_TYPES = new Set(['mainFrame', 'subFrame', 'stylesheet', 'script', 'font']);
+const PAGE_TYPES = new Set(['mainFrame', 'subFrame', 'stylesheet']);
 const URLS = ['http://*/*', 'https://*/*'];
 const CHECK_INTERVAL = 60 * 1000;
 
@@ -17,12 +17,18 @@ function categoryOf(details) {
 		const isIcon = iconUrls.has(details.url) || /\/favicon\.ico(\?|#|$)/i.test(details.url);
 		return isIcon ? 'icons' : 'images';
 	}
+	if (details.resourceType === 'font') return 'fonts';
+	if (details.resourceType === 'media') return 'media';
+	if (details.resourceType === 'script') return 'scripts';
 	return PAGE_TYPES.has(details.resourceType) ? 'pages' : null;
 }
 
 function isCached(settings, category) {
 	if (category === 'icons') return settings.cacheIcons;
 	if (category === 'images') return settings.cacheImages;
+	if (category === 'fonts') return settings.cacheFonts;
+	if (category === 'media') return settings.cacheMedia;
+	if (category === 'scripts') return settings.cacheScripts;
 	return settings.cachePages;
 }
 
@@ -58,6 +64,9 @@ function install() {
 	});
 }
 
+// Сколько сейчас занимает кеш (байты)
+const size = () => ses.getCacheSize();
+
 async function clearNow() {
 	await ses.clearCache();
 	try {
@@ -86,4 +95,4 @@ function start(session, storeApi) {
 	setInterval(checkRetention, CHECK_INTERVAL).unref();
 }
 
-module.exports = { start, tweakRequest, addIcon, clearNow, checkRetention, categoryOf, PERIODS };
+module.exports = { size, start, tweakRequest, addIcon, clearNow, checkRetention, categoryOf, PERIODS };
