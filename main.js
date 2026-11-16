@@ -886,6 +886,28 @@ function wireTab(tab) {
 		if (settings().adblock && (settings().adblockYoutube || !adblock.isYoutubeHost(new URL(wc.getURL()).hostname))) wc.insertCSS(adblock.COSMETIC_CSS).catch(() => {});
 		if (settings().hideCookieBanners) wc.insertCSS(adblock.COOKIE_CSS).catch(() => {});
 	});
+	// Страницы расширений в Chrome Web Store: добавляем свою кнопку «Установить в Problet»
+	const STORE_RE = /^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)\//i;
+	const injectStoreButton = () => {
+		if (!STORE_RE.test(wc.getURL())) return;
+		wc.executeJavaScript(extensions.storeButton(curLang(), extensions.storeIds())).catch(() => {});
+	};
+	wc.on('did-finish-load', injectStoreButton);
+	wc.on('did-navigate-in-page', injectStoreButton);
+	wc.on('console-message', (e) => {
+		const msg = String(e.message || '');
+		if (!msg.startsWith('__problet_install__') || !STORE_RE.test(wc.getURL())) return;
+		const id = msg.slice(19);
+		if (!/^[a-p]{32}$/.test(id)) return;
+		extensions.installFromStore(id, process.versions.chrome, log).then((ext) => {
+			sendExtActions();
+			log('магазин: установлено «' + ext.name + '»');
+			wc.executeJavaScript('window.__probletStore&&window.__probletStore.done(' + JSON.stringify(id) + ',true)').catch(() => {});
+		}).catch((err) => {
+			log('магазин: ошибка установки', err);
+			wc.executeJavaScript('window.__probletStore&&window.__probletStore.done(' + JSON.stringify(id) + ',false,' + JSON.stringify(String(err.message || err).slice(0, 80)) + ')').catch(() => {});
+		});
+	});
 	wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
 		if (!isMainFrame || code === -3) return; // -3 — загрузку отменили сами
 		wc.loadURL(errorPage(code, description, url)).catch(() => {});
@@ -3265,9 +3287,14 @@ handle('ext:add', async () => {
 	return { message: 'Расширение «' + e.name + '» добавлено' };
 });
 handle('ext:store', async (input) => {
-	const e = await extensions.installFromStore(String(input || ''), process.versions.chrome);
-	sendExtActions();
-	return { message: 'Расширение «' + e.name + '» установлено' };
+	try {
+		const e = await extensions.installFromStore(String(input || ''), process.versions.chrome, log);
+		sendExtActions();
+		return { message: 'Расширение «' + e.name + '» установлено' };
+	} catch (err) {
+		log('магазин: ошибка установки', err);
+		throw err;
+	}
 });
 handle('ext:remove', async (p) => {
 	await extensions.remove(String(p));

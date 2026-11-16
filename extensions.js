@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { net } = require('electron');
 
 let ses = null;
 let file = '';
@@ -222,7 +223,104 @@ function unzip(zip, dest) {
 	}
 }
 
-async function installFromStore(input, chromeVersion) {
+// Скачивание через сетевой стек Chromium (как у страниц браузера: прокси системы, свои сертификаты), а не через fetch Node.
+// Если соединение молчит дольше 20 секунд или всё занимает больше двух минут, пробуем ещё раз, всего три попытки
+async function download(url, log) {
+	let last = null;
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		const ctl = new AbortController();
+		let idle = setTimeout(() => ctl.abort(), 20000);
+		const total = setTimeout(() => ctl.abort(), 120000);
+		try {
+			const res = await net.fetch(url, { redirect: 'follow', signal: ctl.signal });
+			if (res.status === 204 || res.status === 404) throw Object.assign(new Error('Магазин не отдаёт это расширение (его нет или оно недоступно для этой версии браузера)'), { final: true });
+			if (!res.ok) throw new Error('Магазин ответил кодом ' + res.status);
+			const parts = [];
+			let size = 0;
+			const reader = res.body.getReader();
+			for (;;) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				clearTimeout(idle);
+				idle = setTimeout(() => ctl.abort(), 20000);
+				parts.push(value);
+				size += value.length;
+				if (size > 150 * 1024 * 1024) throw Object.assign(new Error('Расширение слишком большое'), { final: true });
+			}
+			return Buffer.concat(parts);
+		} catch (e) {
+			if (e.final) throw e;
+			last = e;
+			log('магазин: попытка ' + attempt + ' не удалась: ' + (ctl.signal.aborted ? 'нет ответа дольше 20 секунд' : e.message));
+		} finally {
+			clearTimeout(idle);
+			clearTimeout(total);
+		}
+	}
+	throw new Error('Не удалось скачать из магазина: ' + String((last && last.message) || last));
+}
+
+// Идентификаторы расширений, которые уже скачаны из магазина (папка названа как идентификатор)
+function storeIds() {
+	const root = path.join(path.dirname(file), 'extensions') + path.sep;
+	return entries.filter((e) => e.path.startsWith(root)).map((e) => path.basename(e.path));
+}
+
+// Кнопка «Установить в Problet» на страницах расширений в Chrome Web Store. Родная кнопка магазина в Problet не работает, поэтому рисуем свою.
+// Нажатие передаётся браузеру строкой в консоль страницы, ответ приходит через window.__probletStore.done
+function storeButton(lang, installed) {
+	return '(' + (function (LANG, INSTALLED) {
+		const L = (ru, en) => (LANG === 'en' ? en : ru);
+		if (window.__probletStore) {
+			window.__probletStore.installed = new Set(INSTALLED);
+			window.__probletStore.render();
+			return;
+		}
+		const host = document.createElement('div');
+		const sh = host.attachShadow({ mode: 'closed' });
+		const style = document.createElement('style');
+		style.textContent = '.b{position:fixed;right:20px;bottom:20px;z-index:2147483647;padding:12px 18px;border:0;border-radius:12px;background:#7c9cf5;color:#16161d;font:600 14px system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.35)}.b:hover{filter:brightness(1.08)}.b[disabled]{cursor:default;filter:none;opacity:.85}.b.ok{background:#7fcf9a}.b.err{background:#f28b9b}';
+		const btn = document.createElement('button');
+		btn.className = 'b';
+		sh.append(style, btn);
+		const st = { installed: new Set(INSTALLED), busy: false, note: '', render: null, done: null };
+		const idNow = () => {
+			const m = /\/detail\/(?:[^/]+\/)?([a-p]{32})/.exec(location.pathname);
+			return m ? m[1] : '';
+		};
+		st.render = () => {
+			const id = idNow();
+			host.style.display = id ? '' : 'none';
+			if (!id) return;
+			const done = st.installed.has(id);
+			btn.disabled = st.busy || done;
+			btn.className = 'b' + (st.note ? ' err' : done ? ' ok' : '');
+			btn.textContent = st.note || (st.busy ? L('Устанавливаю…', 'Installing…') : done ? L('Установлено в Problet ✓', 'Installed in Problet ✓') : L('Установить в Problet', 'Install in Problet'));
+		};
+		st.done = (id, ok, message) => {
+			st.busy = false;
+			if (ok) st.installed.add(id);
+			else if (message) {
+				st.note = message;
+				setTimeout(() => { st.note = ''; st.render(); }, 6000);
+			}
+			st.render();
+		};
+		btn.addEventListener('click', () => {
+			const id = idNow();
+			if (!id || st.busy || st.installed.has(id)) return;
+			st.busy = true;
+			st.render();
+			console.log('__problet_install__' + id);
+		});
+		window.__probletStore = st;
+		document.documentElement.append(host);
+		st.render();
+		setInterval(st.render, 800); // магазин меняет адрес без перезагрузки страницы
+	}).toString() + ')(' + JSON.stringify(lang === 'en' ? 'en' : 'ru') + ',' + JSON.stringify(installed) + ')';
+}
+
+async function installFromStore(input, chromeVersion, log = () => {}) {
 	const id = storeId(input);
 	const dir = path.join(path.dirname(file), 'extensions', id);
 	if (entries.some((e) => e.path === dir)) throw new Error('Это расширение уже установлено');
@@ -231,11 +329,10 @@ async function installFromStore(input, chromeVersion) {
 	const url = 'https://clients2.google.com/service/update2/crx?response=redirect&os=' + os + '&arch=' + arch + '&os_arch=' + arch
 		+ '&prod=chromecrx&prodchannel=stable&prodversion=' + encodeURIComponent(chromeVersion || '156.0.0.0')
 		+ '&acceptformat=crx2,crx3&x=' + encodeURIComponent('id=' + id + '&installsource=ondemand&uc');
-	const res = await fetch(url, { redirect: 'follow' });
-	if (res.status === 204 || res.status === 404) throw new Error('Магазин не отдаёт это расширение (его нет или оно недоступно для этой версии браузера)');
-	if (!res.ok) throw new Error('Магазин ответил кодом ' + res.status);
-	const buf = Buffer.from(await res.arrayBuffer());
-	if (buf.length > 150 * 1024 * 1024) throw new Error('Расширение слишком большое');
+	log('магазин: скачиваю ' + id);
+	const t0 = Date.now();
+	const buf = await download(url, log);
+	log('магазин: скачано ' + id + ', ' + buf.length + ' Б за ' + (Date.now() - t0) + ' мс');
 	const tmp = dir + '.tmp';
 	fs.rmSync(tmp, { recursive: true, force: true });
 	fs.mkdirSync(tmp, { recursive: true });
@@ -249,11 +346,14 @@ async function installFromStore(input, chromeVersion) {
 		throw e;
 	}
 	try {
-		return await add(dir);
+		const t1 = Date.now();
+		const added = await add(dir);
+		log('магазин: расширение загружено в браузер за ' + (Date.now() - t1) + ' мс');
+		return added;
 	} catch (e) {
 		fs.rmSync(dir, { recursive: true, force: true });
 		throw e;
 	}
 }
 
-module.exports = { init, list, add, remove, actions, pageUrl, installFromStore, storeId, crxToZip, unzip };
+module.exports = { init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };
