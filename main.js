@@ -3416,9 +3416,15 @@ function sendExtActions() {
 function extPage(id, kind) {
 	return id.startsWith('@') ? addons.pageUrl(id.slice(1), kind) : extensions.pageUrl(id, kind);
 }
+ipcMain.on('ext:active-tab', (e) => {
+	const t = activeTab();
+	e.returnValue = t && /^chrome-extension:\/\//.test(e.senderFrame.url) && !t.view.webContents.isDestroyed() ? t.view.webContents.id : -1;
+});
 ipcMain.on('ext:shim', (e) => {
 	try {
-		e.returnValue = /^chrome-extension:\/\//.test(e.senderFrame.url) ? fs.readFileSync(path.join(__dirname, 'ext-shim.js'), 'utf8') : '';
+		const shim = fs.readFileSync(path.join(__dirname, 'ext-shim.js'), 'utf8');
+		// Боковая панель в Chrome не вкладка: у неё chrome.tabs.getCurrent() ничего не возвращает, и расширение по этому её узнаёт
+		e.returnValue = /^chrome-extension:\/\//.test(e.senderFrame.url) ? (sideView && e.sender === sideView.webContents ? 'window.__probletSidePanel = true;\n' : '') + shim : '';
 	} catch (err) {
 		e.returnValue = '';
 	}

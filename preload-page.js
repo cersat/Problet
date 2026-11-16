@@ -182,11 +182,23 @@ if (location.protocol !== 'problet:') {
 if (location.protocol === 'chrome-extension:') {
 	try {
 		// Те же заплатки для недостающих chrome.*, что и у фонового процесса: страницы расширений без них падают
+		contextBridge.exposeInMainWorld('__probletActiveTab', () => ipcRenderer.sendSync('ext:active-tab'));
 		const shim = ipcRenderer.sendSync('ext:shim');
 		if (shim) webFrame.executeJavaScript(shim);
 		webFrame.executeJavaScript('(' + function () {
 			const c = window.chrome;
-			if (!c || !c.tabs || c.tabs.create) return;
+			if (!c || !c.tabs) return;
+			// Боковая панель — не вкладка: getCurrent у неё должен отвечать «ничего», иначе расширение решит, что страница открыта не там
+			if (/\/sidepanel[^/]*\.html$/i.test(location.pathname)) {
+				c.tabs.getCurrent = function (cb) {
+					if (typeof cb === 'function') {
+						setTimeout(() => cb(undefined), 0);
+						return undefined;
+					}
+					return Promise.resolve(undefined);
+				};
+			}
+			if (c.tabs.create) return;
 			c.tabs.create = function (props, cb) {
 				const url = props && typeof props.url === 'string' ? props.url : '';
 				if (url) window.open(url, '_blank');

@@ -64,6 +64,32 @@
 			if (tu && tu._fire) tu._fire(-1, { url, status: 'loading' }, { id: -1, url });
 		};
 	} catch (err) { /* без канала вход через сайт не завершится */ }
+	// Electron считает вкладкой любое окно, в том числе саму боковую панель, и ставит ей active: подменяем ответ на настоящую открытую страницу
+	if (typeof root.__probletActiveTab === 'function' && c.tabs && c.tabs.query && !c.tabs.__probletQuery) {
+		const query = c.tabs.query.bind(c.tabs);
+		c.tabs.__probletQuery = true;
+		c.tabs.query = (...a) => {
+			const info = typeof a[0] === 'object' && a[0] ? a[0] : {};
+			const cb = typeof a[a.length - 1] === 'function' ? a[a.length - 1] : null;
+			const own = location.protocol === 'chrome-extension:' ? location.origin + '/' : '';
+			const run = query({}).then((list) => {
+				const act = root.__probletActiveTab();
+				let out = (list || []).filter((t) => !(own && root.__probletSidePanel && String(t.url || '').startsWith(own + 'sidepanel'))).map((t) => ({ ...t, active: t.id === act, windowId: 1 }));
+				if (info.active !== undefined) out = out.filter((t) => t.active === !!info.active);
+				if (typeof info.url === 'string' || Array.isArray(info.url)) {
+					const pats = [].concat(info.url).map((p) => new RegExp('^' + p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'));
+					out = out.filter((t) => pats.some((r) => r.test(t.url || '')));
+				}
+				return out;
+			});
+			if (cb) {
+				run.then((v) => cb(v), () => cb([]));
+				return undefined;
+			}
+			return run;
+		};
+	}
+	if (root.__probletSidePanel && c.tabs) c.tabs.getCurrent = (...a) => reply(a, undefined);
 	if (c.tabs && c.tabs.TAB_ID_NONE === undefined) c.tabs.TAB_ID_NONE = -1;
 	ensure('action', { getUserSettings: (...a) => reply(a, { isOnToolbar: true }) });
 	if (!c.menus) c.menus = c.contextMenus;
