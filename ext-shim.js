@@ -90,6 +90,24 @@
 		};
 	}
 	if (root.__probletSidePanel && c.tabs) c.tabs.getCurrent = (...a) => reply(a, undefined);
+	// В Electron chrome.runtime.onStartup не срабатывает вообще, а расширения на нём заново входят в аккаунт и поднимают свои службы.
+	// Подменяем событие своим и один раз за запуск браузера (память сеанса storage.session пустеет при перезапуске) сами его вызываем
+	if (typeof ServiceWorkerGlobalScope !== 'undefined' && c.runtime && c.storage && c.storage.session) {
+		const own = event();
+		try {
+			Object.defineProperty(c.runtime, 'onStartup', { value: own, configurable: true, writable: true });
+		} catch (err) { /* останется родное событие */ }
+		if (c.runtime.onStartup === own) {
+			setTimeout(async () => {
+				try {
+					const k = '__problet_started';
+					if ((await c.storage.session.get(k))[k]) return;
+					await c.storage.session.set({ [k]: Date.now() });
+					own._fire();
+				} catch (err) { /* без этого вход после перезапуска может не восстановиться */ }
+			}, 1500);
+		}
+	}
 	if (c.tabs && c.tabs.TAB_ID_NONE === undefined) c.tabs.TAB_ID_NONE = -1;
 	ensure('action', { getUserSettings: (...a) => reply(a, { isOnToolbar: true }) });
 	if (!c.menus) c.menus = c.contextMenus;
