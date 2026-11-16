@@ -692,3 +692,88 @@ problet.onBar((data) => {
 problet.onLayout(applyLayout);
 barData = problet.bar();
 applyLayout(problet.layout());
+
+// ---------- Внутренние страницы ----------
+// Страницы problet:// рисуются здесь же, рамками в области страницы: так у них нет своего процесса (см. vtab.js)
+const vhost = document.createElement('div');
+vhost.className = 'vhost';
+document.body.append(vhost);
+const vframes = new Map();
+const vshown = new Set(); // какие рамки должны быть видны (команда может прийти раньше самой рамки)
+
+function vZoom(f) {
+	try {
+		const root = f.contentDocument && f.contentDocument.documentElement;
+		if (root) root.style.zoom = f.dataset.zoom === '1' ? '' : f.dataset.zoom;
+	} catch (e) { /* рамка ещё грузится */ }
+}
+
+function vShowing() {
+	vhost.classList.toggle('on', [...vframes.values()].some((f) => f.classList.contains('on')));
+}
+
+problet.onVt((m) => {
+	const f = vframes.get(m.id);
+	switch (m.op) {
+		case 'bounds':
+			Object.assign(vhost.style, { left: m.x + 'px', top: m.y + 'px', width: m.width + 'px', height: m.height + 'px' });
+			break;
+		case 'open': {
+			if (f) f.remove();
+			const el = document.createElement('iframe');
+			el.name = 'vt-' + m.id;
+			el.className = 'vframe';
+			el.allow = 'clipboard-read; clipboard-write; fullscreen';
+			el.dataset.zoom = String(m.zoom || 1);
+			el.addEventListener('load', () => {
+				el.dataset.loaded = '1';
+				vZoom(el);
+				if (el.dataset.focus) {
+					delete el.dataset.focus;
+					el.contentWindow.focus();
+				}
+			});
+			el.src = m.src;
+			vhost.append(el);
+			if (vshown.has(m.id)) el.classList.add('on');
+			vframes.set(m.id, el);
+			vShowing();
+			break;
+		}
+		case 'nav':
+			if (!f) break;
+			try {
+				f.contentWindow.location.replace(m.src); // без записи в историю окна панели: историю вкладки ведёт браузер
+			} catch (e) {
+				f.src = m.src;
+			}
+			break;
+		case 'show':
+			vshown.add(m.id);
+			if (f) f.classList.add('on');
+			vShowing();
+			break;
+		case 'hide':
+			vshown.delete(m.id);
+			if (f) f.classList.remove('on');
+			vShowing();
+			break;
+		case 'close':
+			if (f) f.remove();
+			vframes.delete(m.id);
+			vshown.delete(m.id);
+			vShowing();
+			break;
+		case 'focus':
+			if (!f) break;
+			// Пока рамка не загрузилась, к её окну не обращаемся: иначе прелоад страницы успевает отработать на пустом документе
+			if (f.dataset.loaded) f.contentWindow.focus();
+			else f.dataset.focus = '1';
+			break;
+		case 'zoom':
+			if (!f) break;
+			f.dataset.zoom = String(m.zoom || 1);
+			vZoom(f);
+			break;
+	}
+});

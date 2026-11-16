@@ -18,8 +18,78 @@ function watchTheme() {
 	ipcRenderer.on('theme', (_e, t) => { current = t; apply(); });
 }
 
+// Окно панели браузера (вкладки, адресная строка): problet://ui/. Рамки внутренних страниц в нём получают API страниц ниже
+const isToolbar = location.protocol === 'problet:' && location.host === 'ui' && window === window.top;
+if (isToolbar) {
+	watchTheme();
+	contextBridge.exposeInMainWorld('problet', {
+		go: (text) => ipcRenderer.send('go', text),
+		back: () => ipcRenderer.send('back'),
+		forward: () => ipcRenderer.send('forward'),
+		reload: () => ipcRenderer.send('reload'),
+		toggleBookmark: () => ipcRenderer.send('toggle-bookmark'),
+		openInternal: (name) => ipcRenderer.send('open-internal', name),
+		newTab: () => ipcRenderer.send('tab-new'),
+		activateTab: (id) => ipcRenderer.send('tab-activate', id),
+		closeTab: (id) => ipcRenderer.send('tab-close', id),
+		tabMenu: (id) => ipcRenderer.send('tab-menu', id),
+		tabRename: (id, name) => ipcRenderer.send('tab-rename', id, name),
+		onTabRename: (cb) => ipcRenderer.on('tab-rename', (_e, id) => cb(id)),
+		tabsScale: (v) => ipcRenderer.send('tabs-scale', v),
+		customButton: (id) => ipcRenderer.send('custom-button', id),
+		barMenu: (id) => ipcRenderer.send('bar:menu', id),
+		moveTab: (id, to) => ipcRenderer.send('tab-move', id, to),
+		suggestQuery: (msg) => ipcRenderer.send('suggest-query', msg),
+		suggestMove: (dir) => ipcRenderer.send('suggest-move', dir),
+		suggestHide: () => ipcRenderer.send('suggest-hide'),
+		onState: (cb) => ipcRenderer.on('state', (_e, state) => cb(state)),
+		pwOfferAccept: () => ipcRenderer.send('pw-offer-accept'),
+		zoomReset: () => ipcRenderer.send('zoom-reset'),
+		updateTip: (rect) => ipcRenderer.send('update-tip', rect),
+		updateApply: () => ipcRenderer.send('update-apply'),
+		updateState: () => ipcRenderer.sendSync('update-get'),
+		darkPage: () => ipcRenderer.send('dark-page'),
+		translatePage: () => ipcRenderer.send('translate-page'),
+		extClick: (id, rect) => ipcRenderer.send('bar:ext', id, rect),
+		onUpdate: (cb) => ipcRenderer.on('update-state', (_e, st) => cb(st)),
+		onDownloadsBusy: (cb) => ipcRenderer.on('downloads-busy', (_e, n) => cb(n)),
+		onTabs: (cb) => ipcRenderer.on('tabs', (_e, data) => cb(data)),
+		onFocusAddress: (cb) => ipcRenderer.on('focus-address', () => cb()),
+		onSetAddress: (cb) => ipcRenderer.on('set-address', (_e, msg) => cb(msg)),
+		layout: () => ipcRenderer.sendSync('layout:get'),
+		onLayout: (cb) => ipcRenderer.on('layout', (_e, l) => cb(l)),
+		bar: () => ipcRenderer.sendSync('bar:get'),
+		onBar: (cb) => ipcRenderer.on('bar', (_e, b) => cb(b)),
+		barOpen: (id, newTab) => ipcRenderer.send('bar:open', id, !!newTab),
+		barFolder: (id, rect) => ipcRenderer.send('bar:folder', id, rect),
+		barFolderMenu: (id, rect) => ipcRenderer.send('bar:folder-menu', id, rect),
+		newTabMenu: () => ipcRenderer.send('newtab-menu'),
+		openApplet: (kind, rect) => ipcRenderer.send('applet-open', kind, rect),
+		winMinimize: () => ipcRenderer.send('win:minimize'),
+		winMaximize: () => ipcRenderer.send('win:maximize'),
+		winClose: () => ipcRenderer.send('win:close'),
+		onSuggestVisible: (cb) => ipcRenderer.on('suggest-visible', (_e, visible) => cb(visible)),
+		onVt: (cb) => ipcRenderer.on('vt', (_e, msg) => cb(msg)),
+	});
+}
+
+// Рамка внутренней страницы в окне панели (виртуальная вкладка): сообщаем браузеру, что загрузилась, и её название
+if (location.protocol === 'problet:' && location.host === 'ui' && window !== window.top && window.parent === window.top) {
+	let lastTitle = null;
+	const sendTitle = () => {
+		if (document.title === lastTitle) return;
+		lastTitle = document.title;
+		ipcRenderer.send('vt:title', document.title);
+	};
+	window.addEventListener('load', () => {
+		lastTitle = document.title;
+		ipcRenderer.send('vt:loaded', document.title);
+		new MutationObserver(sendTitle).observe(document.head || document.documentElement, { subtree: true, childList: true, characterData: true });
+	});
+}
+
 // Этот прелоад подключён к любой странице, поэтому API и тему выдаём только внутренним адресам problet://
-if (location.protocol === 'problet:') {
+if (location.protocol === 'problet:' && !isToolbar) {
 	watchTheme();
 	const call = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
 	contextBridge.exposeInMainWorld('problet', {

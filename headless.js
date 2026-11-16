@@ -26,6 +26,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const vtab = require('./vtab');
 
 const argv = process.argv;
 const flag = (name) => argv.includes('--' + name);
@@ -82,6 +83,7 @@ async function sizeView(wc) {
 
 // Снимок через отладчик: работает и без окна, и без дисплея
 async function capture(_ctx, wc) {
+	if (wc.virtual) return (await limit(wc.capturePage(), 15000, 'снимок')).toPNG();
 	const dbg = wc.debugger;
 	const attached = dbg.isAttached();
 	if (!attached) dbg.attach('1.3');
@@ -140,6 +142,16 @@ function start(ctx) {
 	const info = (t) => ({ id: t.id, url: t.view.webContents.getURL(), title: t.view.webContents.getTitle(), loading: t.view.webContents.isLoading(), active: t === ctx.activeTab(), space: t.space });
 
 	async function open(url, wait) {
+		// Внутренняя страница — виртуальная вкладка в окне панели: размер ей задаёт само окно
+		if (vtab.isVirtualUrl(url)) {
+			const t = ctx.createTab(url, { activate: true });
+			const wc = t.view.webContents;
+			watchConsole(wc);
+			const t0 = Date.now();
+			const loaded = await waitLoaded(wc);
+			await sleep(Number.isFinite(wait) ? wait : 1000);
+			return { ...info(t), loaded, loadMs: Date.now() - t0 };
+		}
 		const t = ctx.createTab('about:blank', { activate: true });
 		const wc = t.view.webContents;
 		watchConsole(wc);

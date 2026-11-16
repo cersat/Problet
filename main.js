@@ -21,6 +21,7 @@ const { themePayload, accentList, PRESETS, TINTS, CONTRASTS, UI_SCALES, THEME_KE
 const headless = require('./headless');
 const offline = require('./offline');
 const i18nMain = require('./i18n-main');
+const vtab = require('./vtab');
 const { tr } = i18nMain;
 
 // Память: молодое поколение кучи V8 в каждом процессе ограничено 2 МБ (по умолчанию растёт до 16). Страницы с большим числом
@@ -233,6 +234,188 @@ function rememberSearch(text, tab) {
 
 function tabOfContents(wc) {
 	return tabs.find((t) => t.view.webContents === wc) || {};
+}
+
+// ---------- Виртуальные вкладки ----------
+// Внутренние страницы problet:// рисуются рамками в окне панели (см. vtab.js), а не отдельными страницами со своим процессом.
+// Вкладка инкогнито остаётся настоящей страницей: у неё своя сессия, следов в обычной быть не должно
+
+const PAGE_PRELOAD = path.join(__dirname, 'preload-page.js');
+let vtBounds = '';
+const vhost = {
+	send: (msg) => {
+		if (win && !win.isDestroyed()) win.webContents.send('vt', msg);
+	},
+	toolbar: () => win.webContents,
+	focus: (vc) => {
+		if (!win || win.isDestroyed()) return;
+		win.webContents.focus();
+		vhost.send({ op: 'focus', id: vc.id });
+	},
+	external: (vc, url) => {
+		const tab = tabs.find((t) => t.view.webContents === vc);
+		if (tab) switchView(tab, url, false);
+	},
+	// Область страницы в единицах окна панели (у него свой масштаб интерфейса)
+	rect: () => {
+		const b = pageBounds();
+		const z = uiZ();
+		return { x: b.x / z, y: b.y / z, width: b.width / z, height: b.height / z };
+	},
+	bounds: () => {
+		const r = vhost.rect();
+		const key = JSON.stringify(r);
+		if (key === vtBounds) return;
+		vtBounds = key;
+		vhost.send({ op: 'bounds', ...r });
+	},
+	// Окно панели уже увеличено масштабом интерфейса, а внутренние страницы раньше его не получали: делим обратно
+	cssZoom: (level) => Math.pow(1.2, Number(level) || 0) / uiZ(),
+	print: (vc, opts, cb) => {
+		withGhost(vc, (wc, done) => wc.print(opts, (ok, reason) => {
+			done();
+			if (cb) cb(ok, reason);
+		})).catch((e) => cb && cb(false, String(e.message || e)));
+	},
+};
+
+// Адрес самой панели (problet://ui/) в обычной странице не открывается никогда: такая вкладка покажет внутреннюю страницу «не найдено»
+const isVirtualFor = (tab, url) => (!(tab && tab.incognito) && vtab.isVirtualUrl(url)) || /^problet:\/\/ui([/?#]|$)/i.test(String(url));
+
+// Вкладка внутренней страницы по рамке, из которой пришло событие
+function vtabOfFrame(frame) {
+	if (!frame || !win || win.isDestroyed()) return null;
+	try {
+		if (!frame.parent || frame.parent.frameTreeNodeId !== win.webContents.mainFrame.frameTreeNodeId) return null;
+		const m = /^vt-(\d+)$/.exec(frame.name);
+		if (!m) return null;
+		const id = Number(m[1]);
+		return tabs.find((t) => t.view.virtual && t.view.webContents.id === id) || null;
+	} catch (e) {
+		return null;
+	}
+}
+
+// Вкладка, из которой пришло сообщение: настоящая страница или рамка внутренней
+function senderTab(e) {
+	return tabs.find((t) => t.view.webContents === e.sender) || (win && e.sender === win.webContents ? vtabOfFrame(e.senderFrame) : null);
+}
+
+// Адрес страницы, из которой пришло сообщение, в том виде, в каком его видит человек
+function senderPageUrl(e) {
+	const f = e.senderFrame;
+	if (!f) return '';
+	return vtabOfFrame(f) ? vtab.fromFrameUrl(f.url) : f.url;
+}
+
+function newRealView(tab) {
+	const prefs = { preload: PAGE_PRELOAD, contextIsolation: true, sandbox: true };
+	if (tab && tab.incognito) prefs.session = incognitoSession();
+	const view = new WebContentsView({ webPreferences: prefs });
+	view.setBackgroundColor(bgColor());
+	view.setVisible(false);
+	if (profile) view.webContents.setUserAgent(profile.userAgent);
+	return view;
+}
+
+// Слои поверх страниц должны остаться сверху после добавления новой страницы
+function raiseLayers() {
+	if (findView) win.contentView.addChildView(findView);
+	if (popup) win.contentView.addChildView(popup); // подсказки всегда поверх страниц
+	if (panel) win.contentView.addChildView(panel);
+}
+
+// Меняем страницу вкладки: настоящая ↔ виртуальная (и при выгрузке)
+function swapView(tab, view) {
+	const old = tab.view;
+	tab.view = view;
+	view.setBounds(pageBounds());
+	if (!old.virtual) win.contentView.removeChildView(old);
+	if (!view.virtual) {
+		win.contentView.addChildView(view);
+		raiseLayers();
+	}
+	wireTab(tab);
+	if (tab.id === activeId) view.setVisible(true);
+	const dying = old.webContents;
+	// Боковая панель расширения была привязана к старой странице вкладки: переносим её на новую (расширение узнаёт вкладку по номеру в адресе панели)
+	if (sideView && dying && dying.id === sideTab && !view.webContents.isDestroyed()) {
+		sideTab = view.webContents.id;
+		const u = new URL(sideView.webContents.getURL());
+		u.searchParams.set('tabId', String(sideTab));
+		sideView.webContents.loadURL(u.href).catch(() => {});
+	}
+	if (dying && !dying.isDestroyed()) dying.close();
+	if (sideView) layout();
+}
+
+// История вкладки, которая успела побыть и обычной, и внутренней страницей: куски до и после текущего
+function snapshotView(tab) {
+	const nav = tab.view.webContents.navigationHistory;
+	const entries = nav.getAllEntries().filter((e) => e && e.url && e.url !== 'about:blank');
+	if (!entries.length) return null;
+	return { virtual: !!tab.view.virtual, entries: nav.getAllEntries(), index: nav.getActiveIndex() };
+}
+
+function switchView(tab, url, toVirtual) {
+	if (!tabs.includes(tab)) return;
+	const snap = snapshotView(tab);
+	if (snap) tab.backSegs.push(snap);
+	tab.fwdSegs = [];
+	swapView(tab, toVirtual ? new vtab.VirtualView(vhost) : newRealView(tab));
+	tab.view.webContents.loadURL(url).catch(() => {});
+	if (tab.id === activeId) tab.view.webContents.focus();
+}
+
+function restoreSegment(tab, seg) {
+	swapView(tab, seg.virtual ? new vtab.VirtualView(vhost) : newRealView(tab));
+	tab.view.webContents.navigationHistory.restore({ entries: seg.entries, index: seg.index }).catch(() => {});
+	if (tab.id === activeId) tab.view.webContents.focus();
+}
+
+const canBack = (tab) => !!tab && (tab.view.webContents.navigationHistory.canGoBack() || tab.backSegs.length > 0);
+const canForward = (tab) => !!tab && (tab.view.webContents.navigationHistory.canGoForward() || tab.fwdSegs.length > 0);
+
+function tabBack(tab) {
+	const nav = tab.view.webContents.navigationHistory;
+	if (nav.canGoBack()) return nav.goBack();
+	if (!tab.backSegs.length) return;
+	const seg = tab.backSegs.pop();
+	const snap = snapshotView(tab);
+	if (snap) tab.fwdSegs.push(snap);
+	restoreSegment(tab, seg);
+}
+
+function tabForward(tab) {
+	const nav = tab.view.webContents.navigationHistory;
+	if (nav.canGoForward()) return nav.goForward();
+	if (!tab.fwdSegs.length) return;
+	const seg = tab.fwdSegs.pop();
+	const snap = snapshotView(tab);
+	if (snap) tab.backSegs.push(snap);
+	restoreSegment(tab, seg);
+}
+
+// Печать и снимок всей страницы нужны настоящей странице: для внутренней на время открываем её копию в скрытом окне
+const ghosts = new Set(); // скрытые копии внутренних страниц: им тоже можно звать API страниц
+async function withGhost(vc, fn) {
+	const b = pageBounds();
+	// offscreen: скрытое окно иначе может так и не отрисовать кадр, и снимок ждёт вечно
+	const ghost = new BrowserWindow({ show: false, width: Math.max(400, b.width), height: Math.max(300, b.height), webPreferences: { preload: PAGE_PRELOAD, contextIsolation: true, sandbox: true, offscreen: true } });
+	const gwc = ghost.webContents;
+	ghosts.add(gwc);
+	const done = () => {
+		ghosts.delete(gwc);
+		if (!ghost.isDestroyed()) ghost.destroy();
+	};
+	try {
+		await ghost.loadURL(vc.getURL());
+		await new Promise((r) => setTimeout(r, 500)); // страница дорисовывает данные из главного процесса
+		return await fn(ghost.webContents, done);
+	} catch (e) {
+		done();
+		throw e;
+	}
 }
 
 function navigate(raw) {
@@ -476,8 +659,8 @@ function sendState(navigated, reset) {
 	const bookmarkable = isBookmarkable(url);
 	win.webContents.send('state', {
 		url: url.startsWith('data:text/html') || isNewTab(url) ? '' : url,
-		canGoBack: wc.navigationHistory.canGoBack(),
-		canGoForward: wc.navigationHistory.canGoForward(),
+		canGoBack: canBack(tab),
+		canGoForward: canForward(tab),
 		loading: tab.loading,
 		canBookmark: bookmarkable,
 		bookmarked: bookmarkable && !!store.findBookmarkByUrl(url),
@@ -503,13 +686,13 @@ function toggleReload() {
 }
 
 function goBack() {
-	const wc = activeContents();
-	if (wc && wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack();
+	const tab = activeTab();
+	if (tab) tabBack(tab);
 }
 
 function goForward() {
-	const wc = activeContents();
-	if (wc && wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward();
+	const tab = activeTab();
+	if (tab) tabForward(tab);
 }
 
 // ☆ и Ctrl+D: закладка сразу добавляется в папку по умолчанию и открывается окошко, где её можно переименовать, перенести или убрать.
@@ -709,7 +892,8 @@ ipcMain.handle('bm:check', async (e) => {
 				const r = await checkLink(b.url);
 				if (r) out.push({ id: b.id, title: b.title, url: b.url, folder: folderName.get(b.folder) || '', ...r });
 				done++;
-				if (!e.sender.isDestroyed()) e.sender.send('bm-check-progress', done, list.length);
+				const to = vtabOfFrame(e.senderFrame) ? e.senderFrame : e.sender; // страница-рамка получает ответ в свою рамку
+				if (!to.isDestroyed()) to.send('bm-check-progress', done, list.length);
 			}
 		};
 		await Promise.all(Array.from({ length: Math.min(6, list.length) }, worker));
@@ -1011,6 +1195,24 @@ function wireTab(tab) {
 		setTimeout(() => { if (alive() && tabs.includes(tab)) closeTab(tab.id); }, 1500);
 		return true;
 	};
+	// Обычная страница уходит на внутреннюю (адрес в строке, переход назад, предупреждение о небезопасном сайте): вкладка становится виртуальной
+	if (!wc.virtual) {
+		const toVirtual = (url) => {
+			setImmediate(() => {
+				if (alive()) switchView(tab, url, true);
+			});
+		};
+		// Страница, к которой привязана боковая панель расширения, остаётся настоящей: иначе панель пришлось бы перезагружать
+		const keepReal = () => !!sideView && wc.id === sideTab;
+		wc.on('did-start-navigation', (d) => {
+			if (d.isMainFrame && !d.isSameDocument && isVirtualFor(tab, d.url) && !(keepReal() && vtab.isVirtualUrl(d.url))) toVirtual(d.url);
+		});
+		wc.on('will-redirect', (e, url) => {
+			if (e.isMainFrame === false || !isVirtualFor(tab, url) || (keepReal() && vtab.isVirtualUrl(url))) return;
+			e.preventDefault();
+			toVirtual(url);
+		});
+	}
 	wc.on('will-redirect', (e, url) => { if (handOver(url)) e.preventDefault(); });
 	wc.on('will-navigate', (e, url) => { if (handOver(url)) e.preventDefault(); });
 	wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
@@ -1047,13 +1249,8 @@ function createTab(url, opts = {}) {
 			return same;
 		}
 	}
-	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
-	if (opts.incognito) prefs.session = incognitoSession();
-	const view = new WebContentsView({ webPreferences: prefs });
-	view.setBackgroundColor(bgColor());
-	view.setVisible(false);
-	if (profile) view.webContents.setUserAgent(profile.userAgent);
-	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now(), lastActive: Date.now(), frozen: false };
+	const view = !opts.incognito && vtab.isVirtualUrl(url || '') ? new vtab.VirtualView(vhost) : newRealView({ incognito: !!opts.incognito });
+	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now(), lastActive: Date.now(), frozen: false, backSegs: [], fwdSegs: [] };
 
 	let index = tabs.length;
 	if (opts.afterId) {
@@ -1063,10 +1260,10 @@ function createTab(url, opts = {}) {
 	// Закреплённые вкладки всегда идут первыми
 	index = tab.pinned ? Math.min(index, pinnedCount()) : Math.max(index, pinnedCount());
 	tabs.splice(index, 0, tab);
-	win.contentView.addChildView(view);
-	if (findView) win.contentView.addChildView(findView);
-	if (popup) win.contentView.addChildView(popup); // подсказки всегда поверх страниц
-	if (panel) win.contentView.addChildView(panel);
+	if (!view.virtual) {
+		win.contentView.addChildView(view);
+		raiseLayers();
+	}
 	view.setBounds(pageBounds());
 	wireTab(tab);
 
@@ -1192,24 +1389,10 @@ function discardTab(tab) {
 			tab.frozenFile = '';
 		}
 	}
-	const prefs = { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true };
-	if (tab.incognito) prefs.session = incognitoSession();
-	const view = new WebContentsView({ webPreferences: prefs });
-	view.setBackgroundColor(bgColor());
-	view.setVisible(false);
-	if (profile) view.webContents.setUserAgent(profile.userAgent);
-	view.setBounds(pageBounds());
-	tab.view = view;
 	tab.pendingUrl = url;
 	tab.frozen = 'discarded';
 	tab.loading = false;
-	win.contentView.removeChildView(old);
-	win.contentView.addChildView(view);
-	if (findView) win.contentView.addChildView(findView);
-	if (popup) win.contentView.addChildView(popup);
-	if (panel) win.contentView.addChildView(panel);
-	wireTab(tab);
-	if (!old.webContents.isDestroyed()) old.webContents.close();
+	swapView(tab, newRealView(tab));
 	log('вкладка выгружена', tab.id, url);
 	sendTabs();
 }
@@ -1312,7 +1495,7 @@ function closeTab(id) {
 	dropFrozenFile(tab);
 	pwOffers.delete(tab.id);
 	const lastIncognito = tab.incognito && !tabs.some((t) => t.incognito);
-	win.contentView.removeChildView(tab.view);
+	if (!tab.view.virtual) win.contentView.removeChildView(tab.view);
 	const dying = tab.view.webContents;
 	if (dying && !dying.isDestroyed()) dying.close();
 	if (lastIncognito) wipeIncognito();
@@ -1869,12 +2052,15 @@ async function pdfPage() {
 }
 
 async function screenshotPage() {
-	const wc = activeContents();
+	let wc = activeContents();
 	if (!wc || !win) return;
 	const url = wc.getURL();
 	if (!/^(https?|file|problet):/i.test(url)) return;
 	let attached = false;
+	let ghostDone = null;
 	try {
+		// Внутренняя страница целиком снимается с её копии в скрытом окне
+		if (wc.virtual) wc = await withGhost(wc, (g, done) => { ghostDone = done; return g; });
 		wc.debugger.attach('1.3');
 		attached = true;
 		const metrics = await wc.debugger.sendCommand('Page.getLayoutMetrics');
@@ -1911,6 +2097,7 @@ async function screenshotPage() {
 				wc.debugger.detach();
 			} catch (e) { /* уже отключён */ }
 		}
+		if (ghostDone) ghostDone();
 	}
 }
 
@@ -2115,8 +2302,8 @@ function showPageMenu(tab, params) {
 		sep();
 	}
 	if (!params.isEditable) {
-		item('Назад', () => goBack(), wc.navigationHistory.canGoBack());
-		item('Вперёд', () => goForward(), wc.navigationHistory.canGoForward());
+		item('Назад', () => tabBack(tab), canBack(tab));
+		item('Вперёд', () => tabForward(tab), canForward(tab));
 		item('Обновить', () => wc.reload());
 		sep();
 		item('Найти на странице', () => openFind());
@@ -2411,7 +2598,12 @@ function applySettings() {
 	if (findView) findView.setBackgroundColor(surfaceColor());
 	if (panel) panel.setBackgroundColor(bgColor());
 	for (const v of [win, popup, findView, panel, tipView]) if (v) uiZoom(v.webContents);
-	for (const t of tabs) t.view.setBackgroundColor(bgColor());
+	for (const t of tabs) {
+		t.view.setBackgroundColor(bgColor());
+		if (t.view.virtual) t.view.webContents.refreshZoom(); // масштаб интерфейса делится обратно у внутренних страниц
+	}
+	vtBounds = '';
+	vhost.bounds();
 	broadcastTheme();
 	if (mergedWas !== s.spacesMerged) {
 		mergedWas = s.spacesMerged;
@@ -2890,7 +3082,8 @@ const cleanSpaceName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(
 
 function guard(e) {
 	const frame = e.senderFrame;
-	const isTab = tabs.some((t) => t.view.webContents === e.sender) || (!!panel && e.sender === panel.webContents);
+	if (win && e.sender === win.webContents && vtabOfFrame(frame) && frame.url.startsWith(vtab.FRAME_BASE)) return; // рамка внутренней страницы в окне панели
+	const isTab = tabs.some((t) => t.view.webContents === e.sender) || (!!panel && e.sender === panel.webContents) || ghosts.has(e.sender);
 	if (!isTab || !frame || frame !== e.sender.mainFrame || !frame.url.startsWith('problet://')) {
 		throw new Error('Доступ запрещён');
 	}
@@ -2953,7 +3146,7 @@ handle('app:restart', () => {
 const allSessions = () => [session.defaultSession, ...(incSession ? [incSession] : [])];
 ipcMain.handle('debug:run', async (e, action) => {
 	guard(e);
-	if (!e.senderFrame.url.startsWith('problet://version')) throw new Error('Доступ запрещён');
+	if (!senderPageUrl(e).startsWith('problet://version')) throw new Error('Доступ запрещён');
 	action = String(action);
 	if (DEBUG_ASK[action]) {
 		const r = await dialog.showMessageBox(win, { type: 'warning', message: DEBUG_ASK[action], buttons: ['Да', 'Отмена'], defaultId: 1, cancelId: 1 });
@@ -3066,7 +3259,7 @@ handle('cache:clear', async () => {
 // Поиск из строки на странице новой вкладки: ищем в той вкладке, откуда пришёл запрос
 ipcMain.handle('search:run', (e, text) => {
 	guard(e);
-	const tab = tabs.find((t) => t.view.webContents === e.sender);
+	const tab = senderTab(e);
 	const q = String(text || '').trim().slice(0, 500);
 	if (!tab || !q) return;
 	rememberSearch(q, tab);
@@ -3233,7 +3426,7 @@ ipcMain.handle('page:open-file', (e, url, newTab) => {
 	guard(e);
 	const u = new URL(String(url));
 	if (u.protocol !== 'file:') throw new Error('Неверный адрес');
-	const tab = tabs.find((t) => t.view.webContents === e.sender);
+	const tab = senderTab(e);
 	if (newTab || !tab) createTab(u.href, { afterId: tab ? tab.id : undefined });
 	else tab.view.webContents.loadURL(u.href).catch(() => {});
 });
@@ -3679,7 +3872,7 @@ handle('data:import', async () => {
 // ---------- Окно ----------
 
 // Страница 404 для несуществующих адресов problet://: стили вшиваем в неё, ведь у неизвестного адреса своих файлов нет
-function notFoundResponse(request) {
+function notFoundResponse(request, shownUrl) {
 	const read = (...p) => {
 		try {
 			return fs.readFileSync(path.join(...p), 'utf8');
@@ -3691,21 +3884,41 @@ function notFoundResponse(request) {
 	if (dest && dest !== 'document' && dest !== 'iframe') return new Response('Not found', { status: 404 });
 	let html = read(__dirname, 'pages', '404.html')
 		.replace('/*THEME*/', read(__dirname, 'theme.css') + read(__dirname, 'pages', 'common.css'))
-		.replace('{{url}}', request.url.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]));
+		.replace('{{url}}', (shownUrl || request.url).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]));
 	if (curLang() === 'en') html = html.replace(/>([^<>]*[А-Яа-яЁё][^<>]*)</g, (_m, t) => '>' + tr(t) + '<'); // у неизвестного адреса нет своих скриптов: переводим сразу
 	return new Response(html, { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
-function internalHandler(request) {
+const fileResponse = (filePath, request, shownUrl) => (fs.existsSync(filePath) ? net.fetch(pathToFileURL(filePath).toString()) : notFoundResponse(request, shownUrl));
+
+// Файл внутренней страницы host с путём pathname
+function pageResponse(host, pathname, request, shownUrl) {
 	const root = path.join(__dirname, 'pages');
+	if (!INTERNAL_PAGES.has(host)) return notFoundResponse(request, shownUrl);
+	const name = pathname === '/' || pathname === '' || (host === 'version' && /^\/debug\/?$/.test(pathname)) ? (pathname === '/' || pathname === '' ? host : 'debug') + '.html' : path.posix.basename(pathname);
+	if (!/^[\w-]+\.(html|js|css)$/.test(name)) return notFoundResponse(request, shownUrl);
+	return fileResponse(name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name), request, shownUrl); // тема общая для всех окон
+}
+
+// Окно панели (problet://ui/) и рамки внутренних страниц в нём (problet://ui/<страница>/…)
+const UI_FILES = new Set(['renderer.js', 'style.css', 'theme.css']);
+function uiResponse(url, request) {
+	const p = url.pathname;
+	if (p === '/') return fileResponse(path.join(__dirname, 'index.html'), request);
+	const own = /^\/([\w-]+\.(?:js|css))$/.exec(p);
+	if (own) return UI_FILES.has(own[1]) ? fileResponse(path.join(__dirname, own[1]), request) : notFoundResponse(request);
+	const lib = /^\/pages\/([\w-]+\.js)$/.exec(p);
+	if (lib) return fileResponse(path.join(__dirname, 'pages', lib[1]), request);
+	const m = /^\/([^/]+)(\/.*)?$/.exec(p);
+	if (!m) return notFoundResponse(request);
+	return pageResponse(m[1], m[2] || '/', request, vtab.fromFrameUrl(request.url));
+}
+
+function internalHandler(request) {
 	const url = new URL(request.url);
 	if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || notFoundResponse(request);
-	if (!INTERNAL_PAGES.has(url.hostname)) return notFoundResponse(request);
-	const name = url.pathname === '/' || url.pathname === '' || (url.hostname === 'version' && /^\/debug\/?$/.test(url.pathname)) ? (url.pathname === '/' || url.pathname === '' ? url.hostname : 'debug') + '.html' : path.posix.basename(url.pathname);
-	if (!/^[\w-]+\.(html|js|css)$/.test(name)) return notFoundResponse(request);
-	const filePath = name === 'theme.css' ? path.join(__dirname, 'theme.css') : path.join(root, name); // тема общая для всех окон
-	if (!fs.existsSync(filePath)) return notFoundResponse(request);
-	return net.fetch(pathToFileURL(filePath).toString());
+	if (url.hostname === 'ui') return uiResponse(url, request);
+	return pageResponse(url.hostname, url.pathname, request);
 }
 
 function registerInternalPages() {
@@ -3740,6 +3953,55 @@ function openIncognito(url) {
 	createTab(url || NEWTAB, { incognito: true });
 }
 
+// Окно панели и рамки внутренних страниц в нём
+function wireToolbarFrames() {
+	const wc = win.webContents;
+	wc.on('will-frame-navigate', (d) => {
+		if (d.isMainFrame) {
+			if (!d.url.startsWith(vtab.FRAME_BASE)) d.preventDefault(); // сама панель никуда не уходит (например, если на неё бросили ссылку)
+			return;
+		}
+		const vt = vtabOfFrame(d.frame);
+		if (vt && vt.view.webContents.pageNavigate(d.url)) d.preventDefault();
+	});
+	// Ссылка в новой вкладке (средняя кнопка, target=_blank) со страницы браузера
+	wc.setWindowOpenHandler(({ url, disposition }) => {
+		if (/^(https?|file|problet):/i.test(url)) createTab(url, { afterId: activeId || undefined, activate: disposition !== 'background-tab' });
+		return { action: 'deny' };
+	});
+	wc.on('console-message', (e) => {
+		const vt = vtabOfFrame(e.frame);
+		if (vt) vt.view.webContents.emit('console-message', e);
+	});
+	// Ctrl+колесо над внутренней страницей
+	wc.on('zoom-changed', (_e, direction) => {
+		const t = activeTab();
+		if (t && t.view.virtual) zoomBy(direction === 'in' ? 1 : -1);
+	});
+	// Окно панели перезагрузилось (например, из инструментов разработчика): рамки пропали, открываем их заново
+	wc.on('did-finish-load', () => {
+		vtBounds = '';
+		vhost.bounds();
+		for (const t of tabs) {
+			if (!t.view.virtual || t.pendingUrl) continue;
+			const vc = t.view.webContents;
+			if (!vc.opened) continue;
+			vc.opened = false;
+			vc.load(vc.getURL());
+			if (t.view.visible) vhost.send({ op: 'show', id: vc.id });
+		}
+	});
+}
+
+ipcMain.on('vt:loaded', (e, title) => {
+	const vt = vtabOfFrame(e.senderFrame);
+	if (vt) vt.view.webContents.loaded(e.senderFrame, title);
+});
+ipcMain.on('vt:title', (e, title) => {
+	const vt = vtabOfFrame(e.senderFrame);
+	if (vt) vt.view.webContents.titled(title);
+});
+
 function createWindow() {
 	win = new BrowserWindow({
 		width: 1200,
@@ -3753,16 +4015,24 @@ function createWindow() {
 		frame: false, // заголовок окна рисуем сами: панель вкладок и кнопки окна лежат в нём
 		title: 'Problet',
 		webPreferences: {
-			preload: path.join(__dirname, 'preload-toolbar.js'),
+			preload: PAGE_PRELOAD,
 			contextIsolation: true,
 			nodeIntegration: false,
+			sandbox: true,
+			nodeIntegrationInSubFrames: true, // прелоад нужен и рамкам внутренних страниц
 		},
 	});
 	win.removeMenu();
-	win.loadFile('index.html');
+	win.loadURL(vtab.FRAME_BASE);
 	win.on('page-title-updated', (e) => e.preventDefault());
+	wireToolbarFrames();
 
 	win.webContents.on('context-menu', (_e, params) => {
+		const vt = vtabOfFrame(params.frame);
+		if (vt) {
+			vt.view.webContents.emit('context-menu', _e, params);
+			return;
+		}
 		if (!params.isEditable) return;
 		const f = params.editFlags;
 		popupMenu([

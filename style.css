@@ -626,3 +626,9 @@ body[data-tabs="bottom"] .tabs.two .tab.active { box-shadow: inset 0 -2px 0 var(
 .tabbar:not(.has-sp) .tabs.two.scroll:not(.side) { grid-template-columns: repeat(var(--n, 1), minmax(190px, 1fr)); }
 
 #translate.active { color: var(--accent); }
+
+/* Внутренние страницы (виртуальные вкладки): рамки поверх области страницы */
+.vhost { position: fixed; display: none; z-index: 50; background: var(--bg); }
+.vhost.on { display: block; }
+.vframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: var(--bg); }
+.vframe.on { display: block; }
