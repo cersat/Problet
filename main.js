@@ -738,9 +738,19 @@ function toolbarY() {
 const SIDE_PANEL_W = 400;
 let sideView = null;
 let sideExt = '';
-const sidePanelWidth = () => (sideView ? uiPx(SIDE_PANEL_W) : 0);
+let sideTab = -1; // номер страницы (webContents.id), к которой привязана панель: как в Chrome, панель видна только на своей вкладке
+const sideShown = () => {
+	const t = sideView && activeTab();
+	return !!t && !t.view.webContents.isDestroyed() && t.view.webContents.id === sideTab;
+};
+const sidePanelWidth = () => (sideShown() ? uiPx(SIDE_PANEL_W) : 0);
 function layoutSide() {
 	if (!sideView || !win || win.isDestroyed()) return;
+	if (!tabs.some((t) => !t.view.webContents.isDestroyed() && t.view.webContents.id === sideTab)) { // вкладка панели закрыта
+		closeSidePanel();
+		return;
+	}
+	sideView.setVisible(sideShown());
 	const [w, h] = contentSize();
 	const i = insets();
 	const sw = uiPx(SIDE_PANEL_W);
@@ -751,6 +761,7 @@ function closeSidePanel() {
 	const v = sideView;
 	sideView = null;
 	sideExt = '';
+	sideTab = -1;
 	try {
 		win.contentView.removeChildView(v);
 		v.webContents.close();
@@ -759,14 +770,17 @@ function closeSidePanel() {
 }
 // true — панель открыта или закрыта этим вызовом, false — у расширения нет боковой панели
 function toggleSidePanel(id) {
-	if (sideView && sideExt === id) {
+	const at = activeTab();
+	if (sideView && sideExt === id && at && at.view.webContents.id === sideTab) {
 		closeSidePanel();
 		return true;
 	}
-	const url = extensions.sidePanelUrl(id);
-	if (!url || !win) return false;
+	const base = extensions.sidePanelUrl(id);
+	if (!base || !win || !at) return false;
+	const url = base + (base.includes('?') ? '&' : '?') + 'tabId=' + at.view.webContents.id; // расширение берёт номер вкладки из адреса панели
 	closeSidePanel();
-	sideView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true } });
+	sideTab = at.view.webContents.id;
+	sideView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true, nodeIntegrationInSubFrames: true } });
 	sideExt = id;
 	sideView.setBackgroundColor(bgColor());
 	win.contentView.addChildView(sideView);
@@ -778,6 +792,16 @@ function toggleSidePanel(id) {
 	layout();
 	return true;
 }
+
+// Рамка claude.ai в боковой панели: ответы расширения на её сообщения в Electron до неё не доходят, поэтому сообщения идут через браузер:
+// страница-рамка → браузер → страница панели → канал → фоновый процесс расширения → и обратно
+ipcMain.handle('ext:external', async (e, extId, msg) => {
+	if (!sideView || e.sender !== sideView.webContents || String(extId) !== sideExt || !e.senderFrame || !/^https:\/\/claude\.ai\//.test(e.senderFrame.url)) throw new Error('Доступ запрещён');
+	const text = JSON.stringify(msg === undefined ? null : msg);
+	if (text.length > 1000000) throw new Error('Сообщение слишком большое');
+	const code = '(function(){return new Promise((resolve)=>{const id=String(Math.random());const ch=new BroadcastChannel("problet-ext");const done=(v)=>{try{ch.close()}catch(e){}resolve(v)};ch.onmessage=(m)=>{if(m.data&&m.data.reply===id)done(m.data.value)};ch.postMessage({ext:{id,msg:' + text + ',origin:"https://claude.ai",url:' + JSON.stringify(e.senderFrame.url) + '}});setTimeout(()=>done(undefined),30000)})})()';
+	return sideView.webContents.mainFrame.executeJavaScript(code);
+});
 
 function pageBounds() {
 	const [w, h] = contentSize();
@@ -1077,6 +1101,7 @@ function activateTab(id) {
 	activeId = tab.id;
 	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
 	tab.view.setVisible(true);
+	if (sideView) layout(); // боковая панель расширения видна только на своей вкладке
 	if (tab.pendingUrl) {
 		const url = tab.pendingUrl;
 		tab.pendingUrl = null;
@@ -3419,6 +3444,108 @@ function extPage(id, kind) {
 ipcMain.on('ext:active-tab', (e) => {
 	const t = activeTab();
 	e.returnValue = t && /^chrome-extension:\/\//.test(e.senderFrame.url) && !t.view.webContents.isDestroyed() ? t.view.webContents.id : -1;
+});
+// chrome.debugger для расширений: в Electron его нет, а инструменты Claude (скриншоты, клики, чтение страницы) работают через него.
+// Запросы идут из фонового процесса расширения по каналу в страницу боковой панели, а оттуда сюда: отладчик Electron на нужной вкладке
+ipcMain.on('ext:is-side', (e) => {
+	e.returnValue = !!sideView && !sideView.webContents.isDestroyed() && e.sender === sideView.webContents && /^chrome-extension:\/\//.test(e.senderFrame.url);
+});
+const dbgHooked = new WeakSet();
+let offscreenWin = null; // скрытая страница расширения (chrome.offscreen)
+const dbgTab = (id) => {
+	const t = tabs.find((x) => !x.view.webContents.isDestroyed() && x.view.webContents.id === id);
+	return t ? t.view.webContents : null;
+};
+const dbgSend = (ev) => {
+	if (sideView && !sideView.webContents.isDestroyed()) sideView.webContents.send('dbg:event', ev);
+};
+ipcMain.handle('ext:dbg', async (e, req) => {
+	if (!sideView || e.sender !== sideView.webContents || !/^chrome-extension:\/\//.test(e.senderFrame.url) || !req || typeof req !== 'object') throw new Error('Доступ запрещён');
+	if (req.op === 'tab-create') {
+		let u = String(req.url || '');
+		if (!u || /^chrome:\/\/newtab/.test(u)) u = NEWTAB;
+		if (!/^(https?:|problet:|chrome-extension:|about:blank)/.test(u)) throw new Error('Unsupported URL: ' + u);
+		const t = createTab(u, { activate: req.active !== false });
+		return { id: t.view.webContents.id, url: u, title: '', active: req.active !== false };
+	}
+	if (req.op === 'tab-remove') {
+		for (const wid of [].concat(req.ids || [])) {
+			const t = tabs.find((x) => !x.view.webContents.isDestroyed() && x.view.webContents.id === wid);
+			if (t) closeTab(t.id);
+		}
+		return null;
+	}
+	if (req.op === 'tab-nav') {
+		const wc = req.tabId === undefined ? (activeTab() || {}).view && activeTab().view.webContents : dbgTab(Number(req.tabId));
+		if (!wc || wc.isDestroyed()) throw new Error('No tab with id: ' + req.tabId + '.');
+		const h = wc.navigationHistory;
+		if (req.dir < 0 ? h.canGoBack() : h.canGoForward()) req.dir < 0 ? h.goBack() : h.goForward();
+		return null;
+	}
+	if (req.op === 'win-get' || req.op === 'win-set') {
+		if (!win || win.isDestroyed()) throw new Error('No window');
+		if (req.op === 'win-set') {
+			const p = req.props && typeof req.props === 'object' ? req.props : {};
+			const num = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v) : undefined);
+			if (p.state === 'maximized') win.maximize();
+			else if (p.state === 'minimized') win.minimize();
+			else if (p.state === 'fullscreen') win.setFullScreen(true);
+			else if (p.state === 'normal' || num(p.width) || num(p.height) || num(p.left) !== undefined || num(p.top) !== undefined) {
+				if (win.isFullScreen()) win.setFullScreen(false);
+				if (win.isMaximized()) win.unmaximize();
+				if (win.isMinimized()) win.restore();
+				const b = win.getBounds();
+				win.setBounds({ x: num(p.left) ?? b.x, y: num(p.top) ?? b.y, width: num(p.width) || b.width, height: num(p.height) || b.height });
+			}
+			if (p.focused) win.focus();
+		}
+		const b = win.getBounds();
+		return { id: 1, focused: win.isFocused(), incognito: false, alwaysOnTop: win.isAlwaysOnTop(), left: b.x, top: b.y, width: b.width, height: b.height, type: 'normal', state: win.isFullScreen() ? 'fullscreen' : win.isMinimized() ? 'minimized' : win.isMaximized() ? 'maximized' : 'normal' };
+	}
+	if (req.op === 'offscreen-has') return !!offscreenWin && !offscreenWin.isDestroyed();
+	if (req.op === 'offscreen-close') {
+		if (offscreenWin && !offscreenWin.isDestroyed()) offscreenWin.destroy();
+		offscreenWin = null;
+		return null;
+	}
+	if (req.op === 'offscreen-create') {
+		if (offscreenWin && !offscreenWin.isDestroyed()) throw new Error('Only a single offscreen document may be created.');
+		const u = new URL(String(req.url || ''), 'chrome-extension://' + sideExt + '/');
+		if (u.protocol !== 'chrome-extension:' || u.hostname !== sideExt) throw new Error('Unsupported URL');
+		offscreenWin = new BrowserWindow({ show: false, width: 800, height: 600, webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true } });
+		await offscreenWin.loadURL(u.href);
+		return null;
+	}
+	if (req.op === 'targets') {
+		return tabs.filter((t) => !t.view.webContents.isDestroyed()).map((t) => {
+			const wc = t.view.webContents;
+			return { type: 'page', id: String(wc.id), tabId: wc.id, title: wc.getTitle(), url: wc.getURL(), attached: wc.debugger.isAttached() };
+		});
+	}
+	const wc = dbgTab(Number(req.tabId));
+	if (!wc) throw new Error('No tab with id: ' + req.tabId + '.');
+	const dbg = wc.debugger;
+	if (req.op === 'attach') {
+		if (dbg.isAttached()) throw new Error('Another debugger is already attached to the tab with id: ' + wc.id + '.');
+		dbg.attach(typeof req.version === 'string' ? req.version : '1.3');
+		if (!dbgHooked.has(wc)) {
+			dbgHooked.add(wc);
+			dbg.on('message', (ev, method, params, sessionId) => dbgSend({ tabId: wc.id, method, params, sessionId }));
+			dbg.on('detach', (ev, reason) => dbgSend({ tabId: wc.id, detach: true, reason }));
+		}
+		return null;
+	}
+	if (req.op === 'detach') {
+		if (!dbg.isAttached()) throw new Error('Debugger is not attached to the tab with id: ' + wc.id + '.');
+		dbg.detach();
+		return null;
+	}
+	if (req.op === 'send') {
+		if (!dbg.isAttached()) throw new Error('Debugger is not attached to the tab with id: ' + wc.id + '.');
+		if (typeof req.method !== 'string') throw new Error('Неверный запрос');
+		return dbg.sendCommand(req.method, req.params || {}, typeof req.sessionId === 'string' ? req.sessionId : undefined);
+	}
+	throw new Error('Неверный запрос');
 });
 ipcMain.on('ext:shim', (e) => {
 	try {

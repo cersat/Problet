@@ -178,6 +178,30 @@ if (location.protocol !== 'problet:') {
 // ---------- Аддоны Problet ----------
 
 // Фон аддона и его страницы (окошко кнопки, настройки) получают объект problet. Всё опасное проверяет и спрашивает главный процесс
+// Рамка claude.ai в боковой панели расширения: сообщения расширению идут через браузер, потому что ответы напрямую до рамки не доходят
+if (window !== window.top && location.protocol === 'https:' && location.hostname === 'claude.ai') {
+	try {
+		contextBridge.exposeInMainWorld('__probletExternal', (id, msg) => ipcRenderer.invoke('ext:external', id, msg));
+		webFrame.executeJavaScript('(' + function () {
+			const ask = window.__probletExternal;
+			delete window.__probletExternal;
+			const c = window.chrome || (window.chrome = {});
+			c.runtime = c.runtime || {};
+			const orig = c.runtime.sendMessage;
+			c.runtime.sendMessage = function (id, msg, opts, cb) {
+				if (typeof id !== 'string' || typeof msg === 'function' || msg === undefined) return orig ? orig.apply(this, arguments) : undefined;
+				if (typeof opts === 'function') cb = opts;
+				const p = ask(id, msg);
+				if (typeof cb === 'function') {
+					p.then((v) => { c.runtime.lastError = undefined; cb(v); }, (e) => { c.runtime.lastError = { message: String((e && e.message) || e) }; cb(undefined); c.runtime.lastError = undefined; });
+					return undefined;
+				}
+				return p;
+			};
+		}.toString() + ')()');
+	} catch (e) { /* без этого рамка работает как раньше */ }
+}
+
 // Страницы расширений Chrome (окна настроек и входа): в Electron нет chrome.tabs.create, а расширения открывают им страницу входа
 if (location.protocol === 'chrome-extension:') {
 	try {
@@ -185,6 +209,19 @@ if (location.protocol === 'chrome-extension:') {
 		contextBridge.exposeInMainWorld('__probletActiveTab', () => ipcRenderer.sendSync('ext:active-tab'));
 		const shim = ipcRenderer.sendSync('ext:shim');
 		if (shim) webFrame.executeJavaScript(shim);
+		// Боковая панель — посредник между фоновым процессом расширения и отладчиком браузера (chrome.debugger из ext-shim.js)
+		if (ipcRenderer.sendSync('ext:is-side')) {
+			const dch = new BroadcastChannel('problet-dbg');
+			dch.onmessage = (m) => {
+				const d = m.data;
+				if (!d || !d.req || !d.rid) return;
+				ipcRenderer.invoke('ext:dbg', d.req).then(
+					(value) => dch.postMessage({ rid: d.rid, ok: true, value: value === undefined ? null : value }),
+					(err) => dch.postMessage({ rid: d.rid, ok: false, error: String((err && err.message) || err).replace(/^Error invoking remote method '[^']*': (Error: )?/, '') })
+				);
+			};
+			ipcRenderer.on('dbg:event', (e, ev) => dch.postMessage({ ev }));
+		}
 		webFrame.executeJavaScript('(' + function () {
 			const c = window.chrome;
 			if (!c || !c.tabs) return;
