@@ -734,14 +734,60 @@ function toolbarY() {
 	return top !== null ? top : contentSize()[1] - panelsHeight(panelPlan().after.slice(panelPlan().after.indexOf('toolbar')));
 }
 
+// Боковая панель расширения (как chrome.sidePanel): страница расширения справа от открытой страницы
+const SIDE_PANEL_W = 400;
+let sideView = null;
+let sideExt = '';
+const sidePanelWidth = () => (sideView ? uiPx(SIDE_PANEL_W) : 0);
+function layoutSide() {
+	if (!sideView || !win || win.isDestroyed()) return;
+	const [w, h] = contentSize();
+	const i = insets();
+	const sw = uiPx(SIDE_PANEL_W);
+	sideView.setBounds({ x: Math.max(0, w - i.right - sw), y: i.top, width: sw, height: Math.max(0, h - i.top - i.bottom) });
+}
+function closeSidePanel() {
+	if (!sideView) return;
+	const v = sideView;
+	sideView = null;
+	sideExt = '';
+	try {
+		win.contentView.removeChildView(v);
+		v.webContents.close();
+	} catch (e) { /* окно уже закрывается */ }
+	layout();
+}
+// true — панель открыта или закрыта этим вызовом, false — у расширения нет боковой панели
+function toggleSidePanel(id) {
+	if (sideView && sideExt === id) {
+		closeSidePanel();
+		return true;
+	}
+	const url = extensions.sidePanelUrl(id);
+	if (!url || !win) return false;
+	closeSidePanel();
+	sideView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true } });
+	sideExt = id;
+	sideView.setBackgroundColor(bgColor());
+	win.contentView.addChildView(sideView);
+	sideView.webContents.setWindowOpenHandler(({ url: u }) => {
+		if (/^(https?|file):\/\//i.test(u)) createTab(u);
+		return { action: 'deny' };
+	});
+	sideView.webContents.loadURL(url).catch((e) => log('боковая панель расширения не открылась', e));
+	layout();
+	return true;
+}
+
 function pageBounds() {
 	const [w, h] = contentSize();
 	const i = insets();
-	return { x: i.left, y: i.top, width: Math.max(0, w - i.left - i.right), height: Math.max(0, h - i.top - i.bottom) };
+	return { x: i.left, y: i.top, width: Math.max(0, w - i.left - i.right - sidePanelWidth()), height: Math.max(0, h - i.top - i.bottom) };
 }
 
 function layout() {
 	for (const t of tabs) t.view.setBounds(pageBounds());
+	layoutSide();
 	layoutFind();
 	hideSuggest();
 }
@@ -3370,13 +3416,20 @@ function sendExtActions() {
 function extPage(id, kind) {
 	return id.startsWith('@') ? addons.pageUrl(id.slice(1), kind) : extensions.pageUrl(id, kind);
 }
+ipcMain.on('ext:shim', (e) => {
+	try {
+		e.returnValue = /^chrome-extension:\/\//.test(e.senderFrame.url) ? fs.readFileSync(path.join(__dirname, 'ext-shim.js'), 'utf8') : '';
+	} catch (err) {
+		e.returnValue = '';
+	}
+});
 ipcMain.on('bar:ext', (e, id, rect) => {
 	if (!fromToolbar0(e)) return;
 	id = String(id);
 	const url = extPage(id, 'popup');
 	if (url) openPanel('ext', folderRect(rect), id);
 	else if (id.startsWith('@')) addons.click(id.slice(1)); // кнопка без окошка: нажатие получает фон аддона
-	else {
+	else if (toggleSidePanel(id)) { /* боковая панель расширения */ } else {
 		const options = extPage(id, 'options');
 		if (options) createTab(options, { activate: true });
 	}

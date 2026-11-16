@@ -380,6 +380,16 @@ async function installFromStore(input, chromeVersion, log = () => {}) {
 	}
 }
 
+// Боковая панель расширения (chrome.sidePanel): адрес её страницы из манифеста или sidepanel.html рядом с ним
+function sidePanelUrl(id) {
+	const e = entries.find((x) => x.id === id);
+	const m = e && manifestOf(e);
+	if (!m) return '';
+	let rel = m.side_panel && typeof m.side_panel.default_path === 'string' ? m.side_panel.default_path : '';
+	if (!rel && fs.existsSync(path.join(e.path, 'sidepanel.html'))) rel = 'sidepanel.html';
+	return rel ? 'chrome-extension://' + id + '/' + rel.replace(/^\/+/, '') : '';
+}
+
 // Адрес вида chrome-extension://<id>/oauth_callback.html... → страница-посредник того же расширения (или '')
 function callbackPage(url) {
 	const m = /^chrome-extension:\/\/([a-p]{32})\/oauth_callback\.html/i.exec(String(url || ''));
@@ -389,4 +399,4 @@ function callbackPage(url) {
 	return 'chrome-extension://' + m[1] + '/problet-callback.html?u=' + encodeURIComponent(url);
 }
 
-module.exports = { callbackPage, setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };
+module.exports = { sidePanelUrl, callbackPage, setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };

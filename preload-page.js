@@ -181,6 +181,9 @@ if (location.protocol !== 'problet:') {
 // Страницы расширений Chrome (окна настроек и входа): в Electron нет chrome.tabs.create, а расширения открывают им страницу входа
 if (location.protocol === 'chrome-extension:') {
 	try {
+		// Те же заплатки для недостающих chrome.*, что и у фонового процесса: страницы расширений без них падают
+		const shim = ipcRenderer.sendSync('ext:shim');
+		if (shim) webFrame.executeJavaScript(shim);
 		webFrame.executeJavaScript('(' + function () {
 			const c = window.chrome;
 			if (!c || !c.tabs || c.tabs.create) return;
