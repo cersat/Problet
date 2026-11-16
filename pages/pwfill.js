@@ -11,12 +11,13 @@ async function show() {
 		return;
 	}
 	if (!o.items.length) return api.panelClose();
-	$('site').textContent = 'Сайт: ' + o.host;
+	$('title').textContent = o.templates ? 'Подставить логин?' : 'Подставить пароль?';
+	$('site').textContent = (o.templates ? 'Создание аккаунта на ' : 'Сайт: ') + o.host;
 	$('items').textContent = '';
 	for (const it of o.items) {
 		const b = document.createElement('button');
 		b.className = 'primary';
-		b.textContent = it.username || 'без логина';
+		b.textContent = it.username || "без логина";
 		b.addEventListener('click', async () => {
 			try {
 				await api.pwFillPick(it.i);

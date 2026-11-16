@@ -1049,6 +1049,10 @@
 		['скрыта, пока пуста', 'hidden while empty'],
 		['Переменный промежуток 4', 'Flexible spacer 4'],
 		['Часы', 'Clock'],
+		['Подставить логин?', 'Fill in the login?'],
+		['Создание аккаунта на ', 'Creating an account on '],
+		['Шаблонные логины', 'Login templates'],
+		['По одному в строке. Когда ты нажимаешь на поле логина в форме создания аккаунта, они предлагаются для подстановки', 'One per line. When you click the login field of an account-creation form, they are offered for filling in'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

@@ -56,6 +56,7 @@ async function load() {
 		else el.value = v;
 	}
 	$('startup-url').value = settings.startupUrl;
+	$('login-templates').value = (settings.loginTemplates || []).join('\n');
 	showDownloadDir();
 	$('startup-url-row').classList.toggle('hidden', settings.startup !== 'url');
 
@@ -382,6 +383,12 @@ for (const el of document.querySelectorAll('[data-setting]')) {
 		say('Сохранено');
 	}));
 }
+
+$('login-templates').addEventListener('change', () => run(async () => {
+	current = await api.setSettings({ loginTemplates: $('login-templates').value.split('\n') });
+	$('login-templates').value = current.loginTemplates.join('\n');
+	say('Сохранено');
+}));
 
 $('startup-url').addEventListener('change', () => run(async () => {
 	await api.setSettings({ startupUrl: $('startup-url').value });

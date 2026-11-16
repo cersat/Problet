@@ -58,6 +58,17 @@ function defaultButtons() {
 // Свои кнопки: название, значок и действие (адрес, скрипт на странице или команда браузера)
 const CUSTOM_LIMIT = 20;
 const CUSTOM_TYPES = ['url', 'script', 'action'];
+// Шаблонные логины: до 20 непустых строк без повторов, каждая до 100 знаков
+function cleanLogins(raw) {
+	const out = [];
+	for (const v of Array.isArray(raw) ? raw : []) {
+		const s = typeof v === 'string' ? v.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 100) : '';
+		if (s && !out.includes(s)) out.push(s);
+		if (out.length >= 20) break;
+	}
+	return out;
+}
+
 function cleanCustom(raw) {
 	const out = [];
 	const used = new Set();
@@ -189,6 +200,7 @@ const SETTING_DEFAULTS = {
 	autoRestart: false,
 	pwOffer: true,
 	pwFill: true,
+	loginTemplates: [],
 	pwLock: '15',
 	maskAs: 'problet',
 	urlSuggest: true,
@@ -407,6 +419,7 @@ function sanitizeSettings(raw) {
 	for (const [key, values] of Object.entries(ENUM_SETTINGS)) {
 		if (values.includes(r[key])) out[key] = r[key];
 	}
+	out.loginTemplates = cleanLogins(r.loginTemplates);
 	out.customButtons = cleanCustom(r.customButtons);
 	const customIds = out.customButtons.map((c) => c.id);
 	// Файлы старых версий: положение вкладок и закладок и переключатели кнопок
@@ -885,6 +898,10 @@ function setSettings(patch) {
 	if (p.panelOrder !== undefined) {
 		if (cleanOrder(p.panelOrder).join() !== (Array.isArray(p.panelOrder) ? p.panelOrder.join() : null)) throw new Error('Некорректный порядок панелей');
 		next.panelOrder = [...p.panelOrder];
+	}
+	if (p.loginTemplates !== undefined) {
+		if (!Array.isArray(p.loginTemplates)) throw new Error('Некорректные шаблонные логины');
+		next.loginTemplates = cleanLogins(p.loginTemplates);
 	}
 	if (p.customButtons !== undefined) {
 		if (!Array.isArray(p.customButtons)) throw new Error('Некорректные свои кнопки');

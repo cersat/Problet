@@ -468,7 +468,7 @@ function sendState(navigated, reset) {
 		url: url.startsWith('data:text/html') || isNewTab(url) ? '' : url,
 		canGoBack: wc.navigationHistory.canGoBack(),
 		canGoForward: wc.navigationHistory.canGoForward(),
-		loading: wc.isLoading(),
+		loading: tab.loading,
 		canBookmark: bookmarkable,
 		bookmarked: bookmarkable && !!store.findBookmarkByUrl(url),
 		navigated: !!navigated,
@@ -893,6 +893,20 @@ function wireTab(tab) {
 		wc.executeJavaScript(extensions.storeButton(curLang(), extensions.storeIds())).catch(() => {});
 	};
 	wc.on('did-finish-load', injectStoreButton);
+	// Страница уже показана, но одна из её картинок или скриптов висит и не даёт загрузке закончиться: через 6 секунд после
+	// готовности перестаём крутить индикатор и ставим кнопку магазина (сама загрузка продолжается в фоне)
+	wc.on('dom-ready', () => {
+		const url = wc.getURL();
+		setTimeout(() => {
+			if (!alive() || wc.getURL() !== url) return;
+			injectStoreButton();
+			if (tab.loading) {
+				tab.loading = false;
+				sendTabs();
+				if (tab.id === activeId) sendState();
+			}
+		}, 6000);
+	});
 	wc.on('did-navigate-in-page', injectStoreButton);
 	wc.on('console-message', (e) => {
 		const msg = String(e.message || '');
@@ -1410,26 +1424,38 @@ handle('pw:offer-current', () => {
 // Человек нажал на поле входа: показываем окно подстановки (с вводом мастер-пароля, если хранилище закрыто), раз на страницу
 const fillAsked = new Set();
 let fillCtx = null; // { tabId, origin }: для какой страницы открыто окно подстановки
-ipcMain.on('pw:need-fill', (e, hasPass) => {
+ipcMain.on('pw:need-fill', (e, hasPass, signup) => {
 	const tab = tabOfSender(e);
 	const origin = frameOrigin(e);
-	if (!tab || !origin || tab.id !== activeId || !settings().pwFill || !vault.exists() || panelOpen) return;
-	if (vault.isUnlocked() && !vault.forOrigin(origin).length) return;
-	const key = tab.id + '|' + e.senderFrame.url + '|' + !!hasPass; // на странице входа в два шага спросим ещё раз, когда появится пароль
+	if (!tab || !origin || tab.id !== activeId || panelOpen) return;
+	// При создании аккаунта предлагаем заготовленные логины (хранилище не нужно), а старые пароли не подставляем
+	const templates = !!signup && settings().loginTemplates.length > 0;
+	if (!templates) {
+		if (!settings().pwFill || !vault.exists()) return;
+		if (vault.isUnlocked() && !vault.forOrigin(origin).length) return;
+	}
+	const key = tab.id + '|' + e.senderFrame.url + '|' + !!hasPass + '|' + templates; // на странице входа в два шага спросим ещё раз, когда появится пароль
 	if (fillAsked.has(key)) return;
 	if (fillAsked.size > 2000) fillAsked.clear();
 	fillAsked.add(key);
-	fillCtx = { tabId: tab.id, origin };
+	fillCtx = { tabId: tab.id, origin, templates };
 	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8) });
 });
 handle('pw:fill-options', () => {
 	if (!fillCtx) return null;
+	if (fillCtx.templates) return { host: new URL(fillCtx.origin).hostname, templates: true, unlocked: true, items: settings().loginTemplates.map((username, i) => ({ i, username })) };
 	const items = vault.isUnlocked() ? vault.forOrigin(fillCtx.origin).map((x, i) => ({ i, username: x.username })) : [];
 	return { host: new URL(fillCtx.origin).hostname, unlocked: vault.isUnlocked(), items };
 });
 handle('pw:fill-pick', (i) => {
 	const tab = fillCtx && tabs.find((t) => t.id === fillCtx.tabId);
 	if (!tab || tab.view.webContents.isDestroyed() || frameOriginOfUrl(tab.view.webContents.getURL()) !== fillCtx.origin) throw new Error('Страница уже другая');
+	if (fillCtx.templates) {
+		const login = settings().loginTemplates[Number(i)];
+		if (!login) throw new Error('Логин не найден');
+		tab.view.webContents.send('pw:fill', { username: login, password: '' });
+		return;
+	}
 	const entry = vault.forOrigin(fillCtx.origin)[Number(i)];
 	if (!entry) throw new Error('Запись не найдена');
 	tab.view.webContents.send('pw:fill', { username: entry.username, password: entry.password });

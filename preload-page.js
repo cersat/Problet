@@ -467,11 +467,21 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		const hint = el.type + ' ' + el.autocomplete + ' ' + el.name + ' ' + el.id;
 		return el.type === 'email' || el.type === 'tel' || LOGINISH.test(hint) ? { pass: null, login: el } : null;
 	};
+	// Форма создания аккаунта: поле нового пароля, два поля пароля или адрес страницы регистрации
+	const SIGNUP_URL = /sign.?up|regist|join|create.?(account|user)|new.?account|reg(\/|$|\?)|зарегистр/i;
+	const isSignup = (f) => {
+		if (!f) return false;
+		const scope = (f.login && f.login.form) || document;
+		const passes = [...scope.querySelectorAll('input[type=password]')].filter(visible);
+		if (passes.some((p) => /new-password/i.test(p.autocomplete))) return true;
+		if (passes.length >= 2) return true;
+		return SIGNUP_URL.test(location.pathname + location.search + location.hash);
+	};
 	ipcRenderer.on('pw:fill', (_e, entry) => {
 		const f = lastField && document.contains(lastField) && fieldsFor(lastField);
 		if (!f) return;
 		if (f.login && entry.username) setValue(f.login, entry.username);
-		if (f.pass) {
+		if (f.pass && entry.password) {
 			setValue(f.pass, entry.password);
 			filled = entry.password;
 		}
@@ -482,7 +492,8 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		const f = isField(el) && e.isTrusted && navigator.userActivation.isActive ? fieldsFor(el) : null;
 		if (!f) return;
 		lastField = el;
-		ipcRenderer.send('pw:need-fill', !!f.pass);
+		// Подсказка с шаблонными логинами нужна только на поле логина, а не пароля
+		ipcRenderer.send('pw:need-fill', !!f.pass, el !== f.pass && isSignup(f));
 	};
 	// click нужен для поля, которое уже в фокусе (например, autofocus): новое focusin тогда не придёт
 	document.addEventListener('focusin', onUserFocus, true);
