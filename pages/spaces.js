@@ -27,7 +27,7 @@ function render() {
 			input.maxLength = 40;
 			const done = async (save) => {
 				editing = '';
-				if (save && input.value.trim() && input.value.trim() !== s.name) await api.spacesRename(s.id, input.value.trim());
+				if (save && input.value.trim() && input.value.trim() !== s.name) await problet.spacesRename(s.id, input.value.trim());
 				load();
 			};
 			input.addEventListener('keydown', (e) => {
@@ -49,10 +49,10 @@ function render() {
 			cnt.textContent = s.count;
 			cnt.title = 'Вкладок в пространстве';
 			li.append(nm, cnt, button('Переименовать', 'Переименовать', () => { editing = s.id; render(); }));
-			if (s.id !== 'main') li.append(button('Удалить', 'Удалить пространство: вкладки уйдут в «Основное»', () => api.spacesRemove(s.id).then(load), 'danger'));
+			if (s.id !== 'main') li.append(button('Удалить', 'Удалить пространство: вкладки уйдут в «Основное»', () => problet.spacesRemove(s.id).then(load), 'danger'));
 			li.addEventListener('click', () => {
 				if (s.id === state.current) return;
-				api.spacesSwitch(s.id).then(load);
+				problet.spacesSwitch(s.id).then(load);
 			});
 		}
 		list.append(li);
@@ -60,18 +60,18 @@ function render() {
 }
 
 async function load() {
-	state = await api.spaces();
+	state = await problet.spaces();
 	render();
 }
 
 $('add').addEventListener('submit', async (e) => {
 	e.preventDefault();
-	await api.spacesAdd($('name').value);
+	await problet.spacesAdd($('name').value);
 	$('name').value = '';
 	load();
 });
 
-api.onChange((kinds) => {
+problet.onChange((kinds) => {
 	if (kinds.includes('spaces') && !editing) load();
 });
 load();

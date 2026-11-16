@@ -26,7 +26,7 @@ function updateText(st) {
 }
 
 async function load() {
-	const info = await api.versionInfo();
+	const info = await problet.versionInfo();
 	$('ver').textContent = 'Версия ' + info.version;
 	$('grid').textContent = '';
 	const items = [
@@ -44,7 +44,7 @@ async function load() {
 	row('User-Agent', info.userAgent, true);
 	row('Папка с данными', info.data, true);
 	text = items.map(([k, v]) => k + ': ' + v).join('\n') + '\nUser-Agent: ' + info.userAgent;
-	updateText(await api.updateState());
+	updateText(await problet.updateState());
 }
 
 $('copy').addEventListener('click', async () => {
@@ -58,7 +58,7 @@ $('copy').addEventListener('click', async () => {
 
 $('check').addEventListener('click', async () => {
 	$('upd').textContent = 'Проверяю…';
-	updateText(await api.checkUpdate());
+	updateText(await problet.checkUpdate());
 });
 
 load().catch((e) => {

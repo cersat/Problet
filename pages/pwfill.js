@@ -1,16 +1,16 @@
 const $ = (id) => document.getElementById(id);
-for (const b of document.querySelectorAll('.cancel')) b.addEventListener('click', () => api.panelClose());
+for (const b of document.querySelectorAll('.cancel')) b.addEventListener('click', () => problet.panelClose());
 
 async function show() {
-	const o = await api.pwFillOptions();
-	if (!o) return api.panelClose();
+	const o = await problet.pwFillOptions();
+	if (!o) return problet.panelClose();
 	$('lock').hidden = o.unlocked;
 	$('pick').hidden = !o.unlocked;
 	if (!o.unlocked) {
 		$('master').focus();
 		return;
 	}
-	if (!o.items.length) return api.panelClose();
+	if (!o.items.length) return problet.panelClose();
 	$('title').textContent = o.templates ? 'Подставить логин?' : 'Подставить пароль?';
 	$('site').textContent = (o.templates ? 'Создание аккаунта на ' : 'Сайт: ') + o.host;
 	$('items').textContent = '';
@@ -20,9 +20,9 @@ async function show() {
 		b.textContent = it.username || "без логина";
 		b.addEventListener('click', async () => {
 			try {
-				await api.pwFillPick(it.i);
+				await problet.pwFillPick(it.i);
 			} catch (e) { /* страница уже другая */ }
-			api.panelClose();
+			problet.panelClose();
 		});
 		$('items').append(b);
 	}
@@ -31,7 +31,7 @@ async function show() {
 $('lock').addEventListener('submit', async (e) => {
 	e.preventDefault();
 	try {
-		await api.pwUnlock($('master').value);
+		await problet.pwUnlock($('master').value);
 	} catch (err) {
 		$('err').textContent = 'Неверный мастер-пароль';
 		$('master').select();
@@ -40,4 +40,4 @@ $('lock').addEventListener('submit', async (e) => {
 	show();
 });
 
-show().catch(() => api.panelClose());
+show().catch(() => problet.panelClose());

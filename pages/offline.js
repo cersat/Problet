@@ -52,9 +52,9 @@ function row(e) {
 	meta.textContent = e.missing ? 'Файл удалён' : when(e.savedAt) + ' · ' + size(e.size);
 	info.append(title, sub, meta);
 	el.append(info);
-	if (!e.missing) el.append(button('Открыть', () => api.offlineOpen(e.id)));
+	if (!e.missing) el.append(button('Открыть', () => problet.offlineOpen(e.id)));
 	el.append(button('×', async () => {
-		await api.offlineDelete(e.id);
+		await problet.offlineDelete(e.id);
 		await refresh();
 	}, 'icon-btn always'));
 	return el;
@@ -76,7 +76,7 @@ function render() {
 
 async function refresh() {
 	try {
-		items = await api.offlineList();
+		items = await problet.offlineList();
 	} catch (e) {
 		return;
 	}
@@ -88,7 +88,7 @@ document.getElementById('save-all').addEventListener('click', async (ev) => {
 	ev.target.disabled = true;
 	say('Сохраняю…');
 	try {
-		const r = await api.offlineSaveAll();
+		const r = await problet.offlineSaveAll();
 		if (!r.saved && !r.failed.length) say('Нет страниц из интернета для сохранения', true);
 		else {
 			say('Сохранено: ' + r.saved, !r.saved);

@@ -19,7 +19,7 @@ function watchTheme() {
 }
 watchTheme();
 
-contextBridge.exposeInMainWorld('api', {
+contextBridge.exposeInMainWorld('problet', {
 	go: (text) => ipcRenderer.send('go', text),
 	back: () => ipcRenderer.send('back'),
 	forward: () => ipcRenderer.send('forward'),

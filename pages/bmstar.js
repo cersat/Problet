@@ -4,7 +4,7 @@ const id = new URLSearchParams(location.search).get('id') || '';
 const NEW = '\u0000new';
 const clean = (e) => String((e && e.message) || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
 
-api.bmStarGet(id).then((st) => {
+problet.bmStarGet(id).then((st) => {
 	$('head').textContent = st.created ? 'Закладка добавлена' : 'Изменить закладку';
 	$('title').value = st.bookmark.title;
 	const sel = $('folder');
@@ -14,7 +14,7 @@ api.bmStarGet(id).then((st) => {
 	sel.value = st.bookmark.folder;
 	$('title').focus();
 	$('title').select();
-}).catch(() => api.panelClose());
+}).catch(() => problet.panelClose());
 
 $('folder').addEventListener('change', () => {
 	const add = $('folder').value === NEW;
@@ -32,8 +32,8 @@ async function done() {
 		return;
 	}
 	try {
-		await api.bmStarSave(id, { title: $('title').value, folder: isNew ? '' : $('folder').value, newFolder: isNew ? name : '' });
-		api.panelClose();
+		await problet.bmStarSave(id, { title: $('title').value, folder: isNew ? '' : $('folder').value, newFolder: isNew ? name : '' });
+		problet.panelClose();
 	} catch (e) {
 		$('err').textContent = clean(e);
 	}
@@ -41,8 +41,8 @@ async function done() {
 $('done').addEventListener('click', done);
 $('remove').addEventListener('click', async () => {
 	try {
-		await api.bmStarRemove(id);
-		api.panelClose();
+		await problet.bmStarRemove(id);
+		problet.panelClose();
 	} catch (e) {
 		$('err').textContent = clean(e);
 	}
@@ -51,5 +51,5 @@ document.addEventListener('keydown', (e) => {
 	if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
 		e.preventDefault();
 		done();
-	} else if (e.key === 'Escape') api.panelClose();
+	} else if (e.key === 'Escape') problet.panelClose();
 });

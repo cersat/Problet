@@ -22,7 +22,7 @@ function watchTheme() {
 if (location.protocol === 'problet:') {
 	watchTheme();
 	const call = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
-	contextBridge.exposeInMainWorld('api', {
+	contextBridge.exposeInMainWorld('problet', {
 		getSettings: () => call('settings:get'),
 		setSettings: (patch) => call('settings:set', patch),
 		clearSearchHistory: () => call('history:clear'),
@@ -345,6 +345,7 @@ if (location.protocol !== 'problet:' && window === window.top) {
 			if (id.kind === 'problet') {
 				try {
 					Object.defineProperty(window, 'isProblet', { value: true, configurable: true });
+					Object.defineProperty(window, 'problet', { value: Object.freeze({ isProblet: true }), configurable: true });
 				} catch (e) { /* ничего */ }
 			}
 			if (id.userAgent) {

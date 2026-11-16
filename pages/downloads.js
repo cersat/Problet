@@ -63,12 +63,12 @@ function row(d) {
 	}
 	el.append(info);
 	if (d.state === 'progressing') {
-		el.append(button('Отмена', () => api.cancelDownload(d.id)));
+		el.append(button('Отмена', () => problet.cancelDownload(d.id)));
 	} else {
 		if (d.state === 'done' && !d.missing) {
-			el.append(button('Открыть', () => api.openDownload(d.id)), button('В папке', () => api.showDownload(d.id)));
+			el.append(button('Открыть', () => problet.openDownload(d.id)), button('В папке', () => problet.showDownload(d.id)));
 		}
-		el.append(button('×', () => api.removeDownload(d.id).then(refresh), 'icon-btn always'));
+		el.append(button('×', () => problet.removeDownload(d.id).then(refresh), 'icon-btn always'));
 	}
 	return el;
 }
@@ -76,7 +76,7 @@ function row(d) {
 async function refresh() {
 	let items;
 	try {
-		items = await api.downloads();
+		items = await problet.downloads();
 	} catch (e) {
 		return;
 	}
@@ -95,7 +95,7 @@ async function refresh() {
 }
 
 document.getElementById('clear').addEventListener('click', async () => {
-	await api.clearDownloads();
+	await problet.clearDownloads();
 	await refresh();
 });
 

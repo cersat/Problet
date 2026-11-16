@@ -4,7 +4,7 @@ document.addEventListener('click', async (e) => {
 	if (!b) return;
 	b.disabled = true;
 	try {
-		const r = await api.debug(b.dataset.debug);
+		const r = await problet.debug(b.dataset.debug);
 		status.textContent = (r && r.message) || '';
 	} catch (err) {
 		status.textContent = String((err && err.message) || err);

@@ -1,14 +1,14 @@
 const $ = (id) => document.getElementById(id);
-window.errApi.get().then((e) => {
+window.problet.get().then((e) => {
 	$('title').textContent = e.title;
 	$('text').textContent = e.text;
 });
 $('copy').addEventListener('click', async () => {
-	await window.errApi.copy();
+	await window.problet.copy();
 	$('copy').textContent = 'Скопировано';
 	setTimeout(() => { $('copy').textContent = 'Скопировать'; }, 1500);
 });
-$('close').addEventListener('click', () => window.errApi.close());
+$('close').addEventListener('click', () => window.problet.close());
 document.addEventListener('keydown', (e) => {
-	if (e.key === 'Escape') window.errApi.close();
+	if (e.key === 'Escape') window.problet.close();
 });

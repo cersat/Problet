@@ -42,7 +42,7 @@ function hostOf(origin) {
 }
 
 async function refresh() {
-	st = await api.pwStatus();
+	st = await problet.pwStatus();
 	const gate = !st.unlocked;
 	$('gate').classList.toggle('hidden', !gate);
 	$('vault').classList.toggle('hidden', gate);
@@ -60,7 +60,7 @@ async function refresh() {
 		$('master2').value = '';
 		return;
 	}
-	items = await api.pwList();
+	items = await problet.pwList();
 	renderPending();
 	renderList();
 }
@@ -74,11 +74,11 @@ function renderPending() {
 		const info = el('div', 'info');
 		info.append(el('b', '', hostOf(p.origin)), el('span', '', (p.update ? 'новый пароль для ' : '') + (p.username || 'без логина')));
 		row.append(info, btn(p.update ? 'Обновить' : 'Сохранить', async () => {
-			await api.pwPendingSave(p.tabId);
+			await problet.pwPendingSave(p.tabId);
 			say('Сохранено');
 			await refresh();
 		}, 'primary'), btn('Не сохранять', async () => {
-			await api.pwPendingDrop(p.tabId);
+			await problet.pwPendingDrop(p.tabId);
 			await refresh();
 		}));
 		box.append(row);
@@ -109,20 +109,20 @@ function itemRow(i) {
 			pass.textContent = '••••••••';
 			show.textContent = 'Показать';
 		} else {
-			pass.textContent = await api.pwReveal(i.id);
+			pass.textContent = await problet.pwReveal(i.id);
 			show.textContent = 'Скрыть';
 		}
 		shown = !shown;
 	});
 	actions.append(show,
 		btn('Копировать', async () => {
-			await navigator.clipboard.writeText(await api.pwReveal(i.id));
+			await navigator.clipboard.writeText(await problet.pwReveal(i.id));
 			say('Пароль для ' + hostOf(i.origin) + ' скопирован');
 		}),
 		btn('Изменить', async () => edit(row, i)),
 		btn('Удалить', async () => {
 			if (!confirm(probletTr('Удалить пароль для ' + hostOf(i.origin) + '?'))) return;
-			await api.pwRemove(i.id);
+			await problet.pwRemove(i.id);
 			await refresh();
 		}, 'danger'));
 	row.append(info, pass, actions);
@@ -130,7 +130,7 @@ function itemRow(i) {
 }
 
 async function edit(row, i) {
-	const pass = await api.pwReveal(i.id);
+	const pass = await problet.pwReveal(i.id);
 	row.textContent = '';
 	row.classList.add('editing');
 	const user = el('input');
@@ -142,7 +142,7 @@ async function edit(row, i) {
 	pw.value = pass;
 	pw.placeholder = 'Пароль';
 	row.append(el('div', 'info', hostOf(i.origin)), user, pw, btn('Сохранить', async () => {
-		await api.pwUpdate(i.id, { username: user.value, password: pw.value });
+		await problet.pwUpdate(i.id, { username: user.value, password: pw.value });
 		say('Сохранено');
 		await refresh();
 	}, 'primary'), btn('Отмена', refresh));
@@ -152,10 +152,10 @@ $('gate').addEventListener('submit', (e) => {
 	e.preventDefault();
 	run(async () => {
 		if (st.exists) {
-			await api.pwUnlock($('master').value);
+			await problet.pwUnlock($('master').value);
 		} else {
 			if ($('master').value !== $('master2').value) throw new Error('Пароли не совпадают');
-			await api.pwCreate($('master').value);
+			await problet.pwCreate($('master').value);
 		}
 		say('');
 		await refresh();
@@ -163,7 +163,7 @@ $('gate').addEventListener('submit', (e) => {
 });
 
 $('lock').addEventListener('click', () => run(async () => {
-	await api.pwLock();
+	await problet.pwLock();
 	say('Хранилище закрыто');
 	await refresh();
 }));
@@ -173,7 +173,7 @@ $('change-cancel').addEventListener('click', () => $('change').classList.add('hi
 $('change').addEventListener('submit', (e) => {
 	e.preventDefault();
 	run(async () => {
-		await api.pwChangeMaster($('old-master').value, $('new-master').value);
+		await problet.pwChangeMaster($('old-master').value, $('new-master').value);
 		$('old-master').value = '';
 		$('new-master').value = '';
 		$('change').classList.add('hidden');
@@ -184,7 +184,7 @@ $('change').addEventListener('submit', (e) => {
 $('add').addEventListener('submit', (e) => {
 	e.preventDefault();
 	run(async () => {
-		await api.pwAdd({ origin: $('add-site').value.trim(), username: $('add-user').value, password: $('add-pass').value });
+		await problet.pwAdd({ origin: $('add-site').value.trim(), username: $('add-user').value, password: $('add-pass').value });
 		$('add-site').value = '';
 		$('add-user').value = '';
 		$('add-pass').value = '';

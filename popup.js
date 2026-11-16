@@ -43,19 +43,19 @@ function makeRow(item, index, selected) {
 		del.addEventListener('mousedown', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			api.remove(index);
+			problet.remove(index);
 		});
 		row.append(del);
 	}
 
 	row.addEventListener('mousedown', (e) => {
 		e.preventDefault();
-		api.pick(index);
+		problet.pick(index);
 	});
 	return row;
 }
 
-api.onRender(({ items, selected }) => {
+problet.onRender(({ items, selected }) => {
 	list.textContent = '';
 	items.forEach((item, i) => list.append(makeRow(item, i, selected)));
 });

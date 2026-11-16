@@ -57602,7 +57602,7 @@ Object(index_es["addLocaleData"])([].concat(entry_toConsumableArray(ru_default.a
 
 // Язык редактора берётся у окна браузера: в нём же проставлен data-lang
 var LANG = document.documentElement.dataset.lang === 'en' ? 'en' : 'ru';
-var api = window.api;
+var api = window.problet;
 var file = new URLSearchParams(location.search).get('p') || '';
 var params = new URLSearchParams(location.search);
 var bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле

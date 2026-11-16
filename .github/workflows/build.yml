@@ -31,9 +31,25 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      keep: ${{ steps.ver.outputs.keep }}
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          fetch-depth: 0
+      # Первое или второе число версии (a.b.x) новое, и релиза с такими a.b ещё нет: сохраняем отдельный релиз, его не затрёт следующая сборка
+      - name: Новая версия a.b
+        id: ver
+        run: |
+          cur=$(node -p "require('./package.json').version")
+          keep=false
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            if [ -z "$(git tag -l "v${cur%.*}.*")" ]; then keep=true; fi
+          fi
+          echo "keep=$keep" >> "$GITHUB_OUTPUT"
+          echo "version=$cur" >> "$GITHUB_OUTPUT"
+          echo "версия $cur, отдельный релиз: $keep"
       - name: Перенос метки и релиз latest
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -107,6 +123,33 @@ jobs:
           gh release view latest --json assets --jq '.assets[].name' | grep -- "-${{ matrix.token }}-" | while read -r name; do
             echo "$keep" | grep -qxF "$name" || gh release delete-asset latest "$name" --yes
           done
+
+  # Первое или второе число версии изменилось: сохраняем отдельный релиз v<версия> со всеми файлами, его не затрёт следующая сборка
+  keep-release:
+    name: Отдельный релиз версии
+    needs: [prepare, build]
+    if: needs.prepare.outputs.keep == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: out
+          merge-multiple: true
+      - name: Релиз версии
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          ls -la out
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" out/* --clobber
+          else
+            gh release create "$tag" out/* --target "$GITHUB_SHA" --title "Problet $VERSION" --generate-notes
+          fi
 
   # Метка v* — отдельный релиз с этой версией, когда готовы все сборки
   release:

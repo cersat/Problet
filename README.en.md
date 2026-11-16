@@ -55,7 +55,7 @@ Russian and English. Settings → Language: Auto (as in the system), Русск�
 - **Find in page** (Ctrl+F) with a counter.
 - **Print** (Ctrl+P) and **save as PDF** (Ctrl+Alt+P).
 - **Problet addons**: its own extension format (`addon.json`) with its own API: scripts on pages, a background, buttons on bars, files, system commands, unrestricted network. An addon asks permission for dangerous actions. They are installed from the [ProbletAddons](https://github.com/cersat/ProbletAddons) catalog, by a link to `addon.json` or from an archive: Settings → Extensions → “Add a Problet addon”. The format and API are described in the catalog’s README.
-- **`window.isProblet`**: a site sees `true` when the browser is not disguised as another one.
+- **`isProblet` and `problet.isProblet`**: a site sees `true` when the browser is not disguised as another one. Internal `problet://` pages and the toolbar get the browser API as the `problet` object (formerly `api`).
 - **`problet` command**: on start Problet creates a terminal command (Linux: `~/.local/bin/problet`, Windows: `problet.cmd` added to the user PATH). It starts the browser and passes all arguments through unchanged.
 - **Login templates**: in Settings → Passwords you set a list of logins, and on the login field of an account-creation form Problet offers to fill one of them in.
 - **Chrome extensions**: unpacked folders with manifest.json or a link from the Chrome Web Store. On an extension’s store page Problet shows an “Install in Problet” button. Each extension has its own button, which can be moved in “Bars” and opens the extension’s window when pressed. Not all APIs are supported: missing ones are replaced with stubs, so complex extensions may not work fully.

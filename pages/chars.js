@@ -29,12 +29,12 @@ function render() {
 		const b = document.createElement('button');
 		b.textContent = ch;
 		b.title = 'U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
-		b.addEventListener('click', () => api.charPick(ch));
+		b.addEventListener('click', () => problet.charPick(ch));
 		grid.append(b);
 	}
 }
 
 document.addEventListener('keydown', (e) => {
-	if (e.key === 'Escape') api.panelClose();
+	if (e.key === 'Escape') problet.panelClose();
 });
 render();

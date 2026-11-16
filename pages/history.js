@@ -58,7 +58,7 @@ function render() {
 		del.title = 'Удалить из истории';
 		del.textContent = '×';
 		del.addEventListener('click', async () => {
-			await api.removeVisit(v.id);
+			await problet.removeVisit(v.id);
 			visits = visits.filter((x) => x.id !== v.id);
 			render();
 		});
@@ -76,17 +76,17 @@ function render() {
 search.addEventListener('input', render);
 document.getElementById('clear').addEventListener('click', async () => {
 	if (!visits.length || !confirm(probletTr('Удалить всю историю посещений?'))) return;
-	await api.clearVisits();
+	await problet.clearVisits();
 	visits = [];
 	render();
 });
 
 async function reload() {
-	visits = await api.visits();
+	visits = await problet.visits();
 	render();
 }
 
 reload();
-api.onChange((kinds) => {
+problet.onChange((kinds) => {
 	if (kinds.includes('visits') || kinds.includes('all')) reload();
 });

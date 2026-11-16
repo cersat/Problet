@@ -1,7 +1,7 @@
 document.getElementById('search-form').addEventListener('submit', (e) => {
 	e.preventDefault();
 	const q = document.getElementById('q').value.trim();
-	if (q) api.search(q);
+	if (q) problet.search(q);
 });
 
 function tile(b, hint) {
@@ -34,7 +34,7 @@ function tile(b, hint) {
 
 // Плитки с последними закладками
 async function renderTiles() {
-	const { bookmarks } = await api.bookmarks();
+	const { bookmarks } = await problet.bookmarks();
 	const tiles = document.getElementById('tiles');
 	tiles.textContent = '';
 	const latest = [...bookmarks].sort((a, b) => b.added - a.added).slice(0, 12);
@@ -44,7 +44,7 @@ async function renderTiles() {
 
 // Часто посещаемые сайты: счётчик посещений по истории
 async function renderTop() {
-	const list = await api.topSites();
+	const list = await problet.topSites();
 	const box = document.getElementById('top');
 	box.textContent = '';
 	for (const s of list) {
@@ -69,7 +69,7 @@ function headings() {
 
 renderTiles();
 renderTop();
-api.onChange((kinds) => {
+problet.onChange((kinds) => {
 	if (kinds.includes('bookmarks') || kinds.includes('all')) renderTiles();
 	if (kinds.includes('visits') || kinds.includes('settings') || kinds.includes('all')) renderTop();
 });

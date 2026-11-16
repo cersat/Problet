@@ -38,21 +38,21 @@ let suggestOpen = false;
 let blurTimer = null;
 let dirty = false; // true, пока в поле текст, который ввёл сам пользователь
 
-back.addEventListener('click', () => api.back());
-forward.addEventListener('click', () => api.forward());
-reload.addEventListener('click', () => api.reload());
-star.addEventListener('click', () => api.toggleBookmark());
-document.getElementById('bookmarks').addEventListener('click', () => api.openInternal('bookmarks'));
-document.getElementById('passwords').addEventListener('click', () => api.openInternal('passwords'));
-document.getElementById('history').addEventListener('click', () => api.openInternal('history'));
-document.getElementById('pwoffer').addEventListener('click', () => api.pwOfferAccept());
-document.getElementById('zoom').addEventListener('click', () => api.zoomReset());
-document.getElementById('downloads').addEventListener('click', () => api.openInternal('downloads'));
-document.getElementById('darkpage').addEventListener('click', () => api.darkPage());
+back.addEventListener('click', () => problet.back());
+forward.addEventListener('click', () => problet.forward());
+reload.addEventListener('click', () => problet.reload());
+star.addEventListener('click', () => problet.toggleBookmark());
+document.getElementById('bookmarks').addEventListener('click', () => problet.openInternal('bookmarks'));
+document.getElementById('passwords').addEventListener('click', () => problet.openInternal('passwords'));
+document.getElementById('history').addEventListener('click', () => problet.openInternal('history'));
+document.getElementById('pwoffer').addEventListener('click', () => problet.pwOfferAccept());
+document.getElementById('zoom').addEventListener('click', () => problet.zoomReset());
+document.getElementById('downloads').addEventListener('click', () => problet.openInternal('downloads'));
+document.getElementById('darkpage').addEventListener('click', () => problet.darkPage());
 const translateBtn = document.getElementById('translate');
-translateBtn.addEventListener('click', () => api.translatePage());
-document.getElementById('settings').addEventListener('click', () => api.openInternal('settings'));
-document.getElementById('newtab').addEventListener('click', () => api.newTab());
+translateBtn.addEventListener('click', () => problet.translatePage());
+document.getElementById('settings').addEventListener('click', () => problet.openInternal('settings'));
+document.getElementById('newtab').addEventListener('click', () => problet.newTab());
 // Курсор стоял в адресной строке до щелчка? Если окно получило фокус самим этим щелчком (человек пришёл со страницы), то нет: activeElement остаётся адресной строкой и после ухода на страницу
 let winFocusAt = 0;
 let addrAtDown = false;
@@ -67,15 +67,15 @@ for (const kind of ['chars', 'spaces']) {
 		e.preventDefault(); // кнопка не забирает курсор у адресной строки
 		addrAtDown = document.activeElement === address && Date.now() - winFocusAt > 300;
 	});
-	btn.addEventListener('click', () => api.openApplet(kind, appletRect(btn)));
+	btn.addEventListener('click', () => problet.openApplet(kind, appletRect(btn)));
 }
 document.getElementById('newtab').addEventListener('contextmenu', (e) => {
 	e.preventDefault();
-	api.newTabMenu();
+	problet.newTabMenu();
 });
-document.getElementById('win-min').addEventListener('click', () => api.winMinimize());
-document.getElementById('win-max').addEventListener('click', () => api.winMaximize());
-document.getElementById('win-close').addEventListener('click', () => api.winClose());
+document.getElementById('win-min').addEventListener('click', () => problet.winMinimize());
+document.getElementById('win-max').addEventListener('click', () => problet.winMaximize());
+document.getElementById('win-close').addEventListener('click', () => problet.winClose());
 
 // ---------- Вкладки ----------
 
@@ -185,7 +185,7 @@ function renderTabs(state) {
 	if (active && (state.overflow === 'scroll' || sideTabs)) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
-api.onTabs((state) => {
+problet.onTabs((state) => {
 	if (renamingId !== null) pendingTabs = state;
 	else renderTabs(state);
 });
@@ -194,11 +194,11 @@ tabsEl.addEventListener('contextmenu', (e) => {
 	const tab = e.target.closest('.tab');
 	if (!tab) return;
 	e.preventDefault();
-	api.tabMenu(Number(tab.dataset.id));
+	problet.tabMenu(Number(tab.dataset.id));
 });
 
 // Переименование: поле ввода прямо на вкладке. Enter — применить, Esc — отмена, пустое имя возвращает название страницы
-api.onTabRename((id) => {
+problet.onTabRename((id) => {
 	const tab = tabsEl.querySelector('.tab[data-id="' + id + '"]');
 	if (!tab || renamingId !== null) return;
 	const label = tab.querySelector('.label');
@@ -210,7 +210,7 @@ api.onTabRename((id) => {
 	const finish = (apply) => {
 		if (done) return;
 		done = true;
-		if (apply) api.tabRename(id, input.value);
+		if (apply) problet.tabRename(id, input.value);
 		renamingId = null;
 		input.remove();
 		const s = pendingTabs || lastTabsState;
@@ -268,7 +268,7 @@ tabsEl.addEventListener('drop', (e) => {
 	if (dragId === null) return;
 	e.preventDefault();
 	const t = dropTarget(e.clientX, e.clientY);
-	api.moveTab(dragId, t.index);
+	problet.moveTab(dragId, t.index);
 	dragId = null;
 	clearDrop();
 });
@@ -282,14 +282,14 @@ tabsEl.addEventListener('dragend', () => {
 let lastUpdate = null;
 const updateBtn = document.getElementById('update');
 updateBtn.addEventListener('click', () => {
-	api.updateTip(null);
-	api.updateApply();
+	problet.updateTip(null);
+	problet.updateApply();
 });
 updateBtn.addEventListener('mouseenter', () => {
 	const b = updateBtn.getBoundingClientRect();
-	api.updateTip({ x: b.left, y: b.top, width: b.width, height: b.height });
+	problet.updateTip({ x: b.left, y: b.top, width: b.width, height: b.height });
 });
-updateBtn.addEventListener('mouseleave', () => api.updateTip(null));
+updateBtn.addEventListener('mouseleave', () => problet.updateTip(null));
 function showUpdate(st) {
 	lastUpdate = st;
 	const on = st && (st.status === 'ready' || st.status === 'downloading' || (st.status === 'available' && st.mode !== 'dev'));
@@ -304,10 +304,10 @@ function showUpdate(st) {
 	updateBtn.setAttribute('aria-label', titles[st.status]);
 	updateBtn.classList.toggle('busy', st.status === 'downloading');
 }
-api.onUpdate(showUpdate);
-showUpdate(api.updateState());
+problet.onUpdate(showUpdate);
+showUpdate(problet.updateState());
 
-api.onDownloadsBusy((n) => {
+problet.onDownloadsBusy((n) => {
 	document.getElementById('downloads').classList.toggle('busy', n > 0);
 });
 
@@ -318,10 +318,10 @@ tabsEl.addEventListener('mousedown', (e) => {
 	const id = Number(tab.dataset.id);
 	if (e.button === 1) {
 		e.preventDefault();
-		api.closeTab(id);
+		problet.closeTab(id);
 	} else if (e.button === 0) {
-		if (e.target.closest('.close')) api.closeTab(id);
-		else api.activateTab(id);
+		if (e.target.closest('.close')) problet.closeTab(id);
+		else problet.activateTab(id);
 	}
 });
 
@@ -335,17 +335,17 @@ tabsEl.addEventListener('wheel', (e) => {
 address.addEventListener('input', () => {
 	dirty = true;
 	const rect = box.getBoundingClientRect();
-	api.suggestQuery({ text: address.value, x: rect.left, width: rect.width });
+	problet.suggestQuery({ text: address.value, x: rect.left, width: rect.width });
 });
 
 address.addEventListener('keydown', (e) => {
 	if (e.key === 'Enter') {
 		dirty = false;
-		api.go(address.value);
+		problet.go(address.value);
 		address.blur();
 	} else if (e.key === 'Escape') {
 		if (suggestOpen) {
-			api.suggestHide();
+			problet.suggestHide();
 		} else {
 			dirty = false;
 			showAddress(currentUrl);
@@ -353,7 +353,7 @@ address.addEventListener('keydown', (e) => {
 		}
 	} else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && suggestOpen) {
 		e.preventDefault();
-		api.suggestMove(e.key === 'ArrowDown' ? 1 : -1);
+		problet.suggestMove(e.key === 'ArrowDown' ? 1 : -1);
 	}
 });
 
@@ -366,10 +366,10 @@ address.addEventListener('focus', () => {
 // Небольшая задержка: клик по подсказке сначала снимает фокус с поля
 address.addEventListener('blur', () => {
 	if (!dirty) address.value = pretty(currentUrl);
-	blurTimer = setTimeout(() => api.suggestHide(), 150);
+	blurTimer = setTimeout(() => problet.suggestHide(), 150);
 });
 
-api.onState((state) => {
+problet.onState((state) => {
 	currentUrl = state.url;
 	back.disabled = !state.canGoBack;
 	forward.disabled = !state.canGoForward;
@@ -397,18 +397,18 @@ api.onState((state) => {
 	}
 });
 
-api.onFocusAddress(() => {
+problet.onFocusAddress(() => {
 	address.focus();
 	address.select();
 });
 
-api.onSetAddress(({ text, select }) => {
+problet.onSetAddress(({ text, select }) => {
 	address.value = text;
 	if (select) address.select();
 	else address.setSelectionRange(text.length, text.length);
 });
 
-api.onSuggestVisible((visible) => {
+problet.onSuggestVisible((visible) => {
 	suggestOpen = visible;
 });
 
@@ -432,7 +432,7 @@ function syncCustom(list) {
 			el = document.createElement('button');
 			el.id = 'cb-' + c.id.slice(3);
 			el.className = 'custom-btn';
-			el.addEventListener('click', () => api.customButton(c.id));
+			el.addEventListener('click', () => problet.customButton(c.id));
 			document.body.append(el); // на панель переедет в applyLayout
 			customEls.set(c.id, el);
 		}
@@ -466,7 +466,7 @@ function syncExt(list) {
 				e.preventDefault();
 				addrAtDown = document.activeElement === address && Date.now() - winFocusAt > 300;
 			});
-			b.addEventListener('click', () => api.extClick(x.id, appletRect(b)));
+			b.addEventListener('click', () => problet.extClick(x.id, appletRect(b)));
 			document.body.append(b); // на панель переедет в applyLayout
 			extEls.set(id, b);
 		}
@@ -501,7 +501,7 @@ grip.addEventListener('pointerdown', (e) => {
 		const size = start.size + dir * ((side ? ev.clientX : ev.clientY) - start.pos);
 		const scale = Math.round(Math.min(2, Math.max(1, size / base)) * 100) / 100;
 		cancelAnimationFrame(frame);
-		frame = requestAnimationFrame(() => api.tabsScale(scale));
+		frame = requestAnimationFrame(() => problet.tabsScale(scale));
 	};
 	const up = () => {
 		grip.removeEventListener('pointermove', move);
@@ -627,10 +627,10 @@ function renderBar() {
 			n.textContent = f.name;
 			b.append(n);
 		}
-		b.addEventListener('click', () => api.barFolder(f.id, rectOf(b)));
+		b.addEventListener('click', () => problet.barFolder(f.id, rectOf(b)));
 		b.addEventListener('contextmenu', (e) => {
 			e.preventDefault();
-			api.barFolderMenu(f.id, rectOf(b));
+			problet.barFolderMenu(f.id, rectOf(b));
 		});
 		bmlist.append(b);
 	}
@@ -662,11 +662,11 @@ function renderBar() {
 			n.textContent = m.title;
 			b.append(n);
 		}
-		b.addEventListener('click', () => api.barOpen(m.id, false));
+		b.addEventListener('click', () => problet.barOpen(m.id, false));
 		b.addEventListener('mousedown', (e) => {
 			if (e.button !== 1) return;
 			e.preventDefault();
-			api.barOpen(m.id, true);
+			problet.barOpen(m.id, true);
 		});
 		bmlist.append(b);
 	}
@@ -682,13 +682,13 @@ bmlist.addEventListener('contextmenu', (e) => {
 	const b = e.target.closest('.bm[data-id]');
 	if (!b) return;
 	e.preventDefault();
-	api.barMenu(b.dataset.id);
+	problet.barMenu(b.dataset.id);
 });
 
-api.onBar((data) => {
+problet.onBar((data) => {
 	barData = data;
 	renderBar();
 });
-api.onLayout(applyLayout);
-barData = api.bar();
-applyLayout(api.layout());
+problet.onLayout(applyLayout);
+barData = problet.bar();
+applyLayout(problet.layout());

@@ -1,14 +1,14 @@
 const $ = (id) => document.getElementById(id);
 let saved = '';
 
-api.getSettings().then((r) => {
+problet.getSettings().then((r) => {
 	saved = r.settings.customBlock || '';
 	$('list').value = saved;
 }).catch((e) => { $('note').textContent = String(e.message || e); });
 
 async function save() {
 	try {
-		const r = await api.setSettings({ customBlock: $('list').value });
+		const r = await problet.setSettings({ customBlock: $('list').value });
 		saved = r.customBlock;
 		const n = saved.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')).length;
 		$('note').textContent = 'Сохранено, строк в списке: ' + n;

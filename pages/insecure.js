@@ -11,4 +11,4 @@ $('back').addEventListener('click', () => {
 	if (history.length > 1) history.back();
 	else location.href = 'problet://newtab';
 });
-$('go').addEventListener('click', () => api.insecureProceed(target).catch((e) => { $('url').textContent = String(e.message || e); }));
+$('go').addEventListener('click', () => problet.insecureProceed(target).catch((e) => { $('url').textContent = String(e.message || e); }));

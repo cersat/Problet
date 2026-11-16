@@ -19,7 +19,7 @@ function watchTheme() {
 }
 watchTheme();
 
-contextBridge.exposeInMainWorld('api', {
+contextBridge.exposeInMainWorld('problet', {
 	pick: (i) => ipcRenderer.send('popup-pick', i),
 	remove: (i) => ipcRenderer.send('popup-delete', i),
 	onRender: (cb) => ipcRenderer.on('render', (_e, payload) => cb(payload)),

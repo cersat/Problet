@@ -132,36 +132,36 @@ async function first(base) {
 
 	// --- настройки
 	const s = await c.open('problet://settings/');
-	check('страница настроек', /settings/.test(s.url) && !!(await c.ev(s.id, 'typeof api.getSettings')), s);
-	const cur = await c.ev(s.id, 'api.getSettings().then(r => r.settings)');
+	check('страница настроек', /settings/.test(s.url) && !!(await c.ev(s.id, 'typeof problet.getSettings')), s);
+	const cur = await c.ev(s.id, 'problet.getSettings().then(r => r.settings)');
 	check('настройки читаются', cur && cur.engine === 'duckduckgo' && Array.isArray(cur.btnLayout.toolbar), cur && cur.engine);
 	check('кнопка тёмной темы в скрытых по умолчанию', cur.btnLayout.hidden.includes('darkpage'), cur.btnLayout.hidden);
-	const set = await c.ev(s.id, `api.setSettings({ adblock: true, customBlock: '127.0.0.1/ads/', downloadDir: ${JSON.stringify(dl)}, saveHistory: true, startup: 'session' }).then(r => [r.adblock, r.downloadDir, r.startup])`);
+	const set = await c.ev(s.id, `problet.setSettings({ adblock: true, customBlock: '127.0.0.1/ads/', downloadDir: ${JSON.stringify(dl)}, saveHistory: true, startup: 'session' }).then(r => [r.adblock, r.downloadDir, r.startup])`);
 	check('настройки сохраняются', set[0] === true && set[1] === dl && set[2] === 'session', set);
-	const langs = await c.ev(s.id, `(async () => { await api.setSettings({ language: 'en' }); await new Promise((r) => setTimeout(r, 500)); const en = [document.querySelector('h1').textContent, document.title, document.documentElement.dataset.lang]; await api.setSettings({ language: 'ru' }); await new Promise((r) => setTimeout(r, 500)); return en.concat(document.querySelector('h1').textContent); })()`);
+	const langs = await c.ev(s.id, `(async () => { await problet.setSettings({ language: 'en' }); await new Promise((r) => setTimeout(r, 500)); const en = [document.querySelector('h1').textContent, document.title, document.documentElement.dataset.lang]; await problet.setSettings({ language: 'ru' }); await new Promise((r) => setTimeout(r, 500)); return en.concat(document.querySelector('h1').textContent); })()`);
 	check('язык интерфейса переключается на лету', langs[0] === 'Settings' && langs[1] === 'Settings' && langs[2] === 'en' && langs[3] === 'Настройки', langs);
-	const bad = await c.ev(s.id, `api.setSettings({ engine: 'нет такого' }).then(() => 'принято', e => 'отказ')`);
+	const bad = await c.ev(s.id, `problet.setSettings({ engine: 'нет такого' }).then(() => 'принято', e => 'отказ')`);
 	check('неверная настройка отклоняется', bad === 'отказ', bad);
-	const cb = await c.ev(s.id, `(async () => { const st = (await api.getSettings()).settings; const e = { id: 'cb:smoke001', name: 'Проверка', icon: 'П', svg: '', type: 'script', value: 'document.title = "HK"', newTab: false }; let r = await api.setSettings({ customButtons: [...st.customButtons, e] }); r = await api.setSettings({ hotkeys: { ...r.hotkeys, 'cb:smoke001': 'Ctrl+Alt+J' } }); return [r.btnLayout.toolbar.includes('cb:smoke001'), r.hotkeys['cb:smoke001']]; })()`);
+	const cb = await c.ev(s.id, `(async () => { const st = (await problet.getSettings()).settings; const e = { id: 'cb:smoke001', name: 'Проверка', icon: 'П', svg: '', type: 'script', value: 'document.title = "HK"', newTab: false }; let r = await problet.setSettings({ customButtons: [...st.customButtons, e] }); r = await problet.setSettings({ hotkeys: { ...r.hotkeys, 'cb:smoke001': 'Ctrl+Alt+J' } }); return [r.btnLayout.toolbar.includes('cb:smoke001'), r.hotkeys['cb:smoke001']]; })()`);
 	check('своя кнопка и её клавиша', cb[0] === true && cb[1] === 'Ctrl+Alt+J', cb);
-	const dup = await c.ev(s.id, `api.getSettings().then(r => api.setSettings({ hotkeys: { ...r.settings.hotkeys, find: 'Ctrl+Alt+J' } })).then(() => 'принято', () => 'отказ')`);
+	const dup = await c.ev(s.id, `problet.getSettings().then(r => problet.setSettings({ hotkeys: { ...r.settings.hotkeys, find: 'Ctrl+Alt+J' } })).then(() => 'принято', () => 'отказ')`);
 	check('занятое сочетание отклоняется', dup === 'отказ', dup);
 	await sleep(900); // страница настроек узнаёт об изменениях с небольшой задержкой
 	const hk = await c.ev(s.id, `[...document.querySelectorAll('#hotkeys .what')].map(e => e.textContent).filter(t => /Проверка|Тёмная тема|Dark theme/.test(t)).length`);
 	check('в списке клавиш есть тёмная тема и своя кнопка', hk === 2, hk);
 	const rows = await c.ev(s.id, `[...document.querySelectorAll('#btn-lists .pname')].map(e => e.textContent).join('|')`);
 	check('в «Панелях» есть своя кнопка и тёмная тема', /Проверка/.test(rows) && /Тёмная тема страницы|Dark theme for the page/.test(rows), rows);
-	const ver = await c.ev(s.id, 'api.versionInfo()');
+	const ver = await c.ev(s.id, 'problet.versionInfo()');
 	check('сведения о версии', ver && ver.name === 'Problet' && /^\d+\./.test(ver.version) && !!ver.data, ver);
-	const src = await c.ev(s.id, `api.importSources().then(l => Array.isArray(l), e => String(e))`);
+	const src = await c.ev(s.id, `problet.importSources().then(l => Array.isArray(l), e => String(e))`);
 	check('поиск других браузеров не падает', src === true, src);
 
 	// --- закладки
 	const bm = await c.open('problet://bookmarks/');
 	const fileUrl = require('url').pathToFileURL(path.join(files, 'страница.html')).href;
-	const st1 = await c.ev(bm.id, `(async () => { await api.addFolder('Папка'); let st = await api.bookmarks(); const f = st.folders[0]; await api.setFolderColor(f.id, st.colors[2].hex); await api.addBookmark({ title: 'Сайт', url: ${JSON.stringify(base + '/')}, folder: f.id }); await api.addBookmark({ title: 'Файл', url: ${JSON.stringify(fileUrl)} }); st = await api.bookmarks(); return { n: st.bookmarks.length, color: st.folders[0].color, folder: st.bookmarks[0].folder === f.id }; })()`);
+	const st1 = await c.ev(bm.id, `(async () => { await problet.addFolder('Папка'); let st = await problet.bookmarks(); const f = st.folders[0]; await problet.setFolderColor(f.id, st.colors[2].hex); await problet.addBookmark({ title: 'Сайт', url: ${JSON.stringify(base + '/')}, folder: f.id }); await problet.addBookmark({ title: 'Файл', url: ${JSON.stringify(fileUrl)} }); st = await problet.bookmarks(); return { n: st.bookmarks.length, color: st.folders[0].color, folder: st.bookmarks[0].folder === f.id }; })()`);
 	check('закладки, папка и её цвет', st1.n === 2 && /^#/.test(st1.color) && st1.folder, st1);
-	const badBm = await c.ev(bm.id, `api.addBookmark({ title: 'x', url: 'javascript:alert(1)' }).then(() => 'принято', () => 'отказ')`);
+	const badBm = await c.ev(bm.id, `problet.addBookmark({ title: 'x', url: 'javascript:alert(1)' }).then(() => 'принято', () => 'отказ')`);
 	check('закладка с javascript: отклоняется', badBm === 'отказ', badBm);
 	await sleep(600);
 	const shown = await c.ev(bm.id, `document.querySelectorAll('#list .item').length`);
@@ -176,13 +176,13 @@ async function first(base) {
 	const fl = await c.open('problet://files/?p=' + encodeURIComponent(files));
 	const names = await c.ev(fl.id, `[...document.querySelectorAll('#list .row .name span:not(.ext)')].map(e => e.textContent)`);
 	check('проводник показывает папку с юникодом и пробелом', names.includes('страница.html') && names.includes('pic.svg') && names.includes('вложенная'), names);
-	const list = await c.ev(fl.id, `api.filesList(${JSON.stringify(files)})`);
+	const list = await c.ev(fl.id, `problet.filesList(${JSON.stringify(files)})`);
 	check('у записей проводника есть путь и адрес file://', list.entries.every((e) => e.path && e.url.startsWith('file:///')) && list.parent === work, list.parent);
 	const rootDir = path.parse(files).root;
-	const top = await c.ev(fl.id, `api.filesList(${JSON.stringify(rootDir)})`);
+	const top = await c.ev(fl.id, `problet.filesList(${JSON.stringify(rootDir)})`);
 	if (process.platform === 'win32') {
 		check('у корня диска родитель — список дисков', top.parent === '::drives', top.parent);
-		const drives = await c.ev(fl.id, `api.filesList('::drives')`);
+		const drives = await c.ev(fl.id, `problet.filesList('::drives')`);
 		check('список дисков Windows', drives.virtual === true && drives.entries.some((e) => e.path.toUpperCase() === rootDir.toUpperCase()), drives.entries.map((e) => e.path));
 		const dr = await c.open('problet://files/?p=' + encodeURIComponent('::drives'));
 		check('страница списка дисков', (await c.ev(dr.id, `document.querySelectorAll('#list .row').length`)) >= 1);
@@ -190,7 +190,7 @@ async function first(base) {
 	} else {
 		check('у корня нет родителя', top.parent === '' && top.entries.length > 0, top.parent);
 	}
-	const denied = await c.ev(fl.id, `api.filesList(${JSON.stringify(path.join(files, 'нет такой'))})`);
+	const denied = await c.ev(fl.id, `problet.filesList(${JSON.stringify(path.join(files, 'нет такой'))})`);
 	check('несуществующая папка даёт понятную ошибку', !!denied.error && denied.entries.length === 0, denied.error);
 	const lf = await c.open(fileUrl);
 	check('локальная страница открывается', lf.title === 'Локальная' && (await c.ev(lf.id, 'document.getElementById("p").textContent')) === 'привет', lf);
@@ -201,7 +201,7 @@ async function first(base) {
 	const svgFile = path.join(files, 'новый.svg');
 	const pngFile = path.join(files, 'точка.png');
 	const png1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-	const io = await c.ev(fl.id, `(async () => { await api.svgWrite(${JSON.stringify(svgFile)}, '<svg xmlns="http://www.w3.org/2000/svg"/>'); const r = await api.svgRead(${JSON.stringify(svgFile)}); await api.pngWrite(${JSON.stringify(pngFile)}, 'data:image/png;base64,${png1}'); const p = await api.pngRead(${JSON.stringify(pngFile)}); const no = await api.svgWrite(${JSON.stringify(path.join(files, 'x.txt'))}, 'x').then(() => 'принято', () => 'отказ'); return [r.text.includes('<svg'), p.width, p.height, no]; })()`);
+	const io = await c.ev(fl.id, `(async () => { await problet.svgWrite(${JSON.stringify(svgFile)}, '<svg xmlns="http://www.w3.org/2000/svg"/>'); const r = await problet.svgRead(${JSON.stringify(svgFile)}); await problet.pngWrite(${JSON.stringify(pngFile)}, 'data:image/png;base64,${png1}'); const p = await problet.pngRead(${JSON.stringify(pngFile)}); const no = await problet.svgWrite(${JSON.stringify(path.join(files, 'x.txt'))}, 'x').then(() => 'принято', () => 'отказ'); return [r.text.includes('<svg'), p.width, p.height, no]; })()`);
 	check('чтение и запись svg и png', io[0] === true && io[1] === 1 && io[2] === 1 && io[3] === 'отказ' && fs.existsSync(svgFile) && fs.existsSync(pngFile), io);
 
 	// --- сайт: блокировщик, история, скачивание
@@ -209,7 +209,7 @@ async function first(base) {
 	check('сайт открывается', site.title === 'Сайт', site);
 	const ads = await c.ev(site.id, '[window.adLoaded || 0, window.okLoaded || 0]');
 	check('своё правило блокировщика режет скрипт, остальное грузится', ads[0] === 0 && ads[1] === 1, ads);
-	const visits = await c.ev(s.id, 'api.visits()');
+	const visits = await c.ev(s.id, 'problet.visits()');
 	check('посещение попало в историю', visits.some((v) => v.url === base + '/' && v.title === 'Сайт'), visits.slice(0, 3));
 	await c.ev(site.id, `location.href = ${JSON.stringify(base + '/plain.bin')}`);
 	await sleep(1500);
@@ -222,7 +222,7 @@ async function first(base) {
 	}
 	check('файл скачивается в выбранную папку', !!got && fs.statSync(path.join(dl, got)).size === 4096, { got, dir: fs.readdirSync(dl) });
 	check('имя файла с кириллицей сохранено', got === 'загрузка.bin', got);
-	const dls = await c.ev(s.id, 'api.downloads()');
+	const dls = await c.ev(s.id, 'problet.downloads()');
 	check('загрузка есть в списке', dls.some((d) => d.state === 'done' && d.total === 4096), dls);
 	const nf = await c.open(base + '/нет', 800);
 	check('страница с ошибкой 404 показывается', (await c.text(nf.id)).includes('нет'), nf);
@@ -230,25 +230,25 @@ async function first(base) {
 	check('недоступный сайт даёт страницу ошибки', /Не удалось открыть страницу|Could not open the page/.test(await c.text(dead.id)), dead);
 
 	// --- аддон Problet: установка по ссылке, скрипт на странице, фон, exec, isProblet
-	const ad = await c.ev(s.id, `api.addonInstallUrl(${JSON.stringify(base + '/addon/addon.json')}).then((r) => r.message, (e) => 'ошибка: ' + e.message)`);
+	const ad = await c.ev(s.id, `problet.addonInstallUrl(${JSON.stringify(base + '/addon/addon.json')}).then((r) => r.message, (e) => 'ошибка: ' + e.message)`);
 	check('аддон ставится по ссылке', /установлен/.test(ad), ad);
 	const ap = await c.open(base + '/', 2500);
-	const adRes = await c.ev(ap.id, '[document.documentElement.dataset.addon, document.documentElement.dataset.exec, typeof window.problet, window.isProblet]');
+	const adRes = await c.ev(ap.id, '[document.documentElement.dataset.addon, document.documentElement.dataset.exec, typeof (window.problet && window.problet.send), window.isProblet, window.problet && window.problet.isProblet]');
 	check('скрипт аддона работает в своём мире, фон отвечает и выполняет команду', adRes[0] === 'object' && /^привет\|\d+$/.test(adRes[1] || '') && adRes[2] === 'undefined', adRes);
-	check('сайт видит isProblet', adRes[3] === true, adRes[3]);
-	const adList = await c.ev(s.id, 'api.extList().then((l) => l.filter((x) => x.addon).map((x) => x.name + ":" + x.granted.map((g) => g.perm).join()))');
+	check('сайт видит isProblet', adRes[3] === true && adRes[4] === true, adRes.slice(3));
+	const adList = await c.ev(s.id, 'problet.extList().then((l) => l.filter((x) => x.addon).map((x) => x.name + ":" + x.granted.map((g) => g.perm).join()))');
 	check('аддон в списке расширений с выданным разрешением', adList.length === 1 && adList[0] === 'Проверка:exec', adList);
 
 	// --- пароли
 	const pw = await c.open('problet://passwords/');
-	const v = await c.ev(pw.id, `(async () => { await api.pwCreate('мастер-пароль-1'); await api.pwAdd({ origin: 'example.com', username: 'я', password: 'секрет' }); const l1 = await api.pwList(); const p = await api.pwReveal(l1[0].id); await api.pwLock(); const locked = await api.pwList().then(() => 'открыто', () => 'закрыто'); const wrong = await api.pwUnlock('не тот пароль').then(() => 'принято', () => 'отказ'); await api.pwUnlock('мастер-пароль-1'); const l2 = await api.pwList(); return [l1.length, l1[0].origin, p, locked, wrong, l2.length]; })()`);
+	const v = await c.ev(pw.id, `(async () => { await problet.pwCreate('мастер-пароль-1'); await problet.pwAdd({ origin: 'example.com', username: 'я', password: 'секрет' }); const l1 = await problet.pwList(); const p = await problet.pwReveal(l1[0].id); await problet.pwLock(); const locked = await problet.pwList().then(() => 'открыто', () => 'закрыто'); const wrong = await problet.pwUnlock('не тот пароль').then(() => 'принято', () => 'отказ'); await problet.pwUnlock('мастер-пароль-1'); const l2 = await problet.pwList(); return [l1.length, l1[0].origin, p, locked, wrong, l2.length]; })()`);
 	check('хранилище паролей: создать, добавить, запереть, открыть', v[0] === 1 && v[1] === 'https://example.com' && v[2] === 'секрет' && v[3] === 'закрыто' && v[4] === 'отказ' && v[5] === 1, v);
 	const vf = JSON.parse(fs.readFileSync(path.join(profile, 'vault.json'), 'utf8'));
 	check('файл хранилища зашифрован', vf.v === 1 && !JSON.stringify(vf).includes('секрет') && !JSON.stringify(vf).includes('example.com'));
 
 	// --- пространства
 	const sp = await c.open('problet://spaces/');
-	const spaces = await c.ev(sp.id, `(async () => { const id = await api.spacesAdd('Работа'); const a = await api.spaces(); await api.spacesSwitch('main'); await api.spacesRemove(id); const b = await api.spaces(); return [a.spaces.length, a.current === id, b.spaces.length, b.current]; })()`);
+	const spaces = await c.ev(sp.id, `(async () => { const id = await problet.spacesAdd('Работа'); const a = await problet.spaces(); await problet.spacesSwitch('main'); await problet.spacesRemove(id); const b = await problet.spaces(); return [a.spaces.length, a.current === id, b.spaces.length, b.current]; })()`);
 	check('пространства: добавить, переключить, удалить', spaces[0] === 2 && spaces[1] === true && spaces[2] === 1 && spaces[3] === 'main', spaces);
 
 	// --- остальные внутренние страницы просто открываются без ошибок
@@ -278,9 +278,9 @@ async function second(base) {
 	const tabs = await c.tabs();
 	check('вкладки прошлого запуска вернулись', tabs.length > 3 && tabs.some((t) => t.url === base + '/' || t.url === ''), tabs.map((t) => t.url));
 	const s = await c.open('problet://settings/');
-	const st = await c.ev(s.id, 'api.getSettings().then(r => [r.settings.adblock, r.settings.customButtons.length, r.settings.hotkeys["cb:smoke001"]])');
+	const st = await c.ev(s.id, 'problet.getSettings().then(r => [r.settings.adblock, r.settings.customButtons.length, r.settings.hotkeys["cb:smoke001"]])');
 	check('настройки пережили перезапуск', st[0] === true && st[1] === 1 && st[2] === 'Ctrl+Alt+J', st);
-	const pw = await c.ev(s.id, `api.pwStatus().then(r => [r.exists, r.unlocked])`);
+	const pw = await c.ev(s.id, `problet.pwStatus().then(r => [r.exists, r.unlocked])`);
 	check('хранилище паролей после перезапуска закрыто', pw[0] === true && pw[1] === false, pw);
 	await c.quit();
 	await Promise.race([exited, sleep(15000)]);

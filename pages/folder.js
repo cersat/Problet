@@ -26,9 +26,9 @@ function paint() {
 		let host = '';
 		try { host = new URL(b.url).host; } catch (e) { /* не адрес с хостом */ }
 		row.append(fav, Object.assign(document.createElement('span'), { className: 'title', textContent: b.title }), Object.assign(document.createElement('span'), { className: 'host', textContent: host }));
-		row.addEventListener('click', () => api.folderOpen(b.url, false));
+		row.addEventListener('click', () => problet.folderOpen(b.url, false));
 		row.addEventListener('auxclick', (e) => {
-			if (e.button === 1) api.folderOpen(b.url, true);
+			if (e.button === 1) problet.folderOpen(b.url, true);
 		});
 		list.append(row);
 	}
@@ -40,7 +40,7 @@ function paint() {
 		s.title = name;
 		if (hex) s.style.background = hex;
 		s.addEventListener('click', async () => {
-			state = await api.setFolderColor(id, hex);
+			state = await problet.setFolderColor(id, hex);
 			paint();
 		});
 		colors.append(s);
@@ -49,12 +49,12 @@ function paint() {
 	for (const c of state.colors) swatch(c.hex, c.name);
 }
 
-$('all').addEventListener('click', () => api.folderOpenAll(id));
-$('del').addEventListener('click', () => api.folderDelete(id));
+$('all').addEventListener('click', () => problet.folderOpenAll(id));
+$('del').addEventListener('click', () => problet.folderDelete(id));
 document.addEventListener('keydown', (e) => {
 	if (e.key === 'Escape') window.blur();
 });
-api.bookmarks().then((s) => {
+problet.bookmarks().then((s) => {
 	state = s;
 	paint();
 });

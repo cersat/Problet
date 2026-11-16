@@ -105,7 +105,7 @@ function navItem(id, label, count, folder) {
 			e.preventDefault();
 			item.classList.remove('drop');
 			const bookmarkId = e.dataTransfer.getData('text/plain');
-			if (bookmarkId) act(() => api.updateBookmark(bookmarkId, { folder: id === 'none' ? null : id }));
+			if (bookmarkId) act(() => problet.updateBookmark(bookmarkId, { folder: id === 'none' ? null : id }));
 		});
 	}
 
@@ -150,7 +150,7 @@ function favicon(b) {
 }
 
 let bmNew = false; // открывать закладки в новой вкладке
-const refreshBmNew = () => api.getSettings().then((r) => { bmNew = !!r.settings.bmNewTab; }).catch(() => {});
+const refreshBmNew = () => problet.getSettings().then((r) => { bmNew = !!r.settings.bmNewTab; }).catch(() => {});
 refreshBmNew();
 window.addEventListener('focus', refreshBmNew);
 
@@ -208,10 +208,10 @@ function render() {
 
 async function removeBookmark(b) {
 	try {
-		state = await api.removeBookmark(b.id);
+		state = await problet.removeBookmark(b.id);
 		render();
 		showToast('Закладка удалена', async () => {
-			state = await api.restoreBookmark(b);
+			state = await problet.restoreBookmark(b);
 			render();
 		});
 	} catch (e) {
@@ -221,7 +221,7 @@ async function removeBookmark(b) {
 
 async function removeFolder(f) {
 	if (!confirm(probletTr('Удалить папку «' + f.name + '»? Закладки из неё останутся в разделе «Без папки».'))) return;
-	await act(() => api.removeFolder(f.id));
+	await act(() => problet.removeFolder(f.id));
 }
 
 // ---------- Окно закладки ----------
@@ -255,7 +255,7 @@ $('edit-form').addEventListener('submit', async (e) => {
 	e.preventDefault();
 	const payload = { title: $('f-title').value, url: normalizeUrl($('f-url').value), folder: $('f-folder').value || null };
 	try {
-		state = editingId ? await api.updateBookmark(editingId, payload) : await api.addBookmark(payload);
+		state = editingId ? await problet.updateBookmark(editingId, payload) : await problet.addBookmark(payload);
 		$('edit-dialog').close();
 		render();
 	} catch (err) {
@@ -298,9 +298,9 @@ $('folder-form').addEventListener('submit', async (e) => {
 	e.preventDefault();
 	const name = $('folder-name').value;
 	try {
-		state = renamingFolderId ? await api.renameFolder(renamingFolderId, name) : await api.addFolder(name);
+		state = renamingFolderId ? await problet.renameFolder(renamingFolderId, name) : await problet.addFolder(name);
 		const saved = renamingFolderId ? state.folders.find((f) => f.id === renamingFolderId) : state.folders.find((f) => f.name.toLowerCase() === name.trim().toLowerCase());
-		if (saved && (saved.color || '') !== folderColor) state = await api.setFolderColor(saved.id, folderColor);
+		if (saved && (saved.color || '') !== folderColor) state = await problet.setFolderColor(saved.id, folderColor);
 		$('folder-dialog').close();
 		render();
 	} catch (err) {
@@ -323,7 +323,7 @@ $('sort').addEventListener('change', (e) => {
 });
 
 // problet://bookmarks/?edit=<id> — сразу открыть окно изменения закладки (так открывает пункт меню панели закладок)
-act(() => api.bookmarks()).then(() => {
+act(() => problet.bookmarks()).then(() => {
 	const params = new URLSearchParams(location.search);
 	const id = params.get('edit');
 	const target = id && state && state.bookmarks.find((x) => x.id === id);
@@ -336,9 +336,9 @@ act(() => api.bookmarks()).then(() => {
 });
 
 // Закладки могли измениться в другой вкладке: перечитываем, если человек сейчас не вводит что-то в окне
-api.onChange((kinds) => {
+problet.onChange((kinds) => {
 	if (!kinds.includes('bookmarks') && !kinds.includes('all')) return;
 	const el = document.activeElement;
 	if (el && el.tagName === 'INPUT' && el.id !== 'search') return;
-	act(() => api.bookmarks());
+	act(() => problet.bookmarks());
 });

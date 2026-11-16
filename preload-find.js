@@ -19,7 +19,7 @@ function watchTheme() {
 }
 watchTheme();
 
-contextBridge.exposeInMainWorld('api', {
+contextBridge.exposeInMainWorld('problet', {
 	find: (text, forward, next) => ipcRenderer.send('find-query', { text, forward, next }),
 	close: () => ipcRenderer.send('find-close'),
 	onOpen: (cb) => ipcRenderer.on('find-open', (_e, text) => cb(text)),

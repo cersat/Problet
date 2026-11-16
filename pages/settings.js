@@ -24,7 +24,7 @@ function showCustom(on) {
 }
 
 async function load() {
-	const { settings, engines, accents, searchCount, version, arrowSets, themes: th, defaultKeywords: dk } = await api.getSettings();
+	const { settings, engines, accents, searchCount, version, arrowSets, themes: th, defaultKeywords: dk } = await problet.getSettings();
 	defaultKeywords = dk;
 	arrows = arrowSets;
 	themes = th;
@@ -140,7 +140,7 @@ function presetCard(p, own) {
 		del.addEventListener('click', (e) => {
 			e.stopPropagation();
 			run(async () => {
-				const r = await api.setSettings({ themePresets: current.themePresets.filter((x) => x.id !== p.id) });
+				const r = await problet.setSettings({ themePresets: current.themePresets.filter((x) => x.id !== p.id) });
 				current = r;
 				renderPresets();
 				say('Набор «' + p.name + '» удалён');
@@ -161,7 +161,7 @@ function renderPresets() {
 // Меняет параметры темы и перерисовывает весь раздел
 function applyTheme(patch, message) {
 	return run(async () => {
-		current = await api.setSettings(patch);
+		current = await problet.setSettings(patch);
 		for (const el of document.querySelectorAll('[data-setting]')) {
 			const k = el.dataset.setting;
 			if (!Object.hasOwn(patch, k)) continue;
@@ -210,7 +210,7 @@ function listRow(name, muted) {
 
 function saveLayout(patch, after) {
 	run(async () => {
-		current = await api.setSettings(patch);
+		current = await problet.setSettings(patch);
 		renderPanels();
 		if (after) after();
 		else say('Сохранено');
@@ -261,7 +261,7 @@ async function cbSave() {
 	};
 	const list = cbEditing ? current.customButtons.map((c) => (c.id === entry.id ? entry : c)) : [...current.customButtons, entry];
 	try {
-		current = await api.setSettings({ customButtons: list });
+		current = await problet.setSettings({ customButtons: list });
 		$('cb-dialog').close();
 		renderPanels();
 		return entry;
@@ -282,7 +282,7 @@ $('cb-draw').addEventListener('click', async () => {
 // Рисунок мог измениться в редакторе, пока эта страница была открыта
 window.addEventListener('focus', async () => {
 	try {
-		current = (await api.getSettings()).settings;
+		current = (await problet.getSettings()).settings;
 		renderPanels();
 	} catch (e) { /* страница закрывается */ }
 });
@@ -395,7 +395,7 @@ for (const el of document.querySelectorAll('[data-setting]')) {
 	el.addEventListener('change', () => run(async () => {
 		const value = el.type === 'checkbox' ? el.checked : el.value;
 		try {
-			await api.setSettings({ [el.dataset.setting]: value });
+			await problet.setSettings({ [el.dataset.setting]: value });
 		} catch (e) {
 			if (el.type === 'checkbox') el.checked = !!current[el.dataset.setting];
 			else el.value = current[el.dataset.setting];
@@ -416,13 +416,13 @@ for (const el of document.querySelectorAll('[data-setting]')) {
 }
 
 $('login-templates').addEventListener('change', () => run(async () => {
-	current = await api.setSettings({ loginTemplates: $('login-templates').value.split('\n') });
+	current = await problet.setSettings({ loginTemplates: $('login-templates').value.split('\n') });
 	$('login-templates').value = current.loginTemplates.join('\n');
 	say('Сохранено');
 }));
 
 $('startup-url').addEventListener('change', () => run(async () => {
-	await api.setSettings({ startupUrl: $('startup-url').value });
+	await problet.setSettings({ startupUrl: $('startup-url').value });
 	say('Сохранено');
 }));
 
@@ -442,7 +442,7 @@ $('preset-save').addEventListener('click', () => run(async () => {
 	const theme = {};
 	for (const k of themes.keys) theme[k] = current[k];
 	const id = 't:' + Date.now().toString(36);
-	current = await api.setSettings({ themePresets: [...(current.themePresets || []), { id, name, theme }] });
+	current = await problet.setSettings({ themePresets: [...(current.themePresets || []), { id, name, theme }] });
 	$('preset-name').value = '';
 	renderPresets();
 	say('Набор «' + name + '» сохранён');
@@ -451,13 +451,13 @@ $('preset-name').addEventListener('keydown', (e) => {
 	if (e.key === 'Enter') $('preset-save').click();
 });
 
-$('view-history').addEventListener('click', () => run(() => api.openInNewTab('history')));
+$('view-history').addEventListener('click', () => run(() => problet.openInNewTab('history')));
 
 $('clear-visits').addEventListener('click', () => run(async () => {
 	const sel = $('clear-period');
 	const label = sel.selectedOptions[0].textContent.toLowerCase();
 	if (!confirm(probletTr('Удалить историю посещений ' + label + '?'))) return;
-	const n = await api.clearVisitsSince(sel.value);
+	const n = await problet.clearVisitsSince(sel.value);
 	say(n ? 'Удалено записей: ' + n : 'За этот период записей не было');
 	renderTop();
 }));
@@ -476,34 +476,34 @@ async function renderCache() {
 	$('cache-dir').textContent = current.cacheDir || 'По умолчанию (в папке данных браузера)';
 	$('cache-dir-reset').classList.toggle('hidden', !current.cacheDir);
 	try {
-		$('cache-size').textContent = cacheBytes(await api.cacheSize());
+		$('cache-size').textContent = cacheBytes(await problet.cacheSize());
 	} catch (e) {
 		$('cache-size').textContent = 'Не удалось узнать';
 	}
 }
-$('offline-open').addEventListener('click', () => run(() => api.openInNewTab('offline')));
+$('offline-open').addEventListener('click', () => run(() => problet.openInNewTab('offline')));
 $('cache-size-refresh').addEventListener('click', () => run(renderCache));
 $('cache-dir-pick').addEventListener('click', () => run(async () => {
-	const r = await api.cacheDirPick();
+	const r = await problet.cacheDirPick();
 	if (r.canceled) return;
-	current = await api.setSettings({ cacheDir: r.path });
+	current = await problet.setSettings({ cacheDir: r.path });
 	await renderCache();
 	say('Сохранено. Перезапусти браузер, чтобы кеш перешёл в новую папку');
 }));
 $('cache-dir-reset').addEventListener('click', () => run(async () => {
-	current = await api.setSettings({ cacheDir: '' });
+	current = await problet.setSettings({ cacheDir: '' });
 	await renderCache();
 	say('Сохранено. Перезапусти браузер');
 }));
-$('cache-restart').addEventListener('click', () => run(() => api.restart()));
+$('cache-restart').addEventListener('click', () => run(() => problet.restart()));
 $('clear-cache').addEventListener('click', () => run(async () => {
-	const r = await api.clearCache();
+	const r = await problet.clearCache();
 	say(r.message);
 	await renderCache();
 }));
 
 async function saveCustom() {
-	await api.setSettings({ engine: 'custom', customTemplate: $('custom').value });
+	await problet.setSettings({ engine: 'custom', customTemplate: $('custom').value });
 	say('Поисковик сохранён');
 }
 
@@ -515,26 +515,26 @@ $('engine').addEventListener('change', () => run(async () => {
 		else say('Введи шаблон адреса поиска со значком %s, и он сохранится');
 		return;
 	}
-	await api.setSettings({ engine: id });
+	await problet.setSettings({ engine: id });
 	say('Поисковик сохранён');
 }));
 
 $('custom').addEventListener('change', () => run(saveCustom));
 
 $('export').addEventListener('click', () => run(async () => {
-	const r = await api.exportData();
+	const r = await problet.exportData();
 	if (!r.canceled) say(r.message);
 }));
 
 $('import').addEventListener('click', () => run(async () => {
-	const r = await api.importData();
+	const r = await problet.importData();
 	if (r.canceled) return;
 	say(r.message);
 	await load();
 }));
 
 $('export-html').addEventListener('click', () => run(async () => {
-	const r = await api.exportBookmarksHtml();
+	const r = await problet.exportBookmarksHtml();
 	if (!r.canceled) say(r.message);
 }));
 
@@ -564,7 +564,7 @@ $('html-file').addEventListener('change', () => run(async () => {
 	if (file.size > 30 * 1024 * 1024) throw new Error('Файл слишком большой');
 	const items = parseBookmarksHtml(await file.text());
 	if (!items.length) throw new Error('В файле не найдено ни одной закладки');
-	const r = await api.importBookmarkItems(items);
+	const r = await problet.importBookmarkItems(items);
 	say(r.message);
 }));
 
@@ -574,7 +574,7 @@ $('html-file').addEventListener('change', () => run(async () => {
 let sourcesFound = false;
 
 async function loadSources() {
-	const list = await api.importSources();
+	const list = await problet.importSources();
 	const sel = $('import-src');
 	sel.textContent = '';
 	for (const s of list) {
@@ -601,7 +601,7 @@ $('import-run').addEventListener('click', () => run(async () => {
 		sourcesFound = await loadSources();
 		return;
 	}
-	const r = await api.importFrom($('import-src').value);
+	const r = await problet.importFrom($('import-src').value);
 	say(r.message);
 }));
 
@@ -620,7 +620,7 @@ function iconEl(e) {
 	return ico;
 }
 async function loadExtensions() {
-	const list = await api.extList();
+	const list = await problet.extList();
 	for (const k of Object.keys(extNames)) delete extNames[k];
 	for (const e of list) if (e.id) extNames['x:' + e.id] = e.name;
 	if (current.btnLayout) renderPanels();
@@ -650,7 +650,7 @@ async function loadExtensions() {
 		if (e.addon && e.options) {
 			const opt = document.createElement('button');
 			opt.textContent = 'Настройки';
-			opt.addEventListener('click', () => run(() => api.addonOptions(e.id)));
+			opt.addEventListener('click', () => run(() => problet.addonOptions(e.id)));
 			acts.append(opt);
 		}
 		if (e.addon && e.granted.length) {
@@ -658,7 +658,7 @@ async function loadExtensions() {
 			reset.textContent = 'Сбросить разрешения';
 			reset.title = 'Аддон снова спросит, прежде чем делать опасное';
 			reset.addEventListener('click', () => run(async () => {
-				await api.addonReset(e.id);
+				await problet.addonReset(e.id);
 				say('Разрешения аддона «' + e.name + '» сброшены');
 				await loadExtensions();
 			}));
@@ -668,8 +668,8 @@ async function loadExtensions() {
 		del.className = 'danger';
 		del.textContent = 'Удалить';
 		del.addEventListener('click', () => run(async () => {
-			if (e.addon) await api.addonRemove(e.id);
-			else await api.extRemove(e.path);
+			if (e.addon) await problet.addonRemove(e.id);
+			else await problet.extRemove(e.path);
 			await loadExtensions();
 		}));
 		acts.append(del);
@@ -694,7 +694,7 @@ async function loadCatalog() {
 	box.append(wait);
 	let list;
 	try {
-		list = await api.addonCatalog();
+		list = await problet.addonCatalog();
 	} catch (e) {
 		wait.textContent = 'Не удалось загрузить список: ' + errText(e);
 		return;
@@ -720,7 +720,7 @@ async function loadCatalog() {
 			addonErr('');
 			btn.disabled = true;
 			try {
-				await addonDone(await api.addonInstallCatalog(x.id));
+				await addonDone(await problet.addonInstallCatalog(x.id));
 			} catch (e) {
 				addonErr(errText(e));
 			}
@@ -742,7 +742,7 @@ async function addonByUrl() {
 	const v = $('addon-url').value.trim();
 	if (!v) return addonErr('Вставь ссылку на addon.json');
 	try {
-		await addonDone(await api.addonInstallUrl(v));
+		await addonDone(await problet.addonInstallUrl(v));
 	} catch (e) {
 		addonErr(errText(e));
 	}
@@ -757,7 +757,7 @@ $('addon-url').addEventListener('keydown', (e) => {
 $('addon-zip').addEventListener('click', async () => {
 	addonErr('');
 	try {
-		await addonDone(await api.addonInstallZip());
+		await addonDone(await problet.addonInstallZip());
 	} catch (e) {
 		addonErr(errText(e));
 	}
@@ -766,20 +766,20 @@ $('ext-store').addEventListener('click', () => run(async () => {
 	const input = $('ext-store-input').value.trim();
 	if (!input) throw new Error('Вставь ссылку или идентификатор расширения');
 	say('Скачиваю…');
-	const r = await api.extStore(input);
+	const r = await problet.extStore(input);
 	$('ext-store-input').value = '';
 	say(r.message);
 	await loadExtensions();
 }));
 $('ext-add').addEventListener('click', () => run(async () => {
-	const r = await api.extAdd();
+	const r = await problet.extAdd();
 	if (r && r.message) say(r.message);
 	await loadExtensions();
 }));
 
 $('clear').addEventListener('click', () => run(async () => {
 	if (!confirm(probletTr('Удалить всю историю поиска? Подсказки в адресной строке исчезнут.'))) return;
-	await api.clearSearchHistory();
+	await problet.clearSearchHistory();
 	say('История поиска очищена');
 	await load();
 }));
@@ -840,7 +840,7 @@ function renderUpdate(st) {
 	$('update-check').disabled = st.status === 'checking' || st.status === 'downloading';
 	// Пока идёт работа, обновляем статус сами
 	if (st.status === 'checking' || st.status === 'downloading') {
-		if (!upTimer) upTimer = setInterval(() => run(async () => renderUpdate(await api.updateState())), 700);
+		if (!upTimer) upTimer = setInterval(() => run(async () => renderUpdate(await problet.updateState())), 700);
 	} else if (upTimer) {
 		clearInterval(upTimer);
 		upTimer = null;
@@ -849,12 +849,12 @@ function renderUpdate(st) {
 
 $('update-check').addEventListener('click', () => run(async () => {
 	renderUpdate({ status: 'checking', mode: '' });
-	renderUpdate(await api.checkUpdate());
+	renderUpdate(await problet.checkUpdate());
 }));
 
-$('update-apply').addEventListener('click', () => run(() => api.applyUpdate()));
+$('update-apply').addEventListener('click', () => run(() => problet.applyUpdate()));
 
-run(async () => renderUpdate(await api.updateState()));
+run(async () => renderUpdate(await problet.updateState()));
 
 
 // Апплет «Настройки» нельзя убрать, пока у настроек нет горячей клавиши: иначе до них не добраться
@@ -863,26 +863,26 @@ function showDownloadDir() {
 }
 
 $('download-dir-pick').addEventListener('click', () => run(async () => {
-	const r = await api.pickDownloadDir();
+	const r = await problet.pickDownloadDir();
 	if (!r || r.canceled) return;
-	current = (await api.setSettings({ downloadDir: r.path })) || current;
+	current = (await problet.setSettings({ downloadDir: r.path })) || current;
 	showDownloadDir();
 	say('Сохранено');
 }));
 
 $('download-dir-reset').addEventListener('click', () => run(async () => {
-	current = (await api.setSettings({ downloadDir: '' })) || current;
+	current = (await problet.setSettings({ downloadDir: '' })) || current;
 	showDownloadDir();
 	say('Сохранено');
 }));
 
-$('open-bookmarks').addEventListener('click', () => run(() => api.openInNewTab('bookmarks')));
+$('open-bookmarks').addEventListener('click', () => run(() => problet.openInNewTab('bookmarks')));
 $('make-default').addEventListener('click', () => run(async () => {
-	const r = await api.makeDefaultBrowser();
+	const r = await problet.makeDefaultBrowser();
 	say(r.message, !r.ok);
 }));
-$('open-blocklist').addEventListener('click', () => run(() => api.openInNewTab('blocklist')));
-$('manage-spaces').addEventListener('click', () => run(() => api.openSpacesApplet()));
+$('open-blocklist').addEventListener('click', () => run(() => problet.openInNewTab('blocklist')));
+$('manage-spaces').addEventListener('click', () => run(() => problet.openSpacesApplet()));
 
 // ---------- Горячие клавиши ----------
 
@@ -919,7 +919,7 @@ async function startRecording(id, button) {
 	recording = { id, button };
 	button.textContent = 'Нажми сочетание…';
 	button.classList.add('recording');
-	await api.captureHotkeys(true);
+	await problet.captureHotkeys(true);
 }
 
 function stopRecording() {
@@ -928,11 +928,11 @@ function stopRecording() {
 	recording = null;
 	button.classList.remove('recording', 'conflict');
 	button.textContent = effectiveKey(id) || 'Отключено';
-	api.captureHotkeys(false);
+	problet.captureHotkeys(false);
 }
 
 async function saveHotkeys(next) {
-	const r = await api.setSettings({ hotkeys: next });
+	const r = await problet.setSettings({ hotkeys: next });
 	current = r || current;
 	renderHotkeys();
 }
@@ -979,7 +979,7 @@ $('hotkeys-reset').addEventListener('click', () => run(async () => {
 	say('Клавиши сброшены');
 }));
 
-$('open-passwords').addEventListener('click', () => run(() => api.openInNewTab('passwords')));
+$('open-passwords').addEventListener('click', () => run(() => problet.openInNewTab('passwords')));
 
 
 // ---------- Пароли: выгрузка и загрузка ----------
@@ -988,19 +988,19 @@ for (const [id, method] of [['pw-export', 'pwExport'], ['pw-import', 'pwImport']
 	$(id).addEventListener('click', () => run(async () => {
 		const master = $('pw-master').value;
 		if (!master) throw new Error('Введи мастер-пароль');
-		const r = await api[method](master);
+		const r = await problet[method](master);
 		$('pw-master').value = '';
 		if (!r.canceled) say(r.message);
 	}));
 }
 
-$('open-version').addEventListener('click', () => run(() => api.openInNewTab('version')));
+$('open-version').addEventListener('click', () => run(() => problet.openInNewTab('version')));
 
 
 // ---------- Счётчик заблокированной рекламы: обновляется на глазах ----------
 
 async function refreshBlocked() {
-	const s = await api.adblockStats();
+	const s = await problet.adblockStats();
 	$('blocked-total').textContent = s.total.toLocaleString(probletLocale());
 	$('blocked-note').textContent = 'С запуска браузера: ' + s.session.toLocaleString(probletLocale()) + '. Число идёт с момента, когда включён блокировщик';
 }
@@ -1011,11 +1011,11 @@ setInterval(() => {
 }, 2000);
 
 // Настройки могли измениться не здесь (поставили расширение, растянули панель вкладок, нарисовали значок кнопки): списки панелей и клавиш перечитываются
-api.onChange((kinds) => {
+problet.onChange((kinds) => {
 	if (!kinds.includes('settings') && !kinds.includes('all')) return;
 	if (recording || $('cb-dialog').open) return;
 	if (kinds.includes('all')) run(loadExtensions);
-	api.getSettings().then((r) => {
+	problet.getSettings().then((r) => {
 		current = r.settings;
 		return loadExtensions(); // заодно перерисует «Панели»: в них названия расширений и аддонов
 	}).catch(() => {});
@@ -1024,7 +1024,7 @@ api.onChange((kinds) => {
 // ---------- Закладки: папка по умолчанию, резервные копии, битые закладки ----------
 
 async function renderBmDefault() {
-	const st = await api.bookmarks();
+	const st = await problet.bookmarks();
 	const sel = $('bm-default-folder');
 	sel.textContent = '';
 	sel.append(new Option('Без папки', ''), new Option('В последнюю выбранную', 'last'));
@@ -1033,13 +1033,13 @@ async function renderBmDefault() {
 	if (sel.value !== (current.bmDefaultFolder || '')) sel.value = '';
 }
 $('bm-default-folder').addEventListener('change', () => run(async () => {
-	current = await api.setSettings({ bmDefaultFolder: $('bm-default-folder').value });
+	current = await problet.setSettings({ bmDefaultFolder: $('bm-default-folder').value });
 	say('Сохранено');
 }));
 
 const kb = (n) => (n < 1024 ? n + ' Б' : (n / 1024).toFixed(1).replace('.0', '') + ' КБ');
 async function renderBackups() {
-	const { dir, list } = await api.bmBackupList();
+	const { dir, list } = await problet.bmBackupList();
 	$('bm-backup-dir').textContent = dir;
 	$('bm-backup-reset').classList.toggle('hidden', !current.bmBackupDir);
 	$('bm-backup-count').textContent = list.length ? 'Сохранено копий: ' + list.length + ', последняя ' + list[0].date : 'Копий пока нет';
@@ -1060,7 +1060,7 @@ async function renderBackups() {
 		btn.disabled = b.count === null;
 		btn.addEventListener('click', () => run(async () => {
 			if (!confirm(probletTr('Заменить все закладки и папки копией от ' + b.date + '? Текущие закладки перед этим сохранятся отдельной копией.'))) return;
-			const r = await api.bmBackupRestore(b.name);
+			const r = await problet.bmBackupRestore(b.name);
 			say(r.message);
 			await renderBackups();
 			await renderBmDefault();
@@ -1071,24 +1071,24 @@ async function renderBackups() {
 	if (list.length > 5) box.append(Object.assign(document.createElement('div'), { className: 'more', textContent: 'И ещё ' + (list.length - 5) + ' — в папке с копиями' }));
 }
 $('bm-backup-now').addEventListener('click', () => run(async () => {
-	say((await api.bmBackupNow()).message);
+	say((await problet.bmBackupNow()).message);
 	await renderBackups();
 }));
 $('bm-backup-pick').addEventListener('click', () => run(async () => {
-	const r = await api.bmBackupDirPick();
+	const r = await problet.bmBackupDirPick();
 	if (r.canceled) return;
-	current = await api.setSettings({ bmBackupDir: r.path });
+	current = await problet.setSettings({ bmBackupDir: r.path });
 	await renderBackups();
 	say('Сохранено');
 }));
 $('bm-backup-reset').addEventListener('click', () => run(async () => {
-	current = await api.setSettings({ bmBackupDir: '' });
+	current = await problet.setSettings({ bmBackupDir: '' });
 	await renderBackups();
 	say('Сохранено');
 }));
-$('bm-backup-open').addEventListener('click', () => run(() => api.bmBackupOpen()));
+$('bm-backup-open').addEventListener('click', () => run(() => problet.bmBackupOpen()));
 
-api.onBmCheckProgress((done, total) => {
+problet.onBmCheckProgress((done, total) => {
 	$('bm-check-status').textContent = 'Проверено ' + done + ' из ' + total;
 });
 function renderBroken(list) {
@@ -1110,12 +1110,12 @@ function renderBroken(list) {
 		info.append(t, url, why);
 		const open = document.createElement('button');
 		open.textContent = 'Открыть';
-		open.addEventListener('click', () => run(() => api.folderOpen(x.url, true)));
+		open.addEventListener('click', () => run(() => problet.folderOpen(x.url, true)));
 		const del = document.createElement('button');
 		del.className = 'danger';
 		del.textContent = 'Удалить';
 		del.addEventListener('click', () => run(async () => {
-			await api.removeBookmark(x.id);
+			await problet.removeBookmark(x.id);
 			renderBroken(list.filter((y) => y !== x));
 			say('Закладка удалена');
 		}));
@@ -1130,7 +1130,7 @@ function renderBroken(list) {
 		all.textContent = 'Удалить все неоткрывающиеся (' + broken.length + ')';
 		all.addEventListener('click', () => run(async () => {
 			if (!confirm(probletTr('Удалить ' + broken.length + ' закладок, которые больше не открываются?'))) return;
-			for (const x of broken) await api.removeBookmark(x.id);
+			for (const x of broken) await problet.removeBookmark(x.id);
 			renderBroken(list.filter((y) => y.kind !== 'broken'));
 			say('Удалено закладок: ' + broken.length);
 		}));
@@ -1143,7 +1143,7 @@ $('bm-check').addEventListener('click', () => run(async () => {
 	$('bm-broken').textContent = '';
 	$('bm-check-status').textContent = 'Проверяю…';
 	try {
-		const list = await api.bmCheck();
+		const list = await problet.bmCheck();
 		$('bm-check-status').textContent = list.length ? 'Не открываются: ' + list.filter((x) => x.kind === 'broken').length + ', под вопросом: ' + list.filter((x) => x.kind === 'maybe').length : 'Все закладки открываются';
 		renderBroken(list);
 	} catch (e) {
@@ -1160,7 +1160,7 @@ run(async () => {
 	await renderBackups();
 	await renderCache();
 });
-api.onChange((kinds) => {
+problet.onChange((kinds) => {
 	if (kinds.includes('bookmarks') || kinds.includes('all')) run(renderBmDefault);
 });
 
@@ -1216,13 +1216,13 @@ $('kw-add').addEventListener('click', () => {
 });
 $('kw-reset').addEventListener('click', () => run(async () => {
 	if (!confirm(probletTr('Вернуть стандартный набор префиксов? Свои префиксы пропадут.'))) return;
-	current = await api.setSettings({ searchKeywords: defaultKeywords });
+	current = await problet.setSettings({ searchKeywords: defaultKeywords });
 	loadKeywords();
 	say('Префиксы сброшены');
 }));
 $('kw-save').addEventListener('click', () => run(async () => {
 	const list = kwDraft.filter((k) => k.key.trim() || k.name.trim() || k.url.trim());
-	current = await api.setSettings({ searchKeywords: list });
+	current = await problet.setSettings({ searchKeywords: list });
 	loadKeywords();
 	say('Префиксы сохранены');
 }));
@@ -1232,7 +1232,7 @@ $('kw-save').addEventListener('click', () => run(async () => {
 async function renderTop() {
 	const box = $('top-list');
 	box.textContent = '';
-	const list = await api.topSites();
+	const list = await problet.topSites();
 	for (const s of list) {
 		const row = document.createElement('div');
 		row.className = 'top-row';
@@ -1253,7 +1253,7 @@ function plural(n, one, few, many) {
 	if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
 	return many;
 }
-$('lang-restart').addEventListener('click', () => run(() => api.restart()));
+$('lang-restart').addEventListener('click', () => run(() => problet.restart()));
 document.querySelector('[data-setting="topSites"]').addEventListener('change', () => setTimeout(() => run(renderTop), 100));
 
 run(async () => {

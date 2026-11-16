@@ -103,7 +103,7 @@ function render() {
 		if (!e.dir) {
 			row.addEventListener('click', (ev) => {
 				ev.preventDefault();
-				api.filesOpen(e.path);
+				problet.filesOpen(e.path);
 			});
 		}
 		const name = document.createElement('div');
@@ -142,7 +142,7 @@ function render() {
 
 async function load() {
 	try {
-		data = await api.filesList(dir);
+		data = await problet.filesList(dir);
 	} catch (e) {
 		$('list').textContent = '';
 		$('list').append(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'Не удалось открыть папку' }));

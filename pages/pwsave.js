@@ -1,8 +1,8 @@
 const $ = (id) => document.getElementById(id);
 let offer = null;
 
-api.pwOfferCurrent().then((o) => {
-	if (!o) return api.panelClose();
+problet.pwOfferCurrent().then((o) => {
+	if (!o) return problet.panelClose();
 	offer = o;
 	$('title').textContent = o.update ? 'Обновить пароль?' : 'Сохранить пароль?';
 	$('site').textContent = new URL(o.origin).hostname;
@@ -15,22 +15,22 @@ api.pwOfferCurrent().then((o) => {
 		$('master2').placeholder = 'Повтори мастер-пароль';
 		$('note').textContent = o.exists ? 'Хранилище закрыто: введи мастер-пароль' : 'Хранилища ещё нет: мастер-пароль защитит сохранённые пароли, забыв его, их не восстановить';
 	}
-}).catch(() => api.panelClose());
+}).catch(() => problet.panelClose());
 
 $('save').addEventListener('click', async () => {
 	$('err').textContent = '';
 	try {
 		if (!offer.unlocked) {
-			if (offer.exists) await api.pwUnlock($('master').value);
+			if (offer.exists) await problet.pwUnlock($('master').value);
 			else {
 				if ($('master').value !== $('master2').value) throw new Error('Пароли не совпадают');
-				await api.pwCreate($('master').value);
+				await problet.pwCreate($('master').value);
 			}
 		}
-		await api.pwPendingSave(offer.tabId);
-		api.panelClose();
+		await problet.pwPendingSave(offer.tabId);
+		problet.panelClose();
 	} catch (e) {
 		$('err').textContent = offer.exists ? 'Неверный мастер-пароль' : String(e.message || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
 	}
 });
-$('later').addEventListener('click', () => api.panelClose()); // предложение остаётся: ключ в адресной строке
+$('later').addEventListener('click', () => problet.panelClose()); // предложение остаётся: ключ в адресной строке

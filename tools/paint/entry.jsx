@@ -18,7 +18,7 @@ addLocaleData([...ruData, ...enData]);
 // Язык редактора берётся у окна браузера: в нём же проставлен data-lang
 const LANG = document.documentElement.dataset.lang === 'en' ? 'en' : 'ru';
 
-const api = window.api;
+const api = window.problet;
 const file = new URLSearchParams(location.search).get('p') || '';
 const params = new URLSearchParams(location.search);
 const bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
