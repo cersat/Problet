@@ -3623,6 +3623,11 @@ app.whenReady().then(() => {
 			desktop.startInbox(app.getPath('userData'), openIncoming);
 		} catch (e) { log('не удалось подготовить приём ссылок из системы', e); }
 	}
+	if (app.isPackaged && !headless.enabled && (process.platform === 'linux' || process.platform === 'win32')) { // команда problet в терминале
+		try {
+			require('./desktop').installCommand(process.env.APPIMAGE || process.execPath, os.homedir());
+		} catch (e) { log('не удалось записать команду problet', e); }
+	}
 	// macOS: стандартное меню Electron перезагружало бы саму панель браузера по Cmd+R и закрывало окно по Cmd+W, когда фокус в поиске или окошке.
 	// Оставляем только нужное системе: меню приложения, правку (копирование и вставка работают через него) и окно
 	if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { label: 'Окно', submenu: [{ role: 'minimize' }, { role: 'zoom' }] }]));
@@ -3635,6 +3640,8 @@ app.whenReady().then(() => {
 	adblock.start(session.defaultSession, store);
 	startIdentity(session.defaultSession);
 	setupDownloads(session.defaultSession);
+	extensions.setLog(log);
+	session.defaultSession.serviceWorkers.on('console-message', (_e, d) => { if (/^chrome-extension:/.test(d.sourceUrl || '') && d.level >= 2) log('фон расширения:', d.message, d.sourceUrl, d.lineNumber); });
 	extensions.init(session.defaultSession, app.getPath('userData')).then(() => {
 		extReady = true;
 		sendExtActions();

@@ -1053,6 +1053,7 @@
 		['Создание аккаунта на ', 'Creating an account on '],
 		['Шаблонные логины', 'Login templates'],
 		['По одному в строке. Когда ты нажимаешь на поле логина в форме создания аккаунта, они предлагаются для подстановки', 'One per line. When you click the login field of an account-creation form, they are offered for filling in'],
+		['Вставь ссылку или идентификатор расширения', 'Paste an extension link or ID'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

@@ -41,6 +41,17 @@
 	ensure('webNavigation');
 	ensure('windows');
 	ensure('commands');
+	ensure('tabGroups', {
+		Color: { GREY: 'grey', BLUE: 'blue', RED: 'red', YELLOW: 'yellow', GREEN: 'green', PINK: 'pink', PURPLE: 'purple', CYAN: 'cyan', ORANGE: 'orange' },
+		TAB_GROUP_ID_NONE: -1,
+		query: (...a) => reply(a, []),
+		get: (...a) => reply(a, undefined),
+		update: (...a) => reply(a, undefined),
+		move: (...a) => reply(a, undefined),
+	});
+	ensure('sidePanel', { setPanelBehavior: (...a) => reply(a, undefined), setOptions: (...a) => reply(a, undefined), getOptions: (...a) => reply(a, {}), open: (...a) => reply(a, undefined) });
+	for (const n of ['debugger', 'idle', 'history', 'bookmarks', 'downloads', 'sessions', 'power', 'system', 'topSites', 'webNavigation', 'proxy', 'privacy', 'browsingData', 'identity', 'tts', 'contentSettings', 'fontSettings', 'readingList', 'search', 'userScripts', 'sidePanel']) ensure(n);
+	if (c.tabs && c.tabs.TAB_ID_NONE === undefined) c.tabs.TAB_ID_NONE = -1;
 	ensure('action', { getUserSettings: (...a) => reply(a, { isOnToolbar: true }) });
 	if (!c.menus) c.menus = c.contextMenus;
 

@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const { net } = require('electron');
+const { session } = require('electron');
 
 let ses = null;
 let file = '';
@@ -34,8 +34,9 @@ function patchBackground(dir) {
 	const mf = path.join(dir, 'manifest.json');
 	const m = readManifest(dir);
 	const bg = m.background && m.background.service_worker;
-	if (!bg || bg === 'problet-sw.js') return;
-	fs.copyFileSync(path.join(__dirname, 'ext-shim.js'), path.join(dir, 'problet-shim.js'));
+	if (!bg) return;
+	fs.copyFileSync(path.join(__dirname, 'ext-shim.js'), path.join(dir, 'problet-shim.js')); // заплатка обновляется вместе с браузером
+	if (bg === 'problet-sw.js') return;
 	const quote = (s) => JSON.stringify(s);
 	const code = m.background.type === 'module'
 		? 'import ' + quote('./problet-shim.js') + ';\nimport ' + quote('./' + bg) + ';\n'
@@ -54,10 +55,25 @@ async function loadOne(dir) {
 		entry.id = ext.id;
 		entry.name = ext.name || entry.name;
 		entry.version = ext.version || '';
+		if (ext.manifest && ext.manifest.background && ext.manifest.background.service_worker) wakeWorker(ext);
 	} catch (e) {
 		entry.error = String((e && e.message) || e);
 	}
 	return entry;
+}
+
+let swLog = () => {};
+function setLog(fn) { swLog = fn; }
+
+// Фоновый процесс расширения Electron сам не поднимает: будим его при загрузке и записываем всё, что он сообщает
+async function wakeWorker(ext) {
+	try {
+		const scope = 'chrome-extension://' + ext.id + '/';
+		await ses.serviceWorkers.startWorkerForScope(scope);
+		swLog('расширение «' + ext.name + '»: фоновый процесс запущен');
+	} catch (e) {
+		swLog('расширение «' + ext.name + '»: фоновый процесс не поднят заранее (запустится по запросу): ' + String((e && e.message) || e));
+	}
 }
 
 async function init(session, userData) {
@@ -232,7 +248,11 @@ async function download(url, log) {
 		let idle = setTimeout(() => ctl.abort(), 20000);
 		const total = setTimeout(() => ctl.abort(), 120000);
 		try {
-			const res = await net.fetch(url, { redirect: 'follow', signal: ctl.signal });
+			// Первая и третья попытки идут через отдельный чистый сеанс Chromium (без блокировщика, кеша и маскировки браузера),
+			// вторая — обычным сетевым кодом Node: что-то из двух да сработает
+			const res = attempt === 2
+				? await fetch(url, { redirect: 'follow', signal: ctl.signal })
+				: await session.fromPartition('problet-store').fetch(url, { redirect: 'follow', signal: ctl.signal });
 			if (res.status === 204 || res.status === 404) throw Object.assign(new Error('Магазин не отдаёт это расширение (его нет или оно недоступно для этой версии браузера)'), { final: true });
 			if (!res.ok) throw new Error('Магазин ответил кодом ' + res.status);
 			const parts = [];
@@ -356,4 +376,4 @@ async function installFromStore(input, chromeVersion, log = () => {}) {
 	}
 }
 
-module.exports = { init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };
+module.exports = { setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };

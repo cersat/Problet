@@ -58,6 +58,38 @@ function defaultButtons() {
 // Свои кнопки: название, значок и действие (адрес, скрипт на странице или команда браузера)
 const CUSTOM_LIMIT = 20;
 const CUSTOM_TYPES = ['url', 'script', 'action'];
+// Память о положении кнопок: порядок на панели с учётом тех, кого там сейчас нет (они остаются на своих местах)
+function cleanMemory(raw) {
+	const out = { tabs: [], toolbar: [], bmbar: [], extra: [] };
+	const r = raw && typeof raw === 'object' ? raw : {};
+	for (const key of PANELS) {
+		for (const id of Array.isArray(r[key]) ? r[key] : []) {
+			if (typeof id === 'string' && id.length <= 60 && !out[key].includes(id)) out[key].push(id);
+			if (out[key].length >= 200) break;
+		}
+	}
+	return out;
+}
+
+// Вливает текущий порядок panel в память: кого нет в списке, тот остаётся после своей прежней соседки
+function mergeMemory(old, list) {
+	const out = [...list];
+	for (let i = 0; i < old.length; i++) {
+		const id = old[i];
+		if (out.includes(id)) continue;
+		let at = 0;
+		for (let j = i - 1; j >= 0; j--) {
+			const k = out.indexOf(old[j]);
+			if (k >= 0) {
+				at = k + 1;
+				break;
+			}
+		}
+		out.splice(at, 0, id);
+	}
+	return out;
+}
+
 // Шаблонные логины: до 20 непустых строк без повторов, каждая до 100 знаков
 function cleanLogins(raw) {
 	const out = [];
@@ -211,6 +243,7 @@ const SETTING_DEFAULTS = {
 	tabsTwoRows: false,
 	panelOrder: [...DEFAULT_ORDER],
 	btnLayout: defaultButtons(),
+	btnMemory: { tabs: [], toolbar: [], bmbar: [], extra: [] }, // где кнопка стояла на каждой панели, даже когда её там нет
 	customButtons: [],
 	arrows: 'tri',
 	bmOnlyIcons: false,
@@ -420,6 +453,7 @@ function sanitizeSettings(raw) {
 		if (values.includes(r[key])) out[key] = r[key];
 	}
 	out.loginTemplates = cleanLogins(r.loginTemplates);
+	out.btnMemory = cleanMemory(r.btnMemory);
 	out.customButtons = cleanCustom(r.customButtons);
 	const customIds = out.customButtons.map((c) => c.id);
 	// Файлы старых версий: положение вкладок и закладок и переключатели кнопок
@@ -915,6 +949,10 @@ function setSettings(patch) {
 		const clean = cleanButtons(p.btnLayout, next.customButtons.map((c) => c.id));
 		const same = p.btnLayout && typeof p.btnLayout === 'object' && Object.keys(clean).every((k) => Array.isArray(p.btnLayout[k]) && p.btnLayout[k].join() === clean[k].join());
 		if (!same) throw new Error('Некорректное расположение кнопок');
+		const mem = cleanMemory(next.btnMemory);
+		const cur = data.settings;
+		for (const key of PANELS) mem[key] = mergeMemory(mergeMemory(mem[key], cur.btnLayout[key]), clean[key]).slice(0, 200);
+		next.btnMemory = mem;
 		next.btnLayout = clean;
 	}
 	if (p.startupUrl !== undefined) {

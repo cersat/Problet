@@ -334,19 +334,50 @@ function renderPanels() {
 				}
 				const next = {};
 				for (const k of Object.keys(L)) next[k] = L[k].filter((x) => x !== id);
-				next[sel.value].push(id);
+				// Кнопка встаёт на то место панели, где стояла раньше (если помним), иначе в конец
+				const mem = ((current.btnMemory || {})[sel.value]) || [];
+				const at = mem.indexOf(id);
+				const list = next[sel.value];
+				let put = list.length;
+				if (at >= 0) {
+					for (let j = at - 1; j >= 0; j--) {
+						const k = list.indexOf(mem[j]);
+						if (k >= 0) {
+							put = k + 1;
+							break;
+						}
+					}
+					if (put === list.length) {
+						for (let j = at + 1; j < mem.length; j++) {
+							const k = list.indexOf(mem[j]);
+							if (k >= 0) {
+								put = k;
+								break;
+							}
+						}
+					}
+				}
+				list.splice(put, 0, id);
 				saveLayout({ btnLayout: next }, () => {
 					say(sel.value === 'hidden' && current.btnLayout.hidden.indexOf(id) < 0 ? 'Нельзя скрыть: для настроек не назначено сочетание клавиш' : 'Сохранено', sel.value === 'hidden' && current.btnLayout.hidden.indexOf(id) < 0);
 				});
 			});
 			row.append(sel);
 			if (key !== 'hidden') {
+				// Панель по кругу: «вперёд» с последнего места отправляет кнопку в начало, «назад» с первого — в конец.
+				// Главные элементы панели (вкладки, адрес и т. п.) остаются на своих местах, круг идёт по остальным
+				const first = L[key].findIndex((x) => !MAIN_NAMES[x]);
+				const last = L[key].length - 1;
 				const swap = (d) => {
 					const next = JSON.parse(JSON.stringify(L));
-					[next[key][i], next[key][i + d]] = [next[key][i + d], next[key][i]];
+					const list = next[key];
+					if (d > 0 && i === last) list.splice(first, 0, list.pop());
+					else if (d < 0 && i === first) list.push(list.splice(i, 1)[0]);
+					else [list[i], list[i + d]] = [list[i + d], list[i]];
 					saveLayout({ btnLayout: next });
 				};
-				row.append(moveButton(glyphs[0], 'Назад по панели', i === 0, () => swap(-1)), moveButton(glyphs[1], 'Вперёд по панели', i === L[key].length - 1, () => swap(1)));
+				const alone = L[key].filter((x) => !MAIN_NAMES[x]).length < 2;
+				row.append(moveButton(glyphs[0], 'Назад по панели', alone, () => swap(-1)), moveButton(glyphs[1], 'Вперёд по панели', alone, () => swap(1)));
 			}
 			if (custom) {
 				const edit = moveButton('✎', 'Изменить кнопку', false, () => openCustom(custom));
@@ -731,6 +762,15 @@ $('addon-zip').addEventListener('click', async () => {
 		addonErr(errText(e));
 	}
 });
+$('ext-store').addEventListener('click', () => run(async () => {
+	const input = $('ext-store-input').value.trim();
+	if (!input) throw new Error('Вставь ссылку или идентификатор расширения');
+	say('Скачиваю…');
+	const r = await api.extStore(input);
+	$('ext-store-input').value = '';
+	say(r.message);
+	await loadExtensions();
+}));
 $('ext-add').addEventListener('click', () => run(async () => {
 	const r = await api.extAdd();
 	if (r && r.message) say(r.message);

@@ -84,4 +84,43 @@ function startInbox(userData, onUrl) {
 	drain();
 }
 
-module.exports = { writeLauncher, startInbox, hasFuse };
+// Команда problet в терминале: запускает этот же Problet и передаёт ей все аргументы без изменений, как прямой вызов программы.
+// Linux: скрипт ~/.local/bin/problet; Windows: problet.cmd в папке, которая добавляется в PATH пользователя
+function installCommand(exePath, home, platform = process.platform, env = process.env) {
+	if (platform === 'linux') {
+		const dir = path.join(home, '.local', 'bin');
+		const file = path.join(dir, 'problet');
+		const text = [
+			'#!/bin/sh',
+			'# Создан Problet: запускает браузер со всеми переданными аргументами',
+			(hasFuse() || !env.APPIMAGE ? '' : 'APPIMAGE_EXTRACT_AND_RUN=1 ; export APPIMAGE_EXTRACT_AND_RUN\n') + 'exec ' + sq(exePath) + ' "$@"',
+			'',
+		].join('\n');
+		let same = false;
+		try { same = fs.readFileSync(file, 'utf8') === text; } catch (e) { /* ещё не создан */ }
+		if (!same) {
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(file, text);
+		}
+		fs.chmodSync(file, 0o755);
+		return { file, dir };
+	}
+	if (platform === 'win32') {
+		const dir = path.join(env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'Problet', 'bin');
+		const file = path.join(dir, 'problet.cmd');
+		const text = '@echo off\r\n"' + exePath + '" %*\r\n';
+		let same = false;
+		try { same = fs.readFileSync(file, 'utf8') === text; } catch (e) { /* ещё не создан */ }
+		if (!same) {
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(file, text);
+		}
+		// PATH пользователя: дописываем папку один раз, остальное в нём не трогаем
+		const script = "$d='" + dir.replace(/'/g, "''") + "';$p=[Environment]::GetEnvironmentVariable('Path','User');if(-not $p){$p=''};if(($p -split ';') -notcontains $d){[Environment]::SetEnvironmentVariable('Path',($p.TrimEnd(';')+';'+$d).TrimStart(';'),'User')}";
+		try { execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], { timeout: 15000, stdio: 'ignore', windowsHide: true }); } catch (e) { /* команда останется доступна по полному пути */ }
+		return { file, dir };
+	}
+	return null;
+}
+
+module.exports = { writeLauncher, startInbox, hasFuse, installCommand };
