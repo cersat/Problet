@@ -36,6 +36,10 @@ function patchBackground(dir) {
 	const bg = m.background && m.background.service_worker;
 	if (!bg) return;
 	fs.copyFileSync(path.join(__dirname, 'ext-shim.js'), path.join(dir, 'problet-shim.js')); // заплатка обновляется вместе с браузером
+	// Страница-посредник: вход через сайт заканчивается переходом на адрес расширения, а в Electron фоновый процесс такие переходы не видит.
+	// Браузер подменяет этот переход страницей, которая передаёт адрес фоновому процессу
+	fs.writeFileSync(path.join(dir, 'problet-callback.html'), '<!doctype html><meta charset="utf-8"><title>Problet</title><script src="problet-callback.js"></script>');
+	fs.writeFileSync(path.join(dir, 'problet-callback.js'), "try{const u=new URLSearchParams(location.search).get('u');const c=new BroadcastChannel('problet-nav');c.postMessage({url:u});document.title='OK'}catch(e){}\n");
 	if (bg === 'problet-sw.js') return;
 	const quote = (s) => JSON.stringify(s);
 	const code = m.background.type === 'module'
@@ -376,4 +380,13 @@ async function installFromStore(input, chromeVersion, log = () => {}) {
 	}
 }
 
-module.exports = { setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };
+// Адрес вида chrome-extension://<id>/oauth_callback.html... → страница-посредник того же расширения (или '')
+function callbackPage(url) {
+	const m = /^chrome-extension:\/\/([a-p]{32})\/oauth_callback\.html/i.exec(String(url || ''));
+	if (!m) return '';
+	const e = entries.find((x) => x.id === m[1]);
+	if (!e || !fs.existsSync(path.join(e.path, 'problet-callback.html'))) return '';
+	return 'chrome-extension://' + m[1] + '/problet-callback.html?u=' + encodeURIComponent(url);
+}
+
+module.exports = { callbackPage, setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };

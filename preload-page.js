@@ -178,6 +178,26 @@ if (location.protocol !== 'problet:') {
 // ---------- Аддоны Problet ----------
 
 // Фон аддона и его страницы (окошко кнопки, настройки) получают объект problet. Всё опасное проверяет и спрашивает главный процесс
+// Страницы расширений Chrome (окна настроек и входа): в Electron нет chrome.tabs.create, а расширения открывают им страницу входа
+if (location.protocol === 'chrome-extension:') {
+	try {
+		webFrame.executeJavaScript('(' + function () {
+			const c = window.chrome;
+			if (!c || !c.tabs || c.tabs.create) return;
+			c.tabs.create = function (props, cb) {
+				const url = props && typeof props.url === 'string' ? props.url : '';
+				if (url) window.open(url, '_blank');
+				const tab = { id: -1, url, active: !props || props.active !== false, windowId: 1, index: 0 };
+				if (typeof cb === 'function') {
+					setTimeout(() => cb(tab), 0);
+					return undefined;
+				}
+				return Promise.resolve(tab);
+			};
+		}.toString() + ')()');
+	} catch (e) { /* без этого вход через расширение не откроется */ }
+}
+
 if (location.protocol === 'problet-addon:') {
 	const call = (method, ...args) => ipcRenderer.invoke('addon:call', method, args);
 	const listeners = new Map();

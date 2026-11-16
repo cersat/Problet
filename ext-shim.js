@@ -51,6 +51,19 @@
 	});
 	ensure('sidePanel', { setPanelBehavior: (...a) => reply(a, undefined), setOptions: (...a) => reply(a, undefined), getOptions: (...a) => reply(a, {}), open: (...a) => reply(a, undefined) });
 	for (const n of ['debugger', 'idle', 'history', 'bookmarks', 'downloads', 'sessions', 'power', 'system', 'topSites', 'webNavigation', 'proxy', 'privacy', 'browsingData', 'identity', 'tts', 'contentSettings', 'fontSettings', 'readingList', 'search', 'userScripts', 'sidePanel']) ensure(n);
+	// Переходы вкладок, о которых сообщает браузер (через страницу problet-callback.html): фоновый процесс видит их как обычные события
+	try {
+		const ch = new BroadcastChannel('problet-nav');
+		ch.onmessage = (e) => {
+			const url = e.data && e.data.url;
+			if (typeof url !== 'string') return;
+			(root.__probletNavs = root.__probletNavs || []).push(url);
+			const wn = c.webNavigation && c.webNavigation.onBeforeNavigate;
+			if (wn && wn._fire) wn._fire({ url, tabId: -1, frameId: 0, parentFrameId: -1, timeStamp: Date.now() });
+			const tu = c.tabs && c.tabs.onUpdated;
+			if (tu && tu._fire) tu._fire(-1, { url, status: 'loading' }, { id: -1, url });
+		};
+	} catch (err) { /* без канала вход через сайт не завершится */ }
 	if (c.tabs && c.tabs.TAB_ID_NONE === undefined) c.tabs.TAB_ID_NONE = -1;
 	ensure('action', { getUserSettings: (...a) => reply(a, { isOnToolbar: true }) });
 	if (!c.menus) c.menus = c.contextMenus;

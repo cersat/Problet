@@ -922,8 +922,20 @@ function wireTab(tab) {
 			wc.executeJavaScript('window.__probletStore&&window.__probletStore.done(' + JSON.stringify(id) + ',false,' + JSON.stringify(String(err.message || err).slice(0, 80)) + ')').catch(() => {});
 		});
 	});
+	// Вход через сайт расширения Chrome заканчивается переходом на chrome-extension://…/oauth_callback.html: отдаём адрес его фоновому процессу
+	const handOver = (url) => {
+		const page = extensions.callbackPage(url);
+		if (!page) return false;
+		log('расширение: передаю адрес входа фоновому процессу');
+		wc.loadURL(page).catch(() => {});
+		setTimeout(() => { if (alive() && tabs.includes(tab)) closeTab(tab.id); }, 1500);
+		return true;
+	};
+	wc.on('will-redirect', (e, url) => { if (handOver(url)) e.preventDefault(); });
+	wc.on('will-navigate', (e, url) => { if (handOver(url)) e.preventDefault(); });
 	wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
-		if (!isMainFrame || code === -3) return; // -3 — загрузку отменили сами
+		if (!isMainFrame || code === -3) return;
+		if (handOver(url)) return; 
 		wc.loadURL(errorPage(code, description, url)).catch(() => {});
 	});
 }
