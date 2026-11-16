@@ -379,7 +379,17 @@ function openBookmarkUrl(url, forceNew) {
 	const tab = activeTab();
 	const blank = tab && isNewTab(tab.view.webContents.getURL() || tab.url);
 	if ((forceNew || settings().bmNewTab) && !blank) createTab(url, { activate: true });
-	else loadInActive(url);
+	else {
+		// «Не открывать вторую идентичную вкладку»: закладка, открытая в текущей вкладке, тоже не должна дублировать уже открытую
+		if (settings().noDuplicateTabs && url) {
+			const same = tabs.find((t) => t !== tab && !t.hidden && !t.incognito === !(tab && tab.incognito) && (settings().spacesMerged || t.space === currentSpace) && sameUrl(t.pendingUrl || t.url, url));
+			if (same) {
+				activateTab(same.id);
+				return;
+			}
+		}
+		loadInActive(url);
+	}
 }
 
 ipcMain.on('bar:open', (e, id, newTab) => {
