@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Установка и обновления — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page on" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Установка и обновления</h1>
+<p class="lead">Problet собирается автоматически под Linux, Windows и macOS после каждого изменения кода. Обновляется сам, прямо из настроек.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#где-скачать">Где скачать</a></li><li><a href="#первый-запуск">Первый запуск</a></li><li><a href="#обновления">Обновления</a></li><li><a href="#команда-problet-в-терминале">Команда problet в терминале</a></li><li><a href="#браузер-по-умолчанию">Браузер по умолчанию</a></li><li><a href="#удаление">Удаление</a></li></ul></div>
+
+<h2 id="где-скачать">Где скачать</h2>
+<p>Все файлы лежат на странице <a href="https://github.com/cersat/Problet/releases">Releases</a> на GitHub:</p>
+<ul>
+	<li><b>«Последняя сборка»</b> (тег <code>latest</code>) — самое свежее состояние кода. Обновляется после каждого изменения, именно её смотрит встроенное автообновление.</li>
+	<li><b>Релизы версий</b> (<code>v9.1.0</code>, <code>v8.0.0</code> и так далее) — сохранённые сборки. Отдельный релиз появляется сам, когда меняется первое или второе число версии, поэтому старую версию всегда можно найти и поставить.</li>
+</ul>
+<p>Имена файлов устроены как <code>Problet-&lt;версия&gt;-&lt;система&gt;-&lt;процессор&gt;</code>:</p>
+<table>
+	<tr><th>Система</th><th>Файлы</th><th>Что выбрать</th></tr>
+	<tr><td>Linux</td><td><code>…-linux-x86_64.AppImage</code>, <code>…-linux-x64.tar.gz</code></td><td>AppImage: один файл, обновляется сам. tar.gz — архив для тех, кто хочет распаковать вручную.</td></tr>
+	<tr><td>Windows</td><td><code>…-win-x64.exe</code>, <code>…-win-x64.zip</code></td><td>Установщик <code>.exe</code>. Zip — переносная версия без установки.</td></tr>
+	<tr><td>macOS</td><td><code>…-mac-arm64.dmg</code>, <code>…-mac-x64.dmg</code> (и такие же <code>.zip</code>)</td><td><code>arm64</code> — для Mac на Apple Silicon (M1 и новее), <code>x64</code> — для Mac на Intel.</td></tr>
+</table>
+
+<h2 id="первый-запуск">Первый запуск</h2>
+<h3>Linux</h3>
+<p>AppImage нужно сделать исполняемым, иначе он не запустится:</p>
+<pre><code>chmod +x Problet-*.AppImage
+./Problet-*.AppImage</code></pre>
+<p>Или в файловом менеджере: свойства файла → права → «Разрешить выполнение как программы».</p>
+<h3>Windows</h3>
+<p>Запусти установщик. Windows может показать предупреждение SmartScreen, потому что программа не подписана сертификатом: «Подробнее» → «Выполнить в любом случае».</p>
+<h3>macOS</h3>
+<p>Приложение не подписано, поэтому при первом запуске его нужно открыть через контекстное меню: правая кнопка на Problet → «Открыть» → «Открыть». Дальше оно запускается как обычно.</p>
+
+<h2 id="обновления">Обновления</h2>
+<p>Раздел <span class="path">Настройки → Обновления</span>. По умолчанию Problet сам проверяет последнюю сборку каждые 6 часов и при запуске, скачивает новую версию и ставит её после перезапуска. Там же видны текущая версия и список изменений последней сборки («Что нового»).</p>
+<table>
+	<tr><th>Настройка</th><th>Что делает</th></tr>
+	<tr><td>Обновлять автоматически</td><td>Проверять и скачивать новую версию по расписанию. Включено по умолчанию.</td></tr>
+	<tr><td>Период авто-проверки</td><td>15 минут … 24 часа, по умолчанию 6 часов.</td></tr>
+	<tr><td>Увеличивать частоту проверки, когда обновление собирается</td><td>Если новая версия уже есть в коде, но её сборка ещё идёт, проверка делается каждые 2 минуты.</td></tr>
+	<tr><td>Перезагружать автоматически</td><td>Как только новая версия скачана, Problet сам перезапускается. Вкладки вернутся, только если при запуске выбрано восстановление сессии.</td></tr>
+</table>
+<p>Как именно ставится обновление, зависит от того, как ты установил Problet:</p>
+<ul>
+	<li><b>Linux, AppImage</b> — новый файл скачивается и подменяет запущенный, после перезапуска работает новая версия.</li>
+	<li><b>Linux, tar.gz</b> — Problet не может обновить распакованный архив сам и открывает страницу релиза.</li>
+	<li><b>Windows, установщик</b> — скачивается новый установщик и тихо ставится поверх.</li>
+	<li><b>Windows, zip</b> — новый zip распаковывается поверх текущей папки.</li>
+	<li><b>macOS</b> — новый <code>.dmg</code> скачивается в «Загрузки» и открывается. Перетащить приложение в «Программы» нужно самому: неподписанное приложение не может заменить себя.</li>
+</ul>
+<p>Кнопка <b>«Проверить»</b> на странице <code>problet://version</code> и в настройках проверяет обновление сразу. На панели может стоять кнопка «Значок обновления» — она появляется, когда новая версия готова.</p>
+
+<h2 id="команда-problet-в-терминале">Команда problet в терминале</h2>
+<p>При запуске Problet сам создаёт команду для терминала:</p>
+<ul>
+	<li>Linux — скрипт <code>~/.local/bin/problet</code>;</li>
+	<li>Windows — <code>problet.cmd</code> в отдельной папке, которая добавляется в PATH пользователя (заработает в новых окнах терминала).</li>
+</ul>
+<p>Команда запускает браузер и передаёт ему все аргументы без изменений. Если Problet уже открыт, адрес откроется в нём новой вкладкой:</p>
+<pre><code>problet https://example.com
+problet --headless --fetch=https://example.com</code></pre>
+<p>Про ключи режима без окна — на странице <a href="headless.html">Режим без окна</a>.</p>
+
+<h2 id="браузер-по-умолчанию">Браузер по умолчанию</h2>
+<p><span class="path">Настройки → Данные → Стандартный браузер → «Сделать стандартным браузером»</span>. На Linux для AppImage Problet создаёт ярлык приложения и назначает его через <code>xdg-settings</code>. На Windows и macOS система может попросить подтвердить выбор в своих настройках.</p>
+
+<h2 id="удаление">Удаление</h2>
+<ul>
+	<li>Linux: удали файл AppImage, команду <code>~/.local/bin/problet</code> и, если нужно, папку данных.</li>
+	<li>Windows: «Приложения» в параметрах системы → Problet → «Удалить».</li>
+	<li>macOS: перетащи Problet из «Программ» в корзину.</li>
+</ul>
+<p>Папка данных (настройки, закладки, пароли) при удалении программы остаётся. Где она лежит — на странице <a href="data.html">Данные</a>.</p>
+<div class="pager"><a href="index.html"><small>Назад</small>Документация</a><a href="interface.html" style="text-align:right"><small>Дальше</small>Окно, панели и кнопки</a></div>
+</main>
+</div>
+</body>
+</html>

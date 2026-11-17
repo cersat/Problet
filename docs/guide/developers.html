@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Для разработчиков — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page on" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Для разработчиков</h1>
+<p class="lead">Как собрать Problet из исходников, как устроен код, какие API видят страницы и сайты, как проверять изменения и как выпускаются сборки.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#сборка-из-исходников">Сборка из исходников</a></li><li><a href="#устройство">Устройство</a></li><li><a href="#вкладки-настоящие-и-виртуальные">Вкладки: настоящие и виртуальные</a></li><li><a href="#api-для-страниц">API для страниц</a></li><li><a href="#как-добавить-встроенную-страницу">Как добавить встроенную страницу</a></li><li><a href="#перевод-интерфейса">Перевод интерфейса</a></li><li><a href="#проверки">Проверки</a></li><li><a href="#графический-редактор">Графический редактор</a></li><li><a href="#сборки-и-релизы">Сборки и релизы</a></li><li><a href="#стиль-кода">Стиль кода</a></li><li><a href="#сообщить-об-ошибке">Сообщить об ошибке</a></li></ul></div>
+
+<h2 id="сборка-из-исходников">Сборка из исходников</h2>
+<p>Нужны <a href="https://nodejs.org/">Node.js</a> (22 или новее) и git.</p>
+<pre><code>git clone https://github.com/cersat/Problet.git
+cd Problet
+npm install
+npm start</code></pre>
+<p>Установочные файлы для своей системы (появятся в <code>dist/</code>):</p>
+<pre><code>npm run dist</code></pre>
+<p>Зависимостей во время работы нет: только Electron и electron-builder для сборки. Код — обычный JavaScript без сборщиков и транспиляции; исключение — графический редактор (см. ниже).</p>
+
+<h2 id="устройство">Устройство</h2>
+<p>Problet — приложение Electron. Главный процесс управляет окном, вкладками и данными, страницы показываются в процессах отрисовки Chromium.</p>
+<table>
+	<tr><th>Файл</th><th>Что делает</th></tr>
+	<tr><td><code>main.js</code></td><td>Главный процесс: окно, вкладки, навигация, меню, горячие клавиши, всплывающие окошки, IPC для всех страниц.</td></tr>
+	<tr><td><code>index.html</code>, <code>renderer.js</code>, <code>style.css</code></td><td>Окно браузера: панели, вкладки, адресная строка. Открывается по адресу <code>problet://ui/</code>.</td></tr>
+	<tr><td><code>vtab.js</code></td><td>Виртуальные вкладки: встроенные страницы без своего процесса (см. ниже).</td></tr>
+	<tr><td><code>preload-page.js</code></td><td>Единственный прелоад окна и страниц: API панели, API встроенных страниц, <code>isProblet</code> для сайтов, заплатки для страниц расширений.</td></tr>
+	<tr><td><code>preload-find.js</code>, <code>preload-popup.js</code>, <code>preload-error.js</code></td><td>Прелоады строки поиска, подсказок адресной строки и окна ошибки.</td></tr>
+	<tr><td><code>store.js</code></td><td>Данные в <code>data.json</code>: настройки (со схемой проверки), закладки, история, сессия.</td></tr>
+	<tr><td><code>vault.js</code>, <code>passcsv.js</code></td><td>Хранилище паролей (AES-256-GCM + scrypt) и CSV.</td></tr>
+	<tr><td><code>adblock.js</code></td><td>Блокировщик: списки <code>blocklist.txt</code>, <code>blocklist-paths.txt</code>, <code>allowlist.txt</code>, заглушки, куки-баннеры.</td></tr>
+	<tr><td><code>identity.js</code></td><td>Маскировка: User-Agent, Sec-CH-UA, Do Not Track. Список <code>plain-ua-sites.txt</code>.</td></tr>
+	<tr><td><code>extensions.js</code>, <code>ext-shim.js</code></td><td>Расширения Chrome и Chrome Web Store; заплатки недостающих <code>chrome.*</code>.</td></tr>
+	<tr><td><code>addons.js</code></td><td>Аддоны Problet: формат, разрешения, API.</td></tr>
+	<tr><td><code>updater.js</code></td><td>Автообновление из релиза <code>latest</code>.</td></tr>
+	<tr><td><code>headless.js</code></td><td>Режим без окна и управление по HTTP.</td></tr>
+	<tr><td><code>theme.js</code>, <code>i18n-main.js</code></td><td>Тема (CSS-переменные для всех окон) и перевод главного процесса.</td></tr>
+	<tr><td><code>cache.js</code>, <code>offline.js</code>, <code>pagetranslate.js</code>, <code>importer.js</code>, <code>calc.js</code>, <code>desktop.js</code></td><td>Кеш, страницы для офлайна, перевод страниц, импорт из браузеров, калькулятор, интеграция с системой (команда <code>problet</code>, ярлыки).</td></tr>
+	<tr><td><code>pages/</code></td><td>Встроенные страницы <code>problet://</code>: по паре <code>имя.html</code> + <code>имя.js</code>, общие <code>common.css</code>, <code>i18n.js</code>, <code>accel.js</code>.</td></tr>
+	<tr><td><code>tools/</code></td><td><code>smoke.js</code> — сквозная проверка, <code>paint/</code> — сборка графического редактора, <code>adstub/</code> — заглушки рекламы.</td></tr>
+	<tr><td><code>docs/</code></td><td>Сайт проекта на GitHub Pages и эта документация.</td></tr>
+</table>
+
+<h2 id="вкладки-настоящие-и-виртуальные">Вкладки: настоящие и виртуальные</h2>
+<p>Обычная вкладка — это <code>WebContentsView</code> со своим процессом отрисовки. Встроенные страницы так не открываются: процесс стоит 15–20 МБ, а их бывает открыто много.</p>
+<p>Вместо этого окно браузера открыто по адресу <code>problet://ui/</code>, а встроенная страница — рамкой (<code>iframe</code>) внутри него по адресу <code>problet://ui/&lt;страница&gt;/…</code>. Для Chromium это один сайт, значит, один процесс. Вкладка получает объект <code>VirtualView</code> из <code>vtab.js</code>, который снаружи выглядит как <code>WebContentsView</code>: те же методы (<code>loadURL</code>, <code>navigationHistory</code>, <code>findInPage</code>, <code>executeJavaScript</code>, <code>send</code>…) и те же события. Поэтому остальной код главного процесса с ней работает как с обычной вкладкой.</p>
+<ul>
+	<li>Пользователь видит обычные адреса <code>problet://settings/</code>; перевод в адрес рамки и обратно — <code>toFrameUrl</code> и <code>fromFrameUrl</code>.</li>
+	<li>Переход со встроенной страницы на сайт меняет вид вкладки на настоящий, и наоборот. История «назад/вперёд» склеивается из кусков (<code>backSegs</code>, <code>fwdSegs</code>).</li>
+	<li>Настоящими остаются вкладки инкогнито, вкладка с привязанной боковой панелью расширения и вкладки, которые создало расширение.</li>
+	<li>Сообщения из рамки главный процесс узнаёт по <code>senderFrame</code> (имя рамки <code>vt-&lt;id&gt;</code>), см. <code>vtabOfFrame</code> и <code>senderTab</code>.</li>
+</ul>
+
+<h2 id="api-для-страниц">API для страниц</h2>
+<p>Все API выдаёт <code>preload-page.js</code> через <code>contextBridge</code> в объекте <code>problet</code>. Что именно получит страница, зависит от того, где она открыта:</p>
+<table>
+	<tr><th>Где</th><th>Что в <code>problet</code></th></tr>
+	<tr><td>Окно браузера (<code>problet://ui/</code>)</td><td>API панели: навигация, вкладки, адресная строка, подсказки, меню.</td></tr>
+	<tr><td>Встроенные страницы <code>problet://</code></td><td>API браузера: настройки, закладки, история, пароли, загрузки, расширения, файлы и так далее. Каждый вызов — <code>ipcRenderer.invoke</code>, который в главном процессе проходит через <code>handle()</code> и проверку <code>guard()</code>: отвечает только встроенным страницам.</td></tr>
+	<tr><td>Страницы аддонов (<code>problet-addon://</code>)</td><td>API аддонов (<a href="extensions.html#как-написать-свой-аддон">описание</a>).</td></tr>
+	<tr><td>Скрипты аддонов на сайтах</td><td><code>id</code>, <code>lang</code>, <code>send</code>, <code>onMessage</code>, <code>storage</code> — в отдельном мире скрипта.</td></tr>
+	<tr><td>Обычные сайты</td><td><code>window.isProblet === true</code> и <code>problet.isProblet === true</code>, только когда браузер маскируется под Problet. Больше ничего.</td></tr>
+</table>
+<p>Проверка на сайте:</p>
+<pre><code>if (window.isProblet) {
+	// открыто в Problet
+}</code></pre>
+
+<h2 id="как-добавить-встроенную-страницу">Как добавить встроенную страницу</h2>
+<ol>
+	<li>Создай <code>pages/имя.html</code> и <code>pages/имя.js</code>. Подключи <code>theme.css</code>, <code>common.css</code> и <code>i18n.js</code>, как в соседних страницах. В заголовке нужна CSP <code>default-src 'self'</code>.</li>
+	<li>Добавь имя в <code>INTERNAL_PAGES</code> в <code>main.js</code>.</li>
+	<li>Нужен новый вызов — добавь метод в объект <code>problet</code> встроенных страниц в <code>preload-page.js</code> и обработчик <code>handle('канал', …)</code> в <code>main.js</code>.</li>
+	<li>Если страница переходит сама (<code>location.href = 'problet://…'</code>), всё работает: переход перехватывается и становится навигацией вкладки.</li>
+	<li>Надписи пиши по-русски и добавь английский перевод в <code>pages/i18n-en.js</code>.</li>
+</ol>
+
+<h2 id="перевод-интерфейса">Перевод интерфейса</h2>
+<p>Исходный язык кода — русский. Английский берётся из словаря <code>pages/i18n-en.js</code>: <code>pages/i18n.js</code> переводит встроенные страницы и окно, <code>i18n-main.js</code> — меню, диалоги и уведомления главного процесса. Если строки нет в словаре, она показывается по-русски. Проверка <code>tools/smoke.js</code> убеждается, что язык переключается на лету.</p>
+
+<h2 id="проверки">Проверки</h2>
+<p>Сквозная проверка запускает браузер в <a href="headless.html">режиме без окна</a> и проходит по настройкам, закладкам, проводнику, файлам, блокировщику, загрузкам, паролям, пространствам, аддонам, смене языка и перезапуску:</p>
+<pre><code>node tools/smoke.js
+xvfb-run node tools/smoke.js   # на Linux без дисплея</code></pre>
+<p>Синтаксис всех файлов проверяет и CI: <code>node --check</code> для <code>*.js</code> и <code>pages/*.js</code>.</p>
+
+<h2 id="графический-редактор">Графический редактор</h2>
+<p><code>pages/svgedit.js</code> — собранный <a href="https://github.com/TurboWarp/scratch-paint">scratch-paint</a> (TurboWarp, GPL-3.0) со своей обвязкой из <code>tools/paint/entry.jsx</code>. Пересборка — <code>tools/paint/build.sh</code> (нужны git и npm). Лицензия — <code>pages/svgedit.LICENSE.txt</code>.</p>
+
+<h2 id="сборки-и-релизы">Сборки и релизы</h2>
+<p>Всё делает GitHub Actions, воркфлоу <code>.github/workflows/build.yml</code>:</p>
+<ol>
+	<li><b>Проверка синтаксиса.</b></li>
+	<li><b>Подготовка</b>: для ветки <code>main</code> метка <code>latest</code> переносится на новый коммит, релиз «Последняя сборка» обновляется (обычный релиз с меткой «Latest»).</li>
+	<li><b>Сборка</b> на Linux, Windows и macOS параллельно; файлы выкладываются в <code>latest</code> по мере готовности, старые файлы той же системы убираются.</li>
+	<li><b>Отдельный релиз версии</b>: если в версии из <code>package.json</code> сменилось первое или второе число (нет ещё ни одного тега <code>v&lt;a&gt;.&lt;b&gt;.*</code>), создаётся релиз <code>v&lt;версия&gt;</code> со всеми файлами.</li>
+</ol>
+<p>Сборка не запускается, если в коммите поменялись только документация (<code>docs/</code>, <code>*.md</code>) или <code>.github/</code>. Сайт из <code>docs/</code> выкладывает отдельный воркфлоу <code>pages.yml</code> и только когда сайт изменился.</p>
+<p>Ручной запуск с параметром <code>ref</code> (тег или коммит) собирает старую версию и выкладывает файлы в её релиз.</p>
+<p><b>Версии</b>: <code>a.b.c</code> в <code>package.json</code>. Обычное исправление — <code>+1</code> к третьему числу; новая крупная возможность — ко второму (тогда появится отдельный релиз).</p>
+
+<h2 id="стиль-кода">Стиль кода</h2>
+<ul>
+	<li>Отступы — табы.</li>
+	<li>Комментарии и тексты интерфейса — по-русски, комментарий объясняет «зачем», а не «что».</li>
+	<li>Без сборщиков и зависимостей во время работы.</li>
+	<li>Сообщения коммитов — коротко, по-русски; версия в начале, если коммит её меняет: <code>9.1.2: …</code>.</li>
+</ul>
+
+<h2 id="сообщить-об-ошибке">Сообщить об ошибке</h2>
+<p><a href="https://github.com/cersat/Problet/issues">Issues</a> на GitHub. Приложи сведения со страницы <code>problet://version</code> (кнопка «Скопировать сведения») и, если можно, хвост журнала (<a href="data.html#папка-данных">где он лежит</a>).</p>
+<div class="pager"><a href="headless.html"><small>Назад</small>Режим без окна</a><a href="faq.html" style="text-align:right"><small>Дальше</small>Вопросы и решения</a></div>
+</main>
+</div>
+</body>
+</html>

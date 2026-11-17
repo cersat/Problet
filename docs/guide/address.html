@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Адресная строка и поиск — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page on" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Адресная строка и поиск</h1>
+<p class="lead">Адресная строка понимает адреса, поисковые запросы, пути к файлам, префиксы поисковиков, математику и даже кусок HTML. Подсказки под ней берутся из закладок, истории и калькулятора.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#что-можно-ввести">Что можно ввести</a></li><li><a href="#поисковик">Поисковик</a></li><li><a href="#префиксы-поисковиков">Префиксы поисковиков</a></li><li><a href="#калькулятор">Калькулятор</a></li><li><a href="#подсказки">Подсказки</a></li><li><a href="#звёздочка-в-адресной-строке">Звёздочка в адресной строке</a></li></ul></div>
+
+<h2 id="что-можно-ввести">Что можно ввести</h2>
+<table>
+	<tr><th>Ввод</th><th>Что произойдёт</th></tr>
+	<tr><td><code>example.com</code>, <code>сайт.рф/путь</code></td><td>Откроется сайт по <code>https://</code>.</td></tr>
+	<tr><td><code>https://…</code>, <code>http://…</code>, <code>problet://settings</code></td><td>Откроется ровно этот адрес.</td></tr>
+	<tr><td><code>localhost:3000</code>, <code>192.168.1.1</code></td><td>Откроется по <code>http://</code> — для локальных серверов и роутеров.</td></tr>
+	<tr><td><code>/home/я/файл.pdf</code>, <code>C:\Docs</code>, <code>./x.html</code></td><td>Если такой файл или папка есть — откроется. Папка показывается встроенным <a href="pages.html#проводник">проводником</a>.</td></tr>
+	<tr><td><code>&lt;h1&gt;Привет&lt;/h1&gt;</code></td><td>Текст, начинающийся с <code>&lt;</code>, показывается как HTML-страница. Удобно быстро проверить разметку.</td></tr>
+	<tr><td><code>w кошки</code></td><td>Поиск через <a href="#префиксы-поисковиков">префикс</a>: здесь — в Википедии.</td></tr>
+	<tr><td>всё остальное</td><td>Поиск выбранным поисковиком.</td></tr>
+</table>
+<p>Пока строка не в фокусе, кириллица и другие буквы в адресе показываются читаемо: <code>wiki/Кошка</code>, а не <code>wiki/%D0%9A%D0%BE%D1%88%D0%BA%D0%B0</code>. Служебные коды вроде <code>%20</code> остаются как есть. Когда начинаешь редактировать, строка показывает точный адрес. <kbd>Ctrl</kbd>+<kbd>L</kbd> переводит фокус в адресную строку.</p>
+
+<h2 id="поисковик">Поисковик</h2>
+<p><span class="path">Настройки → Поиск → Поисковик</span>: DuckDuckGo (по умолчанию), Google, Brave Search, Bing, Яндекс или свой. Для своего задай <b>шаблон адреса</b>, где <code>%s</code> заменится запросом, например <code>https://search.example/?q=%s</code>.</p>
+<p>Выделенный на странице текст можно найти через правую кнопку → «Искать «…»».</p>
+
+<h2 id="префиксы-поисковиков">Префиксы поисковиков</h2>
+<p>Набери короткий префикс, пробел и запрос — поиск пойдёт не в основном поисковике, а на нужном сайте. Готовые префиксы:</p>
+<table>
+	<tr><th>Префикс</th><th>Где ищет</th><th>Пример</th></tr>
+	<tr><td><code>g</code></td><td>Google</td><td><code>g погода</code></td></tr>
+	<tr><td><code>d</code></td><td>DuckDuckGo</td><td><code>d electron</code></td></tr>
+	<tr><td><code>y</code></td><td>Яндекс</td><td><code>y рецепт борща</code></td></tr>
+	<tr><td><code>w</code></td><td>Википедия (русская)</td><td><code>w кошки</code></td></tr>
+	<tr><td><code>yt</code></td><td>YouTube</td><td><code>yt лофи</code></td></tr>
+	<tr><td><code>gh</code></td><td>GitHub</td><td><code>gh problet</code></td></tr>
+	<tr><td><code>map</code></td><td>OpenStreetMap</td><td><code>map Тбилиси</code></td></tr>
+	<tr><td><code>tr</code></td><td>Google Переводчик (на русский)</td><td><code>tr hello world</code></td></tr>
+</table>
+<p>Список редактируется в <span class="path">Настройки → Поиск → Префиксы поисковиков</span>: «Добавить префикс», поменять или удалить существующие, «Вернуть стандартные». Префикс — до 12 букв, цифр, точек, дефисов или восклицательных знаков; всего до 50 префиксов. В адресе <code>%s</code> заменяется запросом. Не забудь нажать «Сохранить префиксы».</p>
+<p>Когда набран префикс, первой подсказкой показывается, где пойдёт поиск.</p>
+
+<h2 id="калькулятор">Калькулятор</h2>
+<p>Набери выражение — результат появится первой подсказкой. Если выбрать её, результат встанет в адресную строку выделенным, чтобы его можно было скопировать.</p>
+<ul>
+	<li>действия: <code>+ - * / % ^</code> (и <code>**</code> для степени), скобки; знаки <code>×</code>, <code>÷</code>, <code>−</code> тоже понимаются;</li>
+	<li>функции: <code>sqrt abs sin cos tan asin acos atan ln log exp floor ceil round</code> (<code>log</code> — десятичный, <code>ln</code> — натуральный, углы в радианах);</li>
+	<li>константы: <code>pi</code>, <code>e</code>.</li>
+</ul>
+<pre><code>2+2*3          → 8
+sqrt(2)^2      → 2
+sin(pi/2)      → 1
+17 % 5         → 2</code></pre>
+<p>Калькулятор разбирает выражение сам, без выполнения кода. Выключается в <span class="path">Настройки → Поиск → Использовать калькулятор в подсказках</span>.</p>
+
+<h2 id="подсказки">Подсказки</h2>
+<p>Подсказки собираются из нескольких источников, каждый включается отдельно в <span class="path">Настройки → Поиск</span>:</p>
+<table>
+	<tr><th>Источник</th><th>По умолчанию</th><th>Что это</th></tr>
+	<tr><td>Калькулятор</td><td>вкл.</td><td>Результат выражения.</td></tr>
+	<tr><td>История поиска</td><td>вкл.</td><td>Твои прошлые запросы. Очищается в <span class="path">Настройки → Данные → История поиска</span>. В инкогнито не пополняется.</td></tr>
+	<tr><td>URL-подсказки</td><td>вкл.</td><td>Подходящие адреса из истории посещений.</td></tr>
+	<tr><td>Подсказки поисковика</td><td>выкл.</td><td>Варианты от самого поисковика по мере набора. Для этого каждая набранная буква отправляется поисковику, даже без <kbd>Enter</kbd>, поэтому выключено. Со своим поисковиком не работает.</td></tr>
+</table>
+<p><b>Сколько подсказок показывать</b>: 5, 7 (по умолчанию), 10 или 12. Стрелки <kbd>↑</kbd> <kbd>↓</kbd> выбирают подсказку, <kbd>Enter</kbd> открывает, <kbd>Esc</kbd> закрывает список.</p>
+
+<h2 id="звёздочка-в-адресной-строке">Звёздочка в адресной строке</h2>
+<p>Справа в адресной строке — звёздочка закладки, она же <kbd>Ctrl</kbd>+<kbd>D</kbd>. Что она делает, описано на странице <a href="bookmarks.html#звёздочка-и-ctrld">Закладки</a>.</p>
+<div class="pager"><a href="tabs.html"><small>Назад</small>Вкладки и пространства</a><a href="bookmarks.html" style="text-align:right"><small>Дальше</small>Закладки и история</a></div>
+</main>
+</div>
+</body>
+</html>

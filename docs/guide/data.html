@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Данные, перенос и резервные копии — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page on" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Данные, перенос и резервные копии</h1>
+<p class="lead">Где Problet хранит настройки, закладки, пароли и всё остальное, как сделать резервную копию и как переехать на другой компьютер.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#папка-данных">Папка данных</a></li><li><a href="#резервная-копия">Резервная копия</a></li><li><a href="#переезд-на-другой-компьютер">Переезд на другой компьютер</a></li><li><a href="#перенос-из-другого-браузера">Перенос из другого браузера</a></li><li><a href="#очистка">Очистка</a></li></ul></div>
+
+<h2 id="папка-данных">Папка данных</h2>
+<p>Всё личное лежит в одной папке. Точный путь показан на странице <code>problet://version</code> («Папка с данными»), а в <a href="pages.html#о-браузере-и-меню-отладки">меню отладки</a> есть кнопка «Открыть». Обычно это:</p>
+<table>
+	<tr><th>Система</th><th>Путь</th></tr>
+	<tr><td>Linux</td><td><code>~/.config/Problet</code></td></tr>
+	<tr><td>Windows</td><td><code>%APPDATA%\Problet</code></td></tr>
+	<tr><td>macOS</td><td><code>~/Library/Application Support/Problet</code></td></tr>
+</table>
+<p>Внутри:</p>
+<table>
+	<tr><th>Файл или папка</th><th>Что там</th></tr>
+	<tr><td><code>data.json</code></td><td>Настройки, закладки и папки, история посещений и поиска, сессия (открытые вкладки), масштаб сайтов, список загрузок.</td></tr>
+	<tr><td><code>vault.json</code></td><td>Пароли, зашифрованные мастер-паролем.</td></tr>
+	<tr><td><code>bookmark-backups/</code></td><td>Автоматические копии закладок (если для них не выбрана своя папка).</td></tr>
+	<tr><td><code>offline/</code></td><td>Страницы, сохранённые для офлайна.</td></tr>
+	<tr><td><code>extensions.json</code>, <code>extensions/</code></td><td>Список расширений Chrome и расширения, установленные из Chrome Web Store.</td></tr>
+	<tr><td><code>addons/</code>, <code>addon-data/</code></td><td>Аддоны Problet и их данные.</td></tr>
+	<tr><td><code>frozen/</code></td><td>История выгруженных из памяти вкладок (очищается при запуске).</td></tr>
+	<tr><td><code>Cache/</code> и другие папки Chromium</td><td>Кеш, куки, локальные хранилища сайтов.</td></tr>
+</table>
+<p>Журнал работы браузера пишется в <code>/tmp/problet/log</code> на Linux и macOS и в <code>%TEMP%\problet\log</code> на Windows. Он пригодится, если что-то сломалось.</p>
+
+<h2 id="резервная-копия">Резервная копия</h2>
+<p><span class="path">Настройки → Данные → Резервная копия → «Экспорт»</span> сохраняет одним JSON-файлом настройки, закладки, папки и историю поиска. <b>Пароли в копию не входят</b> — их переносят отдельно (см. ниже).</p>
+<p>«Импорт» спрашивает, как поступить:</p>
+<ul>
+	<li><b>Объединить</b> — закладки и история поиска добавляются к текущим, повторяющиеся закладки пропускаются, настройки остаются как есть;</li>
+	<li><b>Заменить</b> — текущие закладки, папки, история поиска и настройки полностью заменяются данными из файла. История посещений, сессия и загрузки остаются.</li>
+</ul>
+<p>Для закладок есть ещё <a href="bookmarks.html#резервные-копии-закладок">автоматические копии</a>.</p>
+
+<h2 id="переезд-на-другой-компьютер">Переезд на другой компьютер</h2>
+<ol>
+	<li>На старом компьютере: <span class="path">Настройки → Данные</span> → «Резервная копия» → «Экспорт» и «Пароли» → «Экспорт» (CSV).</li>
+	<li>Поставь Problet на новом компьютере (<a href="install.html">установка</a>).</li>
+	<li>На новом: «Резервная копия» → «Импорт» → «Заменить», затем «Пароли» → «Импорт».</li>
+	<li>Удали CSV с паролями — он не зашифрован.</li>
+	<li>Расширения и аддоны поставь заново.</li>
+</ol>
+<p>Можно и просто скопировать всю папку данных целиком, пока Problet закрыт. Тогда переедет всё, включая входы на сайты, историю посещений и расширения. Пароли откроются тем же мастер-паролем.</p>
+
+<h2 id="перенос-из-другого-браузера">Перенос из другого браузера</h2>
+<table>
+	<tr><th>Что</th><th>Как</th></tr>
+	<tr><td>Закладки</td><td><span class="path">Данные → Из другого браузера → «Импортировать»</span> — прямо из установленных Chrome, Edge, Brave, Vivaldi, Opera и Firefox. Или выгрузи закладки в HTML в старом браузере и импортируй в «Закладки в HTML».</td></tr>
+	<tr><td>Пароли</td><td>Выгрузи пароли в CSV в старом браузере (Chrome: «Менеджер паролей» → «Настройки» → «Экспорт паролей»), затем <span class="path">Данные → Пароли → «Импорт»</span>.</td></tr>
+	<tr><td>Расширения</td><td>Поставь из <a href="extensions.html">Chrome Web Store</a> прямо в Problet.</td></tr>
+</table>
+
+<h2 id="очистка">Очистка</h2>
+<table>
+	<tr><th>Что очистить</th><th>Где</th></tr>
+	<tr><td>История посещений</td><td><span class="path">Настройки → История → Очистить историю посещений</span></td></tr>
+	<tr><td>История поиска</td><td><span class="path">Настройки → Данные → История поиска → «Очистить»</span></td></tr>
+	<tr><td>Кеш</td><td><span class="path">Настройки → Кеш → Очистить кеш</span></td></tr>
+	<tr><td>Куки, данные сайтов</td><td><a href="pages.html#о-браузере-и-меню-отладки">Меню отладки</a></td></tr>
+	<tr><td>Сброс настроек</td><td>Меню отладки (закладки, история и пароли остаются)</td></tr>
+	<tr><td>Всё сразу</td><td>Закрой Problet и удали папку данных</td></tr>
+</table>
+<div class="pager"><a href="settings.html"><small>Назад</small>Все настройки</a><a href="headless.html" style="text-align:right"><small>Дальше</small>Режим без окна</a></div>
+</main>
+</div>
+</body>
+</html>

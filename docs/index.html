@@ -30,6 +30,7 @@
 	.installed b { color: var(--accent); }
 	body.is-problet .installed { display: block; }
 	footer { margin-top: 48px; color: var(--dim); font-size: 14px; }
+	.guide { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 32px; }
 </style>
 </head>
 <body>
@@ -61,6 +62,8 @@
 		<li>Встроенный SVG-редактор, таблица символов, калькулятор в адресной строке</li>
 	</ul>
 
+	<p class="guide"><a href="guide/">Документация</a> — как всё устроено и настраивается, по шагам.</p>
+
 	<footer><a href="https://github.com/cersat/Problet">Исходный код на GitHub</a></footer>
 </main>
 <script>
@@ -80,6 +83,7 @@
 		'li:nth-child(4)': 'An encrypted password manager, bookmarks with import from other browsers',
 		'li:nth-child(5)': 'Problet’s own addons with permissions for dangerous actions, and Chrome extensions',
 		'li:nth-child(6)': 'A built-in SVG editor, a character map, a calculator in the address bar',
+		'.guide': '<a href="guide/">Documentation</a> (in Russian) — how everything works and is configured, step by step.',
 		'footer': '<a href="https://github.com/cersat/Problet">Source code on GitHub</a>',
 	};
 	const RU = {};

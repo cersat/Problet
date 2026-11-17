@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Режим без окна — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page on" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Режим без окна</h1>
+<p class="lead"><code>problet --headless</code> запускает браузер скрыто, без окна и даже без дисплея. Так можно загрузить страницу из скрипта и получить отчёт, снимок или текст — или управлять браузером по HTTP.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#как-это-устроено">Как это устроено</a></li><li><a href="#одна-загрузка-с-отчётом">Одна загрузка с отчётом</a></li><li><a href="#управление-по-http">Управление по HTTP</a></li></ul></div>
+
+<h2 id="как-это-устроено">Как это устроено</h2>
+<ul>
+	<li>Окна нет, браузер работает в фоне.</li>
+	<li>Профиль одноразовый: создаётся во временной папке и удаляется при выходе. Свои закладки и настройки он не трогает. Если нужен постоянный профиль, задай его через <code>--user-data-dir=&lt;папка&gt;</code>.</li>
+	<li>Можно запускать сколько угодно копий одновременно, и они не мешают обычному Problet.</li>
+	<li>На Linux без графической среды запускай через <code>xvfb-run</code>: <code>xvfb-run problet --headless …</code>.</li>
+</ul>
+
+<h2 id="одна-загрузка-с-отчётом">Одна загрузка с отчётом</h2>
+<pre><code>problet --headless --fetch=https://example.com --runs=3 --wait=4000 --adblock --text --shot=page.png --eval="document.title"</code></pre>
+<table>
+	<tr><th>Ключ</th><th>Что делает</th></tr>
+	<tr><td><code>--fetch=URL</code></td><td>Какую страницу загрузить. Отчёт JSON печатается в stdout, после чего браузер выходит.</td></tr>
+	<tr><td><code>--runs=N</code></td><td>Загрузить N раз, каждый раз с чистого листа; счётчики запросов складываются.</td></tr>
+	<tr><td><code>--wait=мс</code></td><td>Сколько ждать после окончания загрузки, пока страница дорисуется. По умолчанию 4000.</td></tr>
+	<tr><td><code>--size=1280x800</code></td><td>Размер страницы.</td></tr>
+	<tr><td><code>--adblock</code></td><td>Включить блокировщик рекламы на этот запуск.</td></tr>
+	<tr><td><code>--text</code></td><td>Добавить в отчёт текст страницы.</td></tr>
+	<tr><td><code>--shot=файл.png</code></td><td>Сохранить снимок страницы.</td></tr>
+	<tr><td><code>--eval="код"</code></td><td>Выполнить JavaScript на странице и добавить результат в отчёт.</td></tr>
+	<tr><td><code>--insert=код</code> или путь к <code>.js</code></td><td>Скрипт, который выполняется на каждой открытой странице до её собственных скриптов. Работает и в режиме управления по HTTP.</td></tr>
+</table>
+<p>В отчёте — заголовок, итоговый адрес (после переадресаций), время загрузки, ошибки и предупреждения из консоли (<code>console</code>) и сводка запросов по хостам: сколько запросов ушло на каждый и сколько из них заблокировано (<code>hosts</code>). По этой сводке удобно смотреть, какие трекеры тянет сайт и что ловит блокировщик.</p>
+
+<h2 id="управление-по-http">Управление по HTTP</h2>
+<pre><code>problet --headless --control-port=8765</code></pre>
+<p>Браузер печатает в stdout строку <code>PROBLET_HEADLESS {url, port, token, pid}</code> и пишет то же в файл <code>problet/headless.json</code> во временной папке (на Linux — <code>/tmp/problet/headless.json</code>). Без <code>--control-port</code> порт выбирается свободный. Сервер слушает только <code>127.0.0.1</code>, и каждый запрос должен нести токен — в заголовке <code>x-token</code> или параметре <code>?token=</code>.</p>
+<table>
+	<tr><th>Запрос</th><th>Что делает</th></tr>
+	<tr><td><code>GET /tabs</code></td><td>Список вкладок.</td></tr>
+	<tr><td><code>POST /open {url, wait}</code></td><td>Открыть адрес в новой вкладке и дождаться загрузки.</td></tr>
+	<tr><td><code>POST /eval {tab, js}</code></td><td>Выполнить JavaScript на странице и вернуть результат.</td></tr>
+	<tr><td><code>GET /text?tab=</code></td><td>Текст страницы.</td></tr>
+	<tr><td><code>GET /screenshot?tab=</code></td><td>Снимок PNG.</td></tr>
+	<tr><td><code>GET /requests?clear=1</code></td><td>Сводка запросов по хостам (<code>blocked</code> — заблокировано блокировщиком).</td></tr>
+	<tr><td><code>GET /console?clear=1</code></td><td>Ошибки и предупреждения из консоли страниц.</td></tr>
+	<tr><td><code>GET /log?lines=200</code></td><td>Хвост журнала браузера.</td></tr>
+	<tr><td><code>POST /close {tab}</code></td><td>Закрыть вкладку.</td></tr>
+	<tr><td><code>POST /quit</code></td><td>Выйти.</td></tr>
+</table>
+<h3>Пример на curl</h3>
+<pre><code>problet --headless --control-port=8765 &amp;
+TOKEN=$(node -p "require('/tmp/problet/headless.json').token")
+TAB=$(curl -s -H "x-token: $TOKEN" -X POST localhost:8765/open -d '{"url":"https://example.com"}' | node -p "JSON.parse(require('fs').readFileSync(0)).id")
+curl -s -H "x-token: $TOKEN" "localhost:8765/text?tab=$TAB"
+curl -s -H "x-token: $TOKEN" -X POST localhost:8765/quit</code></pre>
+<p><code>/open</code> возвращает вкладку: <code>id</code>, адрес, заголовок, загрузилась ли и сколько грузилась. Тот же <code>id</code> показывает <code>/tabs</code>.</p>
+<p>Встроенные страницы <code>problet://</code> тоже открываются, читаются и снимаются через эти запросы.</p>
+<div class="pager"><a href="data.html"><small>Назад</small>Данные, перенос и резервные копии</a><a href="developers.html" style="text-align:right"><small>Дальше</small>Для разработчиков</a></div>
+</main>
+</div>
+</body>
+</html>

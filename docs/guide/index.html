@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Документация — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page on" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Документация Problet</h1>
+<p class="lead">Problet — браузер на движке Chromium, написанный с нуля на Electron. Здесь описано всё, что он умеет: от первого запуска до аддонов, режима без окна и устройства исходного кода.</p>
+
+<h2 id="с-чего-начать">С чего начать</h2>
+<div class="cards">
+	<a href="install.html"><b>Установка и обновления</b><small>Скачать, запустить на Linux, Windows и macOS, обновляться, команда <code>problet</code></small></a>
+	<a href="interface.html"><b>Окно, панели и кнопки</b><small>Из чего состоит окно и как переставить в нём всё под себя</small></a>
+	<a href="tabs.html"><b>Вкладки и пространства</b><small>Закрепление, заморозка, сессия, инкогнито, пространства</small></a>
+	<a href="address.html"><b>Адресная строка и поиск</b><small>Поисковики, префиксы вроде «w кошки», калькулятор, подсказки</small></a>
+</div>
+
+<h2 id="работа-с-браузером">Работа с браузером</h2>
+<div class="cards">
+	<a href="bookmarks.html"><b>Закладки и история</b><small>Папки, звёздочка, импорт, резервные копии, битые закладки, история посещений</small></a>
+	<a href="passwords.html"><b>Пароли</b><small>Зашифрованное хранилище, мастер-пароль, подстановка, CSV</small></a>
+	<a href="pages.html"><b>Встроенные страницы и инструменты</b><small>Загрузки, проводник, графический редактор, страницы для офлайна, перевод, скриншоты</small></a>
+	<a href="privacy.html"><b>Приватность и безопасность</b><small>Блокировщик рекламы, куки-баннеры, http-предупреждение, маскировка, кеш</small></a>
+	<a href="extensions.html"><b>Расширения и аддоны</b><small>Расширения Chrome и Chrome Web Store, свои аддоны Problet</small></a>
+	<a href="appearance.html"><b>Тема и язык</b><small>Наборы тем, акцентный цвет, масштаб интерфейса, русский и английский</small></a>
+</div>
+
+<h2 id="справочник">Справочник</h2>
+<div class="cards">
+	<a href="hotkeys.html"><b>Горячие клавиши</b><small>Все сочетания и как их переназначить</small></a>
+	<a href="settings.html"><b>Все настройки</b><small>Каждый раздел настроек по порядку, со значениями по умолчанию</small></a>
+	<a href="data.html"><b>Данные, перенос и резервные копии</b><small>Где что хранится, экспорт и импорт, переезд на другой компьютер</small></a>
+	<a href="headless.html"><b>Режим без окна</b><small><code>--headless</code>: загрузка страниц из командной строки и управление по HTTP</small></a>
+	<a href="developers.html"><b>Для разработчиков</b><small>Сборка из исходников, устройство кода, API <code>problet</code>, проверки</small></a>
+	<a href="faq.html"><b>Вопросы и решения</b><small>Если что-то не работает</small></a>
+</div>
+
+<h2 id="коротко-о-главном">Коротко о главном</h2>
+<ul>
+	<li><b>Всё переставляется.</b> Панели вкладок, инструментов и закладок идут в любом порядке, вкладки можно увести в боковую колонку, каждая кнопка живёт на любой панели или скрывается.</li>
+	<li><b>Вкладки не съедают память.</b> Давно не открытые вкладки замораживаются и при желании выгружаются, а встроенные страницы вроде настроек и новой вкладки вообще не заводят отдельный процесс.</li>
+	<li><b>Свои инструменты вместо расширений.</b> Блокировщик рекламы, менеджер паролей, перевод страниц, тёмная тема для сайтов, графический редактор, проводник, таблица символов и калькулятор — встроены.</li>
+	<li><b>Расширяется двумя способами.</b> Расширения Chrome (в том числе из Chrome Web Store) и собственные аддоны Problet, которые умеют больше, но спрашивают разрешения на опасные действия.</li>
+	<li><b>Два языка.</b> Интерфейс на русском и английском, переключается на лету.</li>
+</ul>
+
+<div class="note">Эта документация описывает текущую версию из ветки <code>main</code>. Номер своей версии смотри на странице <code>problet://version</code> («О браузере»).</div>
+<div class="pager"><span></span><a href="install.html" style="text-align:right"><small>Дальше</small>Установка и обновления</a></div>
+</main>
+</div>
+</body>
+</html>

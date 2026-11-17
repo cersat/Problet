@@ -4,6 +4,8 @@
 
 A browser written from scratch on Electron, focused on a customizable interface and convenient work with tabs. Your own bars and buttons, spaces, tab freezing, an ad blocker, a password manager and built-in tools instead of extensions.
 
+**Documentation (in Russian):** https://cersat.github.io/Problet/guide/
+
 ## Download
 
 Builds for Linux, Windows and macOS appear on the [Releases](https://github.com/cersat/Problet/releases) page with every code change.

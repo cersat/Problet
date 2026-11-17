@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расширения и аддоны — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page on" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Расширения и аддоны</h1>
+<p class="lead">Problet понимает два вида дополнений: расширения Chrome (в том числе прямо из Chrome Web Store) и собственные аддоны Problet. Оба управляются в <span class="path">Настройки → Расширения</span>.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#чем-они-отличаются">Чем они отличаются</a></li><li><a href="#расширения-chrome">Расширения Chrome</a></li><li><a href="#аддоны-problet">Аддоны Problet</a></li><li><a href="#каталог-аддонов">Каталог аддонов</a></li><li><a href="#разрешения-аддонов">Разрешения аддонов</a></li><li><a href="#как-написать-свой-аддон">Как написать свой аддон</a></li></ul></div>
+
+<h2 id="чем-они-отличаются">Чем они отличаются</h2>
+<table>
+	<tr><th></th><th>Расширения Chrome</th><th>Аддоны Problet</th></tr>
+	<tr><td>Откуда</td><td>Chrome Web Store или папка с <code>manifest.json</code></td><td>Каталог <a href="https://github.com/cersat/ProbletAddons">ProbletAddons</a>, ссылка на <code>addon.json</code> или архив</td></tr>
+	<tr><td>Совместимость</td><td>Работают не все API Chrome: недостающие заменены заглушками, сложные расширения могут работать не полностью</td><td>Сделаны под Problet, работают полностью</td></tr>
+	<tr><td>Что могут</td><td>Что позволяет Chrome</td><td>Больше: файлы, запуск программ, сеть без ограничений CORS — но спрашивают разрешения</td></tr>
+	<tr><td>Кнопка</td><td>У каждого расширения своя кнопка, открывает его окошко</td><td>Своя кнопка, если аддон её объявил</td></tr>
+</table>
+<p>Кнопки и тех и других ставятся на любую панель в <span class="path">Настройки → Панели</span>, как встроенные.</p>
+
+<h2 id="расширения-chrome">Расширения Chrome</h2>
+<h3>Из Chrome Web Store</h3>
+<p>Два способа:</p>
+<ul>
+	<li>открой страницу расширения в Chrome Web Store прямо в Problet — рядом с родной кнопкой магазина появится кнопка <b>«Установить в Problet»</b>;</li>
+	<li>или вставь ссылку на страницу расширения (или его идентификатор из 32 букв) в <span class="path">Настройки → Расширения → Из Chrome Web Store → «Установить»</span>.</li>
+</ul>
+<h3>Из папки</h3>
+<p><span class="path">Настройки → Расширения → Расширения Chrome → «Добавить»</span> и выбери папку с распакованным расширением — ту, где лежит <code>manifest.json</code>. Удобно для своих расширений и для отладки.</p>
+<h3>Что работает</h3>
+<ul>
+	<li>скрипты и стили на страницах (content scripts), окошко кнопки (popup), страница настроек;</li>
+	<li>фоновый процесс (service worker) и API, которые есть в Electron: <code>storage</code>, <code>runtime</code>, часть <code>tabs</code> и другие;</li>
+	<li><b>боковая панель</b> (<code>chrome.sidePanel</code>): страница расширения открывается справа от сайта и привязана к своей вкладке;</li>
+	<li>для расширений из магазина Problet дописывает недостающее: настоящие вкладки и окно в <code>chrome.tabs</code> и <code>chrome.windows</code> (список, создание, переход, события), <code>chrome.debugger</code>, <code>chrome.offscreen</code>, группы вкладок (имитация: группа видна расширению, но не рисуется на панели), сохранение <code>chrome.storage.session</code> с данными входа между перезапусками.</li>
+</ul>
+<p>Например, работает «Claude in Chrome»: и в боковой панели, и в связке с <code>claude --chrome</code> из терминала, когда боковая панель закрыта.</p>
+<div class="note">Если расширение работает не полностью, скорее всего, ему нужен API, которого нет в Electron. Напиши об этом в <a href="https://github.com/cersat/Problet/issues">Issues</a> с названием расширения.</div>
+
+<h2 id="аддоны-problet">Аддоны Problet</h2>
+<p>Аддон — папка с файлом <code>addon.json</code> и файлами рядом. Устанавливается в <span class="path">Настройки → Расширения → «Добавить аддон Problet»</span>, дальше одно из трёх:</p>
+<ul>
+	<li>выбрать аддон из каталога;</li>
+	<li><b>«Добавить по ссылке на addon.json»</b> — остальные файлы браузер скачает рядом сам (подходит и обычная ссылка на файл на GitHub);</li>
+	<li><b>«Загрузить архив»</b> — <code>.zip</code>, где <code>addon.json</code> лежит в корне или в единственной папке.</li>
+</ul>
+<p>Перед установкой Problet показывает, что аддон сможет делать. Установленные аддоны видны в том же списке, что и расширения Chrome; там же их настройки и удаление.</p>
+
+<h2 id="каталог-аддонов">Каталог аддонов</h2>
+<table>
+	<tr><th>Аддон</th><th>Что делает</th></tr>
+	<tr><td>Тёмные сайты</td><td>Тёмная тема для выбранных сайтов, картинки и видео в своих цветах.</td></tr>
+	<tr><td>Время чтения</td><td>Сколько минут читать длинную статью.</td></tr>
+	<tr><td>Наборы вкладок</td><td>Сохранить открытые вкладки набором и открыть снова.</td></tr>
+	<tr><td>Страница в Markdown</td><td>Сохранить страницу в файл <code>.md</code>.</td></tr>
+	<tr><td>Скорость видео</td><td>Клавиши скорости и перемотки для любого видео.</td></tr>
+	<tr><td>Быстрая команда</td><td>Выполнить команду в системе прямо с панели.</td></tr>
+	<tr><td>Режим чтения</td><td>Чистый текст статьи без меню и рекламы, размер шрифта, ширина и тема.</td></tr>
+	<tr><td>Скачать картинки и видео</td><td>Список картинок и видео страницы, сохранение выбранных в папку.</td></tr>
+	<tr><td>JSON</td><td>JSON-страницы деревом: сворачивание, поиск, копирование значения и пути.</td></tr>
+</table>
+
+<h2 id="разрешения-аддонов">Разрешения аддонов</h2>
+<p>Аддон заявляет разрешения в <code>addon.json</code>, и получает только их. Чем опаснее разрешение, тем строже Problet спрашивает:</p>
+<table>
+	<tr><th>Когда спрашивает</th><th>Разрешения</th></tr>
+	<tr><td>Не спрашивает (достаточно заявить)</td><td><code>storage</code> — свои данные до 5 МБ; <code>notifications</code> — уведомления; <code>tabs</code> — список вкладок, открыть, закрыть, переключить, перезагрузить, сообщения своим скриптам на страницах.</td></tr>
+	<tr><td>При первом использовании, ответ запоминается</td><td><code>pages</code> — выполнять код на любой открытой странице; <code>network</code> — запросы к любым сайтам без ограничений CORS; <code>bookmarks</code> — читать и добавлять закладки; <code>history</code> — читать историю; <code>clipboard</code> — буфер обмена.</td></tr>
+	<tr><td>При каждом действии, с подробностями (можно ответить «Разрешать всегда»)</td><td><code>files</code> — читать и записывать файлы (файл, который ты сам выбрал в окне выбора, не спрашивается); <code>exec</code> — запускать программы и команды.</td></tr>
+</table>
+<p>Что аддону разрешено и запрещено, видно в списке расширений; кнопка «Сбросить разрешения» забывает все ответы, и он спросит заново.</p>
+
+<h2 id="как-написать-свой-аддон">Как написать свой аддон</h2>
+<p>Минимальный аддон — один файл:</p>
+<pre><code>{
+	"id": "hello",
+	"name": "Привет",
+	"version": "1.0.0",
+	"icon": "👋",
+	"content": [{ "matches": ["&lt;all_urls&gt;"], "js": ["hello.js"] }]
+}</code></pre>
+<p>Полное описание формата <code>addon.json</code> (скрипты на страницах, фон, кнопка с окошком, страница настроек, переводы) и всего API <code>problet</code> для аддонов — в <a href="https://github.com/cersat/ProbletAddons#readme">README каталога ProbletAddons</a>. Коротко:</p>
+<pre><code>problet.storage.get(key) / set(key, value)
+problet.tabs.list() / open(url) / eval(id, code)
+problet.fetch(url, { method, headers, body })
+problet.files.pick({ save }) / read(path) / write(path, data)
+problet.exec(command)
+problet.on('buttonClick', fn)</code></pre>
+<p>Чтобы аддон попал в каталог, положи его папку в репозиторий ProbletAddons и добавь запись в <code>index.json</code> (через pull request).</p>
+<div class="pager"><a href="privacy.html"><small>Назад</small>Приватность и безопасность</a><a href="appearance.html" style="text-align:right"><small>Дальше</small>Тема и язык</a></div>
+</main>
+</div>
+</body>
+</html>
