@@ -105,19 +105,23 @@
 		move: (...a) => reply(a, undefined),
 	});
 	ensure('sidePanel', { setPanelBehavior: (...a) => reply(a, undefined), setOptions: (...a) => reply(a, undefined), getOptions: (...a) => reply(a, {}), open: (...a) => reply(a, undefined) });
-	// Связь с браузером: запросы уходят в канал, на другом конце боковая панель передаёт их главному процессу (нужна открытая панель)
+	// Связь с браузером: запросы уходят в канал, на другом конце скрытая страница-посредник расширения передаёт их главному процессу
 	const bus = new BroadcastChannel('problet-dbg');
 	const waits = new Map();
+	const pending = new Map(); // ещё без ответа: посредник мог подняться позже запроса, тогда отправляем заново
 	bus.addEventListener('message', (m) => {
 		const d = m.data || {};
+		if (d.relayReady) for (const [rid, req] of pending) bus.postMessage({ rid, req });
 		if (d.rid && waits.has(d.rid)) waits.get(d.rid)(d);
 	});
 	const rpc = (req) => new Promise((resolve, reject) => {
 		const rid = Math.random().toString(36).slice(2);
-		const timer = setTimeout(() => { waits.delete(rid); reject(new Error('The browser is not available: the side panel is closed.')); }, 60000);
+		pending.set(rid, req);
+		const timer = setTimeout(() => { waits.delete(rid); pending.delete(rid); reject(new Error('The browser did not respond')); }, 60000);
 		waits.set(rid, (d) => {
 			clearTimeout(timer);
 			waits.delete(rid);
+			pending.delete(rid);
 			if (d.ok) resolve(d.value); else reject(new Error(d.error));
 		});
 		bus.postMessage({ rid, req });
@@ -152,12 +156,74 @@
 			getTargets: (...a) => call(a, { op: 'targets' }),
 		};
 	}
+	// Вкладки браузера Electron расширениям не показывает: родные chrome.tabs.get/query/update видят только служебные окна
+	// и отвечают «No such tab». Поэтому список вкладок и действия с ними берём у браузера, и его же события о вкладках
+	if (c.tabs) {
+		const first = (a) => (typeof a[0] === 'object' && a[0] ? a[0] : {});
+		const T = c.tabs;
+		const pat = (p) => new RegExp('^' + String(p).replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+		const match = (t, q) => {
+			if (q.active !== undefined && t.active !== !!q.active) return false;
+			if (q.highlighted !== undefined && t.highlighted !== !!q.highlighted) return false;
+			if (q.pinned !== undefined && t.pinned !== !!q.pinned) return false;
+			if (q.audible !== undefined && t.audible !== !!q.audible) return false;
+			if (q.discarded !== undefined && t.discarded !== !!q.discarded) return false;
+			if (q.status !== undefined && t.status !== q.status) return false;
+			if (q.index !== undefined && t.index !== q.index) return false;
+			if (q.windowId !== undefined && q.windowId !== -2 && t.windowId !== q.windowId) return false;
+			if (q.windowType !== undefined && q.windowType !== 'normal') return false;
+			if (typeof q.title === 'string' && !pat(q.title).test(t.title || '')) return false;
+			if (q.url !== undefined && ![].concat(q.url).some((u) => pat(u).test(t.url || ''))) return false;
+			return true;
+		};
+		const getTab = (id) => rpc({ op: 'tab-list' }).then((l) => {
+			const t = l.find((x) => x.id === id);
+			if (!t) throw new Error('No tab with id: ' + id + '.');
+			return t;
+		});
+		const wrap = (a, p) => {
+			const cb = a.length && typeof a[a.length - 1] === 'function' ? a[a.length - 1] : null;
+			if (!cb) return p;
+			p.then((v) => cb(v), (e) => {
+				c.runtime.lastError = { message: String((e && e.message) || e) };
+				try { cb(undefined); } finally { c.runtime.lastError = undefined; }
+			});
+			return undefined;
+		};
+		const idOf = (a) => (typeof a[0] === 'number' ? a[0] : undefined);
+		const activeId = () => rpc({ op: 'tab-list' }).then((l) => (l.find((t) => t.active) || {}).id);
+		T.get = (...a) => wrap(a, getTab(a[0]));
+		T.query = (...a) => wrap(a, rpc({ op: 'tab-list' }).then((l) => l.filter((t) => match(t, first(a)))));
+		T.update = (...a) => {
+			const props = (typeof a[0] === 'number' ? a[1] : a[0]) || {};
+			return wrap(a, (idOf(a) === undefined ? activeId() : Promise.resolve(idOf(a))).then((id) => rpc({ op: 'tab-update', tabId: id, props })));
+		};
+		T.reload = (...a) => wrap(a, (idOf(a) === undefined ? activeId() : Promise.resolve(idOf(a))).then((id) => rpc({ op: 'tab-reload', tabId: id })));
+		T.highlight = (...a) => wrap(a, rpc({ op: 'tab-update', tabId: [].concat(first(a).tabs)[0], index: true, props: { active: true } }).then(() => ({ id: 1, focused: true, type: 'normal', state: 'normal', incognito: false })));
+		T.duplicate = (...a) => wrap(a, getTab(a[0]).then((t) => rpc({ op: 'tab-create', url: t.url, active: true })).then((t) => getTab(t.id)));
+		T.move = (...a) => wrap(a, Promise.all([].concat(a[0]).map(getTab)).then((l) => (Array.isArray(a[0]) ? l : l[0])));
+		T.discard = (...a) => wrap(a, idOf(a) === undefined ? Promise.resolve(undefined) : getTab(a[0]));
+		T.captureVisibleTab = (...a) => {
+			const o = (typeof a[0] === 'object' && a[0]) || (typeof a[1] === 'object' && a[1]) || {};
+			return wrap(a, rpc({ op: 'tab-capture', format: o.format === 'jpeg' ? 'jpeg' : 'png', quality: o.quality }));
+		};
+		// События о вкладках: браузер рассылает их через страницу-посредник
+		for (const n of ['onCreated', 'onUpdated', 'onActivated', 'onRemoved']) T[n] = event();
+		bus.addEventListener('message', (m) => {
+			const e = (m.data || {}).tabEv;
+			if (!e) return;
+			if (e.type === 'created') T.onCreated._fire(e.tab);
+			else if (e.type === 'updated') T.onUpdated._fire(e.tab.id, e.change, e.tab);
+			else if (e.type === 'activated') T.onActivated._fire({ tabId: e.tabId, windowId: 1 });
+			else if (e.type === 'removed') T.onRemoved._fire(e.tabId, { windowId: 1, isWindowClosing: false });
+		});
+	}
 	// Фоновому процессу в Electron не хватает работы с вкладками и окном (создать и закрыть вкладку, назад/вперёд, размер окна, скрытая страница)
 	if (typeof ServiceWorkerGlobalScope !== 'undefined' && c.tabs) {
 		const tabOf = (t) => ({ id: t.id, index: 0, windowId: 1, groupId: -1, active: !!t.active, highlighted: !!t.active, selected: !!t.active, pinned: false, incognito: false, discarded: false, autoDiscardable: true, url: t.url || '', pendingUrl: t.url || '', title: t.title || '', status: 'loading' });
 		const winOf = (w) => ({ ...w, tabs: undefined });
 		const first = (a) => (typeof a[0] === 'object' && a[0] ? a[0] : {});
-		c.tabs.create = (...a) => call(a, { op: 'tab-create', url: first(a).url, active: first(a).active }, tabOf);
+		c.tabs.create = (...a) => call(a, { op: 'tab-create', url: first(a).url, active: first(a).active }, (t) => ({ ...tabOf(t), ...(t.tab || {}) }));
 		c.tabs.remove = (...a) => call(a, { op: 'tab-remove', ids: [].concat(a[0]).filter((x) => typeof x === 'number') });
 		c.tabs.goBack = (...a) => call(a, { op: 'tab-nav', tabId: typeof a[0] === 'number' ? a[0] : undefined, dir: -1 });
 		c.tabs.goForward = (...a) => call(a, { op: 'tab-nav', tabId: typeof a[0] === 'number' ? a[0] : undefined, dir: 1 });
@@ -198,31 +264,6 @@
 			if (tu && tu._fire) tu._fire(-1, { url, status: 'loading' }, { id: -1, url });
 		};
 	} catch (err) { /* без канала вход через сайт не завершится */ }
-	// Electron считает вкладкой любое окно, в том числе саму боковую панель, и ставит ей active: подменяем ответ на настоящую открытую страницу
-	if (typeof root.__probletActiveTab === 'function' && c.tabs && c.tabs.query && !c.tabs.__probletQuery) {
-		const query = c.tabs.query.bind(c.tabs);
-		c.tabs.__probletQuery = true;
-		c.tabs.query = (...a) => {
-			const info = typeof a[0] === 'object' && a[0] ? a[0] : {};
-			const cb = typeof a[a.length - 1] === 'function' ? a[a.length - 1] : null;
-			const own = location.protocol === 'chrome-extension:' ? location.origin + '/' : '';
-			const run = query({}).then((list) => {
-				const act = root.__probletActiveTab();
-				let out = (list || []).filter((t) => !(own && root.__probletSidePanel && String(t.url || '').startsWith(own + 'sidepanel'))).map((t) => ({ ...t, active: t.id === act, windowId: 1 }));
-				if (info.active !== undefined) out = out.filter((t) => t.active === !!info.active);
-				if (typeof info.url === 'string' || Array.isArray(info.url)) {
-					const pats = [].concat(info.url).map((p) => new RegExp('^' + p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'));
-					out = out.filter((t) => pats.some((r) => r.test(t.url || '')));
-				}
-				return out;
-			});
-			if (cb) {
-				run.then((v) => cb(v), () => cb([]));
-				return undefined;
-			}
-			return run;
-		};
-	}
 	if (root.__probletSidePanel && c.tabs) c.tabs.getCurrent = (...a) => reply(a, undefined);
 	// В Electron chrome.runtime.onStartup не срабатывает вообще, а расширения на нём заново входят в аккаунт и поднимают свои службы.
 	// Подменяем событие своим и один раз за запуск браузера (память сеанса storage.session пустеет при перезапуске) сами его вызываем

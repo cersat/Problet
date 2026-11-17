@@ -1203,6 +1203,7 @@ function importBookmarkItems(items) {
 	let added = 0;
 	let skipped = 0;
 	let folders = 0;
+	const ids = [];
 	items.slice(0, BOOKMARKS_LIMIT).forEach((it, index) => {
 		const url = it && typeof it === 'object' ? cleanUrl(it.url) : '';
 		if (!url || urls.has(url)) {
@@ -1221,12 +1222,29 @@ function importBookmarkItems(items) {
 			}
 			folder = f.id;
 		}
-		data.bookmarks.push({ id: newId(), title: str(it.title, 300).trim() || url, url, icon: '', folder, added: base - index });
+		const id = newId();
+		data.bookmarks.push({ id, title: str(it.title, 300).trim() || url, url, icon: cleanIcon(it.icon), folder, added: base - index });
+		ids.push(id);
 		added++;
 	});
 	scheduleSave();
 	changed('bookmarks');
-	return { added, skipped, folders };
+	return { added, skipped, folders, ids };
+}
+
+// Иконки закладкам, у которых её нет: { id: адрес иконки }. Уже заданные не трогаем
+function setBookmarkIcons(map) {
+	let n = 0;
+	for (const b of data.bookmarks) {
+		const icon = map[b.id] && cleanIcon(map[b.id]);
+		if (icon && !b.icon) {
+			b.icon = icon;
+			n++;
+		}
+	}
+	if (!n) return;
+	scheduleSave();
+	changed('bookmarks');
 }
 
 function escapeHtml(s) {
@@ -1377,7 +1395,7 @@ module.exports = {
 	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
-	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
+	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
 	exportData, looksLikeBackup, importData,
 	getSession, setSession, getCacheClearedAt, setCacheClearedAt,
 	onChange, notify: changed, DEFAULT_SPACE,

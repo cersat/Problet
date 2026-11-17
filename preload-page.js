@@ -276,11 +276,10 @@ if (window !== window.top && location.protocol === 'https:' && location.hostname
 if (location.protocol === 'chrome-extension:') {
 	try {
 		// Те же заплатки для недостающих chrome.*, что и у фонового процесса: страницы расширений без них падают
-		contextBridge.exposeInMainWorld('__probletActiveTab', () => ipcRenderer.sendSync('ext:active-tab'));
 		const shim = ipcRenderer.sendSync('ext:shim');
 		if (shim) webFrame.executeJavaScript(shim);
-		// Боковая панель — посредник между фоновым процессом расширения и отладчиком браузера (chrome.debugger из ext-shim.js)
-		if (ipcRenderer.sendSync('ext:is-side')) {
+		// Скрытая страница-посредник (problet-relay.html) передаёт браузеру запросы фонового процесса расширения (вкладки, окно, chrome.debugger из ext-shim.js)
+		if (ipcRenderer.sendSync('ext:is-relay')) {
 			const dch = new BroadcastChannel('problet-dbg');
 			dch.onmessage = (m) => {
 				const d = m.data;
@@ -291,6 +290,8 @@ if (location.protocol === 'chrome-extension:') {
 				);
 			};
 			ipcRenderer.on('dbg:event', (e, ev) => dch.postMessage({ ev }));
+			ipcRenderer.on('tab:event', (e, tabEv) => dch.postMessage({ tabEv }));
+			dch.postMessage({ relayReady: true }); // запросы, отправленные до запуска посредника, уйдут заново
 		}
 		webFrame.executeJavaScript('(' + function () {
 			const c = window.chrome;

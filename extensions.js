@@ -40,6 +40,9 @@ function patchBackground(dir) {
 	// Браузер подменяет этот переход страницей, которая передаёт адрес фоновому процессу
 	fs.writeFileSync(path.join(dir, 'problet-callback.html'), '<!doctype html><meta charset="utf-8"><title>Problet</title><script src="problet-callback.js"></script>');
 	fs.writeFileSync(path.join(dir, 'problet-callback.js'), "try{const u=new URLSearchParams(location.search).get('u');const c=new BroadcastChannel('problet-nav');c.postMessage({url:u});document.title='OK'}catch(e){}\n");
+	// Служебная страница-посредник между фоновым процессом и браузером (вкладки, окно, отладчик из ext-shim.js): браузер держит её скрытой.
+	// В Electron у фонового процесса расширения нет связи с главным процессом, а у страницы расширения есть, и живёт она в том же процессе
+	fs.writeFileSync(path.join(dir, 'problet-relay.html'), '<!doctype html><meta charset="utf-8"><title>Problet</title>');
 	if (bg === 'problet-sw.js') return;
 	const quote = (s) => JSON.stringify(s);
 	const code = m.background.type === 'module'

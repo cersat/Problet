@@ -551,6 +551,7 @@ function parseBookmarksHtml(text) {
 	return [...doc.querySelectorAll('a[href]')].map((a) => ({
 		title: a.textContent.trim(),
 		url: a.getAttribute('href'),
+		icon: a.getAttribute('icon_uri') || '', // адрес иконки пишут Firefox и сам Problet
 		folder: folderOf(a),
 	}));
 }

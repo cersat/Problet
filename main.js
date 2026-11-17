@@ -637,6 +637,7 @@ async function removeFolderAsk(id) {
 
 function sendTabs() {
 	if (!win || win.isDestroyed()) return;
+	sendTabEvents();
 	const s = settings();
 	win.webContents.send('tabs', {
 		activeId,
@@ -1122,6 +1123,7 @@ function wireTab(tab) {
 		if (tab.icon && !tab.incognito) {
 			if (iconByOrigin.size > 3000) iconByOrigin.clear();
 			iconByOrigin.set(originOf(tab.view.webContents.getURL()), tab.icon);
+			fillBookmarkIcons(tab.view.webContents.getURL(), tab.icon);
 		}
 		sendTabs();
 		scheduleSession();
@@ -1202,8 +1204,9 @@ function wireTab(tab) {
 				if (alive()) switchView(tab, url, true);
 			});
 		};
-		// Страница, к которой привязана боковая панель расширения, остаётся настоящей: иначе панель пришлось бы перезагружать
-		const keepReal = () => !!sideView && wc.id === sideTab;
+		// Страница, к которой привязана боковая панель расширения, или вкладка, заведённая расширением, остаётся настоящей:
+		// иначе у неё сменился бы номер и расширение её потеряло бы
+		const keepReal = () => (!!sideView && wc.id === sideTab) || !!tab.extOwned;
 		wc.on('did-start-navigation', (d) => {
 			if (d.isMainFrame && !d.isSameDocument && isVirtualFor(tab, d.url) && !(keepReal() && vtab.isVirtualUrl(d.url))) toVirtual(d.url);
 		});
@@ -1249,8 +1252,8 @@ function createTab(url, opts = {}) {
 			return same;
 		}
 	}
-	const view = !opts.incognito && vtab.isVirtualUrl(url || '') ? new vtab.VirtualView(vhost) : newRealView({ incognito: !!opts.incognito });
-	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now(), lastActive: Date.now(), frozen: false, backSegs: [], fwdSegs: [] };
+	const view = !opts.incognito && !opts.real && vtab.isVirtualUrl(url || '') ? new vtab.VirtualView(vhost) : newRealView({ incognito: !!opts.incognito });
+	const tab = { id: nextTabId++, view, title: opts.title || '', url: url || '', icon: opts.icon || '', loading: false, pendingUrl: null, pinned: !!opts.pinned, incognito: !!opts.incognito, space: spaceOf(opts), hidden: !!opts.hidden, created: Date.now(), lastActive: Date.now(), frozen: false, backSegs: [], fwdSegs: [], extOwned: !!opts.extOwned };
 
 	let index = tabs.length;
 	if (opts.afterId) {
@@ -3569,8 +3572,96 @@ handle('folders:add', (name) => bookmarksAction(() => store.addFolder(name)));
 handle('folders:rename', (id, name) => bookmarksAction(() => store.renameFolder(id, name)));
 handle('folders:remove', (id) => bookmarksAction(() => store.removeFolder(id)));
 
+// ---------- Иконки закладок без иконки ----------
+// Закладке иконку даёт вкладка в момент добавления. У импортированных её нет: ищем в фоне по самому сайту
+// (ссылка <link rel="icon"> на странице, иначе /favicon.ico), а у сайтов, где иконка уже известна, берём её сразу
+const ICON_LINK = /<link\b[^>]*>/gi;
+async function findSiteIcon(url) {
+	const known = iconByOrigin.get(originOf(url));
+	if (known) return known;
+	const res = await net.fetch(url, { signal: AbortSignal.timeout(10000), redirect: 'follow' });
+	const base = res.url || url;
+	if (res.ok && /text\/html/i.test(res.headers.get('content-type') || '')) {
+		const html = (await res.text()).slice(0, 300000);
+		const head = html.split(/<\/head>/i)[0];
+		let best = '';
+		for (const tag of head.match(ICON_LINK) || []) {
+			const rel = (/\brel\s*=\s*["']?([^"'>]+)/i.exec(tag) || [])[1] || '';
+			const href = (/\bhref\s*=\s*["']([^"']+)["']/i.exec(tag) || /\bhref\s*=\s*([^\s>]+)/i.exec(tag) || [])[1];
+			if (!href || !/(^|\s)(shortcut\s+)?icon(\s|$)|apple-touch-icon/i.test(rel)) continue;
+			let abs;
+			try {
+				abs = new URL(href.replace(/&amp;/g, '&'), base).href;
+			} catch (e) {
+				continue;
+			}
+			if (!/^https?:/i.test(abs)) continue;
+			if (/(^|\s)icon(\s|$)/i.test(rel) || !best) best = abs; // обычная иконка важнее иконки для телефонов
+			if (/(^|\s)icon(\s|$)/i.test(rel)) break;
+		}
+		if (best) return best;
+	} else if (res.body) {
+		res.body.cancel().catch(() => {});
+	}
+	const ico = new URL('/favicon.ico', base).href;
+	const r2 = await net.fetch(ico, { signal: AbortSignal.timeout(10000) });
+	const ok = r2.ok && /image|icon|octet-stream/i.test(r2.headers.get('content-type') || 'image');
+	if (r2.body) r2.body.cancel().catch(() => {});
+	return ok ? ico : '';
+}
+
+const bmIconQueue = [];
+let bmIconRunning = 0;
+let bmIconFound = {};
+let bmIconFlush = null;
+function queueBookmarkIcons(ids) {
+	const want = new Set(ids);
+	for (const b of store.bookmarksState().bookmarks) {
+		if (want.has(b.id) && !b.icon && /^https?:/i.test(b.url)) bmIconQueue.push({ id: b.id, url: b.url });
+	}
+	for (let i = bmIconRunning; i < 4; i++) nextBookmarkIcon();
+}
+function nextBookmarkIcon() {
+	const job = bmIconQueue.shift();
+	if (!job) return;
+	bmIconRunning++;
+	findSiteIcon(job.url)
+		.then((icon) => {
+			if (!icon) return;
+			bmIconFound[job.id] = icon;
+			cache.addIcon(icon);
+		})
+		.catch(() => {}) // сайт недоступен — закладка останется со значком по умолчанию
+		.finally(() => {
+			bmIconRunning--;
+			// Сохраняем пачками, чтобы не перерисовывать списки после каждой иконки
+			if (!bmIconFlush) {
+				bmIconFlush = setTimeout(() => {
+					bmIconFlush = null;
+					const map = bmIconFound;
+					bmIconFound = {};
+					store.setBookmarkIcons(map);
+					sendState();
+				}, bmIconQueue.length ? 1500 : 0);
+			}
+			nextBookmarkIcon();
+		});
+}
+
+// Открыли сайт, у закладок которого нет иконки: теперь она известна
+function fillBookmarkIcons(url, icon) {
+	const origin = originOf(url);
+	if (!origin || !icon) return;
+	const map = {};
+	for (const b of store.bookmarksState().bookmarks) if (!b.icon && originOf(b.url) === origin) map[b.id] = icon;
+	if (!Object.keys(map).length) return;
+	store.setBookmarkIcons(map);
+	sendState();
+}
+
 handle('bookmarks:import-items', (items) => {
 	const r = store.importBookmarkItems(items);
+	queueBookmarkIcons(r.ids);
 	sendState();
 	return { message: 'Добавлено закладок: ' + r.added + ', новых папок: ' + r.folders + (r.skipped ? '. Пропущено (повторы и неподходящие адреса): ' + r.skipped : '') };
 });
@@ -3580,6 +3671,7 @@ handle('import:run', (id) => {
 	const items = importer.read(String(id));
 	if (!items.length) throw new Error('В этом браузере не найдено закладок');
 	const r = store.importBookmarkItems(items);
+	queueBookmarkIcons(r.ids);
 	sendState();
 	return { message: 'Добавлено закладок: ' + r.added + ', новых папок: ' + r.folders + (r.skipped ? '. Пропущено (повторы и неподходящие адреса): ' + r.skipped : '') };
 });
@@ -3615,7 +3707,81 @@ handle('ext:remove', async (p) => {
 // Кнопки расширений на панели инструментов
 // Каждое расширение с кнопкой получает свою кнопку на панели инструментов, у удалённых кнопки пропадают
 let extReady = false;
+// Вкладки для расширений (chrome.tabs в ext-shim.js): номер вкладки — номер её страницы, окно одно
+function extTabList() {
+	return tabs.filter((t) => !t.view.webContents.isDestroyed()).map((t, index) => {
+		const wc = t.view.webContents;
+		const active = t.id === activeId;
+		const b = pageBounds();
+		return {
+			id: wc.id, index, windowId: 1, active, highlighted: active, selected: active, pinned: !!t.pinned, incognito: !!t.incognito,
+			audible: wc.isCurrentlyAudible(), mutedInfo: { muted: !!(wc.isAudioMuted && wc.isAudioMuted()) }, discarded: !!t.frozen, autoDiscardable: true,
+			url: t.pendingUrl || wc.getURL() || t.url, title: t.title || t.pendingUrl || wc.getURL() || t.url,
+			status: t.loading ? 'loading' : 'complete', favIconUrl: t.icon || undefined, width: b.width, height: b.height,
+			groupId: -1, openerTabId: undefined,
+		};
+	});
+}
+
+// События chrome.tabs.on*: сравниваем с прошлым состоянием при каждом обновлении полосы вкладок
+let extTabsPrev = new Map();
+let extActivePrev = null;
+function sendTabEvents() {
+	if (!extRelays.size) return;
+	const send = (ev) => {
+		for (const w of extRelays.values()) if (!w.isDestroyed()) w.webContents.send('tab:event', ev);
+	};
+	const now = new Map(extTabList().map((t) => [t.id, t]));
+	for (const [id, t] of now) {
+		const old = extTabsPrev.get(id);
+		if (!old) {
+			send({ type: 'created', tab: t });
+			continue;
+		}
+		const change = {};
+		for (const k of ['status', 'url', 'title', 'pinned', 'favIconUrl', 'audible', 'discarded']) if (old[k] !== t[k]) change[k] = t[k];
+		if (Object.keys(change).length) send({ type: 'updated', tab: t, change });
+	}
+	for (const id of extTabsPrev.keys()) if (!now.has(id)) send({ type: 'removed', tabId: id });
+	const act = [...now.values()].find((t) => t.active);
+	if (act && act.id !== extActivePrev) send({ type: 'activated', tabId: act.id });
+	extActivePrev = act ? act.id : null;
+	extTabsPrev = now;
+}
+
+// Скрытые страницы-посредники расширений из магазина (problet-relay.html, см. extensions.js): id расширения → окно
+const extRelays = new Map();
+function syncRelays() {
+	const want = new Map();
+	for (const e of extensions.list()) {
+		if (e.id && !e.error && fs.existsSync(path.join(e.path, 'problet-relay.html'))) want.set(e.id, e);
+	}
+	for (const [id, w] of extRelays) {
+		if (want.has(id) && !w.isDestroyed()) continue;
+		if (!w.isDestroyed()) w.destroy();
+		extRelays.delete(id);
+	}
+	for (const id of want.keys()) {
+		if (extRelays.has(id)) continue;
+		const w = new BrowserWindow({ show: false, width: 400, height: 300, webPreferences: { preload: PAGE_PRELOAD, contextIsolation: true, sandbox: true, backgroundThrottling: false } });
+		extRelays.set(id, w);
+		w.on('closed', () => {
+			if (extRelays.get(id) === w) extRelays.delete(id);
+		});
+		w.webContents.on('render-process-gone', () => setTimeout(() => {
+			// Процесс расширения упал: поднимаем посредника заново
+			if (extRelays.get(id) === w && !w.isDestroyed()) w.webContents.reload();
+		}, 1000));
+		w.loadURL('chrome-extension://' + id + '/problet-relay.html').catch((err) => log('посредник расширения не открылся', err));
+	}
+}
+const relayExt = (wc) => {
+	for (const [id, w] of extRelays) if (!w.isDestroyed() && w.webContents === wc) return id;
+	return '';
+};
+
 function sendExtActions() {
+	if (extReady) syncRelays();
 	if (extReady) {
 		const ids = [...extensions.actions(), ...addons.actions()].map((x) => 'x:' + x.id);
 		const L = settings().btnLayout;
@@ -3644,14 +3810,12 @@ function sendExtActions() {
 function extPage(id, kind) {
 	return id.startsWith('@') ? addons.pageUrl(id.slice(1), kind) : extensions.pageUrl(id, kind);
 }
-ipcMain.on('ext:active-tab', (e) => {
-	const t = activeTab();
-	e.returnValue = t && /^chrome-extension:\/\//.test(e.senderFrame.url) && !t.view.webContents.isDestroyed() ? t.view.webContents.id : -1;
-});
 // chrome.debugger для расширений: в Electron его нет, а инструменты Claude (скриншоты, клики, чтение страницы) работают через него.
 // Запросы идут из фонового процесса расширения по каналу в страницу боковой панели, а оттуда сюда: отладчик Electron на нужной вкладке
-ipcMain.on('ext:is-side', (e) => {
-	e.returnValue = !!sideView && !sideView.webContents.isDestroyed() && e.sender === sideView.webContents && /^chrome-extension:\/\//.test(e.senderFrame.url);
+// Страница-посредник расширения передаёт запросы его фонового процесса браузеру
+ipcMain.on('ext:is-relay', (e) => {
+	const ext = relayExt(e.sender);
+	e.returnValue = !!ext && !!e.senderFrame && e.senderFrame.url === 'chrome-extension://' + ext + '/problet-relay.html';
 });
 const dbgHooked = new WeakSet();
 let offscreenWin = null; // скрытая страница расширения (chrome.offscreen)
@@ -3659,17 +3823,52 @@ const dbgTab = (id) => {
 	const t = tabs.find((x) => !x.view.webContents.isDestroyed() && x.view.webContents.id === id);
 	return t ? t.view.webContents : null;
 };
+const dbgOwner = new Map(); // номер вкладки → расширение, которое подключило к ней отладчик
+// События отладчика идут в служебную страницу того расширения, которое подключило отладчик, а она передаёт их фоновому процессу
 const dbgSend = (ev) => {
-	if (sideView && !sideView.webContents.isDestroyed()) sideView.webContents.send('dbg:event', ev);
+	const r = extRelays.get(dbgOwner.get(ev.tabId));
+	if (r && !r.isDestroyed()) r.webContents.send('dbg:event', ev);
 };
 ipcMain.handle('ext:dbg', async (e, req) => {
-	if (!sideView || e.sender !== sideView.webContents || !/^chrome-extension:\/\//.test(e.senderFrame.url) || !req || typeof req !== 'object') throw new Error('Доступ запрещён');
+	const ext = relayExt(e.sender);
+	if (!ext || !e.senderFrame || e.senderFrame.url !== 'chrome-extension://' + ext + '/problet-relay.html' || !req || typeof req !== 'object') throw new Error('Доступ запрещён');
+	return extDbg(req, ext);
+});
+
+// Вкладки, которые завело расширение: остаются настоящими страницами, чтобы номер вкладки у расширения не менялся
+async function extDbg(req, extId) {
+	if (req.op === 'tab-list') return extTabList();
+	if (req.op === 'tab-update' || req.op === 'tab-reload') {
+		const t = tabs.find((x) => !x.view.webContents.isDestroyed() && x.view.webContents.id === Number(req.tabId));
+		if (!t) throw new Error('No tab with id: ' + req.tabId + '.');
+		if (req.op === 'tab-reload') {
+			t.view.webContents.reload();
+			return null;
+		}
+		const p = req.props && typeof req.props === 'object' ? req.props : {};
+		if (typeof p.url === 'string' && p.url) {
+			if (!/^(https?:|problet:|chrome-extension:|about:blank|data:|file:)/.test(p.url)) throw new Error('Unsupported URL: ' + p.url);
+			t.pendingUrl = null;
+			t.frozen = false;
+			t.view.webContents.loadURL(p.url).catch(() => {});
+		}
+		if (p.pinned !== undefined) setPinned(t.id, !!p.pinned);
+		if (p.active || p.highlighted) activateTab(t.id);
+		if (p.muted !== undefined && t.view.webContents.setAudioMuted) t.view.webContents.setAudioMuted(!!p.muted);
+		return extTabList().find((x) => x.id === Number(req.tabId)) || null;
+	}
+	if (req.op === 'tab-capture') {
+		const t = activeTab();
+		if (!t || t.view.webContents.isDestroyed()) throw new Error('No active tab');
+		const img = await t.view.webContents.capturePage();
+		return req.format === 'jpeg' ? 'data:image/jpeg;base64,' + img.toJPEG(Math.min(100, Math.max(0, Number(req.quality) || 92))).toString('base64') : img.toDataURL();
+	}
 	if (req.op === 'tab-create') {
 		let u = String(req.url || '');
 		if (!u || /^chrome:\/\/newtab/.test(u)) u = NEWTAB;
 		if (!/^(https?:|problet:|chrome-extension:|about:blank)/.test(u)) throw new Error('Unsupported URL: ' + u);
-		const t = createTab(u, { activate: req.active !== false });
-		return { id: t.view.webContents.id, url: u, title: '', active: req.active !== false };
+		const t = createTab(u, { activate: req.active !== false, real: true, extOwned: true });
+		return { id: t.view.webContents.id, url: u, title: '', active: req.active !== false, tab: extTabList().find((x) => x.id === t.view.webContents.id) };
 	}
 	if (req.op === 'tab-remove') {
 		for (const wid of [].concat(req.ids || [])) {
@@ -3713,8 +3912,8 @@ ipcMain.handle('ext:dbg', async (e, req) => {
 	}
 	if (req.op === 'offscreen-create') {
 		if (offscreenWin && !offscreenWin.isDestroyed()) throw new Error('Only a single offscreen document may be created.');
-		const u = new URL(String(req.url || ''), 'chrome-extension://' + sideExt + '/');
-		if (u.protocol !== 'chrome-extension:' || u.hostname !== sideExt) throw new Error('Unsupported URL');
+		const u = new URL(String(req.url || ''), 'chrome-extension://' + extId + '/');
+		if (!extId || u.protocol !== 'chrome-extension:' || u.hostname !== extId) throw new Error('Unsupported URL');
 		offscreenWin = new BrowserWindow({ show: false, width: 800, height: 600, webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true } });
 		await offscreenWin.loadURL(u.href);
 		return null;
@@ -3731,6 +3930,7 @@ ipcMain.handle('ext:dbg', async (e, req) => {
 	if (req.op === 'attach') {
 		if (dbg.isAttached()) throw new Error('Another debugger is already attached to the tab with id: ' + wc.id + '.');
 		dbg.attach(typeof req.version === 'string' ? req.version : '1.3');
+		dbgOwner.set(wc.id, extId);
 		if (!dbgHooked.has(wc)) {
 			dbgHooked.add(wc);
 			dbg.on('message', (ev, method, params, sessionId) => dbgSend({ tabId: wc.id, method, params, sessionId }));
@@ -3749,7 +3949,7 @@ ipcMain.handle('ext:dbg', async (e, req) => {
 		return dbg.sendCommand(req.method, req.params || {}, typeof req.sessionId === 'string' ? req.sessionId : undefined);
 	}
 	throw new Error('Неверный запрос');
-});
+}
 ipcMain.on('ext:shim', (e) => {
 	try {
 		const shim = fs.readFileSync(path.join(__dirname, 'ext-shim.js'), 'utf8');
