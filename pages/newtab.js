@@ -12,7 +12,7 @@ function tile(b, hint) {
 	let fav;
 	if (b.customIcon || b.icon) {
 		fav = document.createElement('img');
-		fav.className = 'fav';
+		fav.className = 'fav' + (!b.customIcon && b.iconTone ? ' tone-' + b.iconTone : '');
 		fav.src = b.customIcon || b.icon;
 		fav.addEventListener('error', () => {
 			const l = document.createElement('span');

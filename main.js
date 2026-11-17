@@ -547,7 +547,7 @@ ipcMain.on('win:close', (e) => fromToolbar0(e) && win.close());
 // Панель закладок: папки и закладки целиком, рисует их окно тулбара
 function barPayload() {
 	const st = store.bookmarksState();
-	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name, color: f.color })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, customIcon: b.customIcon, folder: b.folder })) };
+	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name, color: f.color })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, iconTone: b.iconTone, customIcon: b.customIcon, folder: b.folder })) };
 }
 
 function sendBar() {
@@ -653,6 +653,7 @@ function sendTabs() {
 // navigated — страница действительно сменилась, reset — вкладку переключили и адрес надо заменить в любом случае
 function sendState(navigated, reset) {
 	if (!win || win.isDestroyed()) return;
+	scanIconTones(); // у новых иконок закладок узнаём тон в фоне
 	const tab = activeTab();
 	if (!tab) return;
 	const wc = tab.view.webContents;
@@ -3646,6 +3647,135 @@ function nextBookmarkIcon() {
 			}
 			nextBookmarkIcon();
 		});
+}
+
+// ---------- Тон иконок закладок ----------
+// Многие сайты дают однотонную иконку под светлую тему (GitHub — почти чёрную), а светлую подставляют своим скриптом.
+// У закладки такая иконка сливается с тёмным фоном. Один раз смотрим, однотонная ли иконка и какого она тона (store.setBookmarkTones)
+function colorsTone(list) {
+	let dark = 0;
+	let light = 0;
+	let n = 0;
+	for (const [r, g, b] of list) {
+		if (Math.max(r, g, b) - Math.min(r, g, b) > 60) return ''; // цветная иконка видна на любом фоне
+		const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+		n++;
+		if (lum < 0.35) dark++;
+		else if (lum > 0.75) light++;
+	}
+	if (!n) return '';
+	if (dark >= n * 0.95) return 'dark';
+	if (light >= n * 0.95) return 'light';
+	return '';
+}
+
+const NAMED_COLORS = { black: [0, 0, 0], white: [255, 255, 255], currentcolor: [0, 0, 0], gray: [128, 128, 128], grey: [128, 128, 128] };
+function parseColor(v) {
+	v = String(v).trim().toLowerCase();
+	if (!v || v === 'none' || v === 'transparent' || v.startsWith('url(')) return null;
+	let m = /^#([0-9a-f]{3})$/.exec(v);
+	if (m) return [...m[1]].map((c) => parseInt(c + c, 16));
+	m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(v);
+	if (m) return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+	m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(v);
+	if (m) return [+m[1], +m[2], +m[3]];
+	return NAMED_COLORS[v] || 'other'; // незнакомое название цвета — считаем иконку цветной
+}
+
+function svgTone(text) {
+	if (/prefers-color-scheme/i.test(text)) return ''; // иконка сама меняется под тему
+	const colors = [];
+	for (const m of text.matchAll(/\b(?:fill|stroke|stop-color|color)\s*[=:]\s*["']?([^"';>]+)/gi)) {
+		const c = parseColor(m[1]);
+		if (c === 'other') return '';
+		if (c) colors.push(c);
+	}
+	// Без цветов фигуры заливаются чёрным
+	if (!colors.length) return /<(path|rect|circle|ellipse|polygon|polyline|text)\b/i.test(text) ? 'dark' : '';
+	return colorsTone(colors);
+}
+
+function bitmapTone(px, count, bgra) {
+	const list = [];
+	const step = Math.max(1, Math.floor(count / 4096));
+	for (let i = 0; i < count; i += step) {
+		const o = i * 4;
+		if (px[o + 3] < 100) continue; // прозрачное не считаем
+		list.push(bgra ? [px[o + 2], px[o + 1], px[o]] : [px[o], px[o + 1], px[o + 2]]);
+	}
+	return list.length < 4 ? '' : colorsTone(list);
+}
+
+// ICO: берём самую большую картинку; внутри бывает PNG или 32-битный BMP
+function icoTone(buf) {
+	const count = buf.readUInt16LE(4);
+	let best = null;
+	for (let i = 0; i < count && 6 + i * 16 + 16 <= buf.length; i++) {
+		const e = 6 + i * 16;
+		const w = buf[e] || 256;
+		const size = buf.readUInt32LE(e + 8);
+		const off = buf.readUInt32LE(e + 12);
+		if (off + size <= buf.length && (!best || w > best.w)) best = { w, data: buf.subarray(off, off + size) };
+	}
+	if (!best) return '';
+	const d = best.data;
+	if (d.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return pngTone(d);
+	if (d.length < 40 || d.readUInt16LE(14) !== 32) return '';
+	const w = d.readInt32LE(4);
+	const h = Math.abs(d.readInt32LE(8)) / 2;
+	const px = d.subarray(d.readUInt32LE(0), d.readUInt32LE(0) + w * h * 4);
+	return px.length === w * h * 4 ? bitmapTone(px, w * h, true) : '';
+}
+
+function pngTone(buf) {
+	const img = nativeImage.createFromBuffer(buf);
+	if (img.isEmpty()) return '';
+	const { width, height } = img.getSize();
+	return bitmapTone(img.toBitmap(), width * height, true); // toBitmap отдаёт BGRA
+}
+
+const toneCache = new Map(); // адрес иконки → обещание тона (null — не удалось скачать, в этом запуске не повторяем)
+function iconToneOf(url) {
+	if (!toneCache.has(url)) {
+		if (toneCache.size > 5000) toneCache.clear();
+		toneCache.set(url, (async () => {
+			const res = await net.fetch(url, { signal: AbortSignal.timeout(10000) });
+			if (!res.ok) return null;
+			const buf = Buffer.from(await res.arrayBuffer());
+			if (!buf.length || buf.length > 2000000) return '';
+			const head = buf.subarray(0, 300).toString('utf8');
+			if (/svg/i.test(res.headers.get('content-type') || '') || /^\s*(<\?xml|<svg|<!--)/i.test(head)) return svgTone(buf.toString('utf8'));
+			if (buf.length > 6 && buf.readUInt16LE(0) === 0 && buf.readUInt16LE(2) === 1) return icoTone(buf);
+			return pngTone(buf); // PNG, JPEG и другое, что понимает nativeImage
+		})().catch(() => null));
+	}
+	return toneCache.get(url);
+}
+
+let toneScanning = false;
+const toneFailed = new Set();
+function scanIconTones() {
+	if (toneScanning) return;
+	const todo = store.bookmarksState().bookmarks.filter((b) => b.icon && b.iconTone === undefined && !toneFailed.has(b.icon));
+	if (!todo.length) return;
+	toneScanning = true;
+	(async () => {
+		const map = {};
+		let i = 0;
+		const worker = async () => {
+			while (i < todo.length) {
+				const b = todo[i++];
+				const tone = await iconToneOf(b.icon);
+				if (tone === null) toneFailed.add(b.icon);
+				else map[b.id] = { icon: b.icon, tone };
+			}
+		};
+		await Promise.all([worker(), worker(), worker(), worker()]);
+		store.setBookmarkTones(map);
+	})().catch((e) => log('тон иконок закладок', e)).finally(() => {
+		toneScanning = false;
+		sendState();
+	});
 }
 
 // Открыли сайт, у закладок которого нет иконки: теперь она известна

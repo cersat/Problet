@@ -649,7 +649,7 @@ function renderBar() {
 		b.dataset.id = m.id;
 		if (m.customIcon || m.icon) {
 			fav = document.createElement('img');
-			fav.className = 'fav';
+			fav.className = 'fav' + (!m.customIcon && m.iconTone ? ' tone-' + m.iconTone : '');
 			fav.src = m.customIcon || m.icon;
 			fav.addEventListener('error', () => fav.replaceWith(letter()));
 		} else {

@@ -142,7 +142,7 @@ function favicon(b) {
 	const letter = () => el('div', 'fav letter', (b.title.trim()[0] || '?').toUpperCase());
 	const src = b.customIcon || b.icon;
 	if (!src) return letter();
-	const img = el('img', 'fav');
+	const img = el('img', 'fav' + (!b.customIcon && b.iconTone ? ' tone-' + b.iconTone : ''));
 	img.src = src;
 	img.alt = '';
 	img.addEventListener('error', () => img.replaceWith(letter()));

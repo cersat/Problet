@@ -49,3 +49,9 @@
 	--shadow: rgba(0, 0, 0, 0.14);
 	--backdrop: rgba(0, 0, 0, 0.3);
 }
+
+/* Однотонная иконка закладки того же тона, что и тема (тёмный логотип GitHub на тёмном фоне), иначе не видна: показываем её инвертированной */
+:root:not([data-theme="light"]) img.tone-dark,
+:root[data-theme="light"] img.tone-light {
+	filter: invert(1);
+}

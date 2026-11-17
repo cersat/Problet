@@ -566,6 +566,7 @@ function sanitizeBookmark(b, folderIds, usedIds) {
 		title: str(b.title, 300).trim() || url,
 		url,
 		icon: cleanIcon(b.icon),
+		iconTone: ICON_TONES.has(b.iconTone) ? b.iconTone : undefined, // см. setBookmarkTones
 		customIcon: cleanCustomIcon(b.customIcon),
 		folder: folderIds.has(b.folder) ? b.folder : null,
 		added: Number.isFinite(b.added) ? b.added : Date.now(),
@@ -1105,7 +1106,7 @@ function folderIdSet() {
 
 function addBookmark(b) {
 	if (data.bookmarks.length >= BOOKMARKS_LIMIT) throw new Error('Слишком много закладок');
-	const bm = sanitizeBookmark({ ...b, id: '', added: Date.now() }, folderIdSet(), new Set(data.bookmarks.map((x) => x.id)));
+	const bm = sanitizeBookmark({ ...b, id: '', iconTone: undefined, added: Date.now() }, folderIdSet(), new Set(data.bookmarks.map((x) => x.id)));
 	if (!bm) throw new Error(BAD_URL);
 	const existing = findBookmarkByUrl(bm.url);
 	if (existing) return existing;
@@ -1232,6 +1233,23 @@ function importBookmarkItems(items) {
 	return { added, skipped, folders, ids };
 }
 
+// Тон иконки закладки: 'dark' — однотонная тёмная, 'light' — однотонная светлая, '' — цветная или не определить.
+// Однотонную иконку того же тона, что и тема, страницы показывают инвертированной: иначе её не видно на фоне
+const ICON_TONES = new Set(['dark', 'light', '']);
+function setBookmarkTones(map) {
+	let n = 0;
+	for (const b of data.bookmarks) {
+		const t = map[b.id];
+		if (t && ICON_TONES.has(t.tone) && b.icon === t.icon && b.iconTone !== t.tone) {
+			b.iconTone = t.tone;
+			n++;
+		}
+	}
+	if (!n) return;
+	scheduleSave();
+	changed('bookmarks');
+}
+
 // Иконки закладкам, у которых её нет: { id: адрес иконки }. Уже заданные не трогаем
 function setBookmarkIcons(map) {
 	let n = 0;
@@ -1239,6 +1257,7 @@ function setBookmarkIcons(map) {
 		const icon = map[b.id] && cleanIcon(map[b.id]);
 		if (icon && !b.icon) {
 			b.icon = icon;
+			delete b.iconTone;
 			n++;
 		}
 	}
@@ -1395,7 +1414,7 @@ module.exports = {
 	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
-	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
+	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, setBookmarkTones, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
 	exportData, looksLikeBackup, importData,
 	getSession, setSession, getCacheClearedAt, setCacheClearedAt,
 	onChange, notify: changed, DEFAULT_SPACE,

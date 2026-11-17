@@ -20,7 +20,7 @@ function paint() {
 		const letter = () => Object.assign(document.createElement('span'), { className: 'fav letter', textContent: (b.title.trim()[0] || '•').toUpperCase() });
 		let fav;
 		if (src) {
-			fav = Object.assign(document.createElement('img'), { className: 'fav', src, alt: '' });
+			fav = Object.assign(document.createElement('img'), { className: 'fav' + (!b.customIcon && b.iconTone ? ' tone-' + b.iconTone : ''), src, alt: '' });
 			fav.addEventListener('error', () => fav.replaceWith(letter()));
 		} else fav = letter();
 		let host = '';
