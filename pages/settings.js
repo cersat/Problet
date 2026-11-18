@@ -727,7 +727,7 @@ async function loadCatalog() {
 			}
 			btn.disabled = false;
 		});
-		item.append(iconEl({ icon: { letter: x.icon } }), what, btn);
+		item.append(iconEl({ icon: { icon: x.iconData, letter: x.icon } }), what, btn);
 		box.append(item);
 	}
 }

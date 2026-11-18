@@ -842,8 +842,20 @@ async function catalog() {
 		const a = addons.get(x.id);
 		const lo = cleanLocales(x.locales);
 		const l = lo[curLang()] || {};
-		out.push({ id: x.id, name: l.name || str(x.name, 60) || x.id, description: l.description || str(x.description, 300), version: str(x.version, 20), icon: typeof x.icon === 'string' && [...x.icon].length <= 4 ? x.icon : '', installed: a && a.manifest ? a.manifest.version : '' });
+		const file = isRel(x.icon) && isIconFile(x.icon);
+		out.push({ id: x.id, name: l.name || str(x.name, 60) || x.id, description: l.description || str(x.description, 300), version: str(x.version, 20), icon: !file && typeof x.icon === 'string' && [...x.icon].length <= 4 ? x.icon : '', iconUrl: file ? new URL(x.path.replace(/\/?$/, '/') + x.icon, base).href : '', installed: a && a.manifest ? a.manifest.version : '' });
 	}
+	// Иконки-файлы скачиваем сразу, чтобы список показал их как data:
+	await Promise.all(out.map(async (x) => {
+		const url = x.iconUrl;
+		delete x.iconUrl;
+		x.iconData = '';
+		if (!url) return;
+		try {
+			const buf = await download(url, 64 * 1024);
+			x.iconData = 'data:' + (/\.svg$/i.test(url) ? 'image/svg+xml' : 'image/png') + ';base64,' + buf.toString('base64');
+		} catch {}
+	}));
 	return out;
 }
 
