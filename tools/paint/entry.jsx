@@ -19,6 +19,16 @@ addLocaleData([...ruData, ...enData]);
 const LANG = document.documentElement.dataset.lang === 'en' ? 'en' : 'ru';
 
 const api = window.problet;
+const ICONS = window.PROBLET_ICONS; // общий набор иконок Problet (pages/icons.js)
+const Ico = ({name, size}) => <span className={styles.ico} dangerouslySetInnerHTML={{__html: ICONS.icon(name, {size: size || 16})}} />;
+// Каталог: все иконки Problet и стрелки «назад/вперёд» в обе стороны
+const CATALOG = [
+    ...Object.entries(ICONS.ICONS).map(([id, i]) => ({id, label: i.label, body: i.body})),
+    ...Object.entries(ICONS.ARROWS).flatMap(([id, a]) => [
+        {id: 'arrow-' + id + '-back', label: a.label + ' (назад)', body: a.body},
+        {id: 'arrow-' + id + '-forward', label: a.label + ' (вперёд)', body: '<g transform="matrix(-1 0 0 1 24 0)">' + a.body + '</g>'}
+    ])
+];
 const file = new URLSearchParams(location.search).get('p') || '';
 const params = new URLSearchParams(location.search);
 const bm = params.get('bm') || ''; // режим «иконка закладки»: рисунок хранится в закладке, а не в файле
@@ -99,6 +109,7 @@ class App extends React.Component {
         super(props);
         this.state = {
             loaded: false, image: EMPTY, imageId: '0', width: 480, height: 360,
+            catalog: false, catQuery: '', catColor: pref('catColor', '#8fa3d9'), catWidth: pref('catWidth', 2),
             dirty: false, note: '', error: '', theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
             scale: '1', bitmap: false, format: 'svg',
             panel: pref('panel', true), round: pref('round', false), bg: pref('bg', ''),
@@ -322,6 +333,42 @@ class App extends React.Component {
         };
         input.click();
     }
+    // Иконка из каталога — новой фигурой (линии цвета и толщины, выбранных в каталоге)
+    insertIcon (it) {
+        if (this.state.bitmap) return this.say('Вставить иконку можно в векторном режиме');
+        const color = /^#[0-9a-f]{6}$/i.test(this.state.catColor) ? this.state.catColor : '#8fa3d9';
+        const body = it.body.replace(/currentColor/g, color);
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="' + color + '" stroke-width="' + this.state.catWidth + '" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+        tools.insertImage('svg', svg).then(() => this.say('Иконка вставлена: ' + it.label)).catch(e => this.say(clean(e)));
+    }
+    renderCatalog () {
+        const q = this.state.catQuery.trim().toLowerCase();
+        // ищем и по русскому названию, и по переводу (в английском интерфейсе), и по имени иконки
+        const tr = window.probletTr || (t => t);
+        const list = q ? CATALOG.filter(it => it.label.toLowerCase().includes(q) || tr(it.label).toLowerCase().includes(q) || it.id.toLowerCase().includes(q)) : CATALOG;
+        return (
+            <section className={styles.catalog}>
+                <h4>{'Каталог иконок'}<small>{' · ' + list.length}</small></h4>
+                <input className={styles.search} type="search" placeholder="Найти иконку" value={this.state.catQuery} onChange={e => this.setState({catQuery: e.target.value})} />
+                <div className={styles.row}>
+                    <label className={styles.field}><span>{'Цвет'}</span><input type="color" value={this.state.catColor} onChange={e => this.setPrefState('catColor', e.target.value)} /></label>
+                    <label className={styles.field}><span>{'Линия'}</span>
+                        <select value={String(this.state.catWidth)} onChange={e => this.setPrefState('catWidth', Number(e.target.value))}>
+                            <option value="1.2">{'Тонкая'}</option>
+                            <option value="2">{'Обычная'}</option>
+                            <option value="3">{'Толстая'}</option>
+                        </select>
+                    </label>
+                </div>
+                <div className={styles.catGrid}>
+                    {list.map(it => (
+                        <button key={it.id} title={it.label} disabled={this.state.bitmap} onClick={() => this.insertIcon(it)} dangerouslySetInnerHTML={{__html: ICONS.svg(it.body, {size: 22})}} />
+                    ))}
+                </div>
+                {list.length ? null : <p className={styles.hint}>{'Ничего не нашлось'}</p>}
+            </section>
+        );
+    }
     // Код svg: открыть, поправить руками и применить
     toggleCode () {
         if (this.state.code !== null) return this.setState({code: null});
@@ -374,6 +421,7 @@ class App extends React.Component {
         const need = n => (box && box.count >= n ? null : true);
         return (
             <aside className={styles.panel}>
+                {this.state.catalog && !isPng ? this.renderCatalog() : null}
                 <section>
                     <h4>{'Выделение'}{box ? <small>{box.count > 1 ? ' · фигур: ' + box.count : ''}</small> : null}</h4>
                     {bitmap ? <p className={styles.hint}>{'В растровом режиме точные размеры и выравнивание недоступны'}</p> : !box ? <p className={styles.hint}>{'Выдели фигуру инструментом «Выбрать»'}</p> : null}
@@ -381,8 +429,8 @@ class App extends React.Component {
                     <label className={styles.check}><input type="checkbox" checked={keepRatio} onChange={e => this.setPrefState('keepRatio', e.target.checked)} />{'Сохранять пропорции'}</label>
                     <div className={styles.row}>
                         <input className={styles.small} type="number" value={angle} onChange={e => this.setState({angle: e.target.value})} title="Угол в градусах" />
-                        <button disabled={!box} onClick={() => this.act(() => tools.rotate(-(Number(angle) || 0)))} title="Повернуть против часовой">{'↺'}</button>
-                        <button disabled={!box} onClick={() => this.act(() => tools.rotate(Number(angle) || 0))} title="Повернуть по часовой">{'↻'}</button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.rotate(-(Number(angle) || 0)))} title="Повернуть против часовой"><Ico name="rotateLeft" /></button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.rotate(Number(angle) || 0))} title="Повернуть по часовой"><Ico name="rotateRight" /></button>
                     </div>
                     <label className={styles.range} key={'o' + (box ? box.opacity : '')}>
                         <span>{'Непрозрачность'}</span>
@@ -393,17 +441,17 @@ class App extends React.Component {
                 <section>
                     <h4>{'Выравнивание'}<small>{box && box.count > 1 ? ' · по общей рамке' : ' · по холсту'}</small></h4>
                     <div className={styles.icons}>
-                        <button disabled={!box} onClick={() => this.act(() => tools.align('left'))} title="По левому краю">{'⇤'}</button>
-                        <button disabled={!box} onClick={() => this.act(() => tools.align('hcenter'))} title="По центру по горизонтали">{'↔'}</button>
-                        <button disabled={!box} onClick={() => this.act(() => tools.align('right'))} title="По правому краю">{'⇥'}</button>
-                        <button disabled={!box} onClick={() => this.act(() => tools.align('top'))} title="По верхнему краю">{'⤒'}</button>
-                        <button disabled={!box} onClick={() => this.act(() => tools.align('vcenter'))} title="По центру по вертикали">{'↕'}</button>
-                        <button disabled={!box} onClick={() => this.act(() => tools.align('bottom'))} title="По нижнему краю">{'⤓'}</button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.align('left'))} title="По левому краю"><Ico name="alignLeft" /></button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.align('hcenter'))} title="По центру по горизонтали"><Ico name="alignHCenter" /></button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.align('right'))} title="По правому краю"><Ico name="alignRight" /></button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.align('top'))} title="По верхнему краю"><Ico name="alignTop" /></button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.align('vcenter'))} title="По центру по вертикали"><Ico name="alignVCenter" /></button>
+                        <button disabled={!box} onClick={() => this.act(() => tools.align('bottom'))} title="По нижнему краю"><Ico name="alignBottom" /></button>
                     </div>
                     <div className={styles.row}>
                         <span className={styles.hint}>{'Распределить'}</span>
-                        <button disabled={need(3)} onClick={() => this.act(() => tools.distribute('h'))} title="Равные промежутки по горизонтали (от 3 фигур)">{'↔'}</button>
-                        <button disabled={need(3)} onClick={() => this.act(() => tools.distribute('v'))} title="Равные промежутки по вертикали (от 3 фигур)">{'↕'}</button>
+                        <button disabled={need(3)} onClick={() => this.act(() => tools.distribute('h'))} title="Равные промежутки по горизонтали (от 3 фигур)"><Ico name="distributeH" /></button>
+                        <button disabled={need(3)} onClick={() => this.act(() => tools.distribute('v'))} title="Равные промежутки по вертикали (от 3 фигур)"><Ico name="distributeV" /></button>
                     </div>
                 </section>
                 <section>
@@ -418,6 +466,7 @@ class App extends React.Component {
                 <section>
                     <h4>{'Файл'}</h4>
                     <button className={styles.wide} onClick={() => this.pickImage()}>{'Вставить картинку…'}</button>
+                    {isPng ? null : <button className={styles.wide + (this.state.catalog ? ' ' + styles.on : '')} onClick={() => this.setState({catalog: !this.state.catalog})}>{this.state.catalog ? 'Скрыть каталог иконок' : 'Каталог иконок'}</button>}
                     {isPng ? null : <button className={styles.wide} onClick={() => this.toggleCode()}>{this.state.code === null ? 'Код SVG' : 'Скрыть код SVG'}</button>}
                     <button className={styles.wide} onClick={() => this.copyPng()}>{'Копировать PNG'}</button>
                     <label className={styles.field}>

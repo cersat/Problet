@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+	<script src="i18n-en.js"></script>
+	<script src="i18n.js"></script>
+	<title>Лабиринт</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="maze.css">
+	<style>
+		body.game-page { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 20px; box-sizing: border-box; background: var(--bg); color: var(--text); }
+		.game-page h1 { margin: 0 0 14px; font-size: 24px; }
+	</style>
+</head>
+<body class="game-page">
+	<h1>Лабиринт</h1>
+	<div id="maze"></div>
+	<script src="maze.js"></script>
+</body>
+</html>

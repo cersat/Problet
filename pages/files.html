@@ -5,26 +5,54 @@
 	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: file:; style-src 'self' 'unsafe-inline'">
 	<script src="i18n-en.js"></script>
 	<script src="i18n.js"></script>
+	<script src="icons.js"></script>
 	<title>Проводник</title>
 	<link rel="stylesheet" href="theme.css">
 	<link rel="stylesheet" href="common.css">
 	<link rel="stylesheet" href="files.css">
 </head>
 <body class="files-page">
-	<header>
-		<button id="up" title="Вверх" aria-label="Вверх">↑</button>
-		<button id="home" title="Домашняя папка" aria-label="Домашняя папка">⌂</button>
-		<nav id="crumbs" aria-label="Путь"></nav>
+	<header class="fm-bar">
+		<button id="back" class="ib" title="Назад (Alt+←)" data-icon="chevronLeft"></button>
+		<button id="forward" class="ib" title="Вперёд (Alt+→)" data-icon="chevronRight"></button>
+		<button id="up" class="ib" title="Папка выше (Alt+↑, Backspace)" data-icon="parent"></button>
+		<button id="refresh" class="ib" title="Обновить (F5)" data-icon="reload"></button>
+		<div id="where" class="where" title="Нажми на пустое место, чтобы ввести путь (Ctrl+L)">
+			<nav id="crumbs" aria-label="Путь" translate="no"></nav>
+			<input id="path" type="text" class="hidden" spellcheck="false" autocomplete="off" aria-label="Путь">
+		</div>
 		<input type="search" id="filter" placeholder="Фильтр" autocomplete="off">
-		<label class="check"><input type="checkbox" id="hidden"> Скрытые</label>
 	</header>
-	<div class="cols head">
-		<button data-sort="name" class="c-name">Имя</button>
-		<button data-sort="size" class="c-size">Размер</button>
-		<button data-sort="mtime" class="c-date">Изменён</button>
+	<div class="fm-tools">
+		<button id="t-newfolder" data-icon="newFolder" title="Новая папка (Ctrl+Shift+N)"><span>Папка</span></button>
+		<button id="t-newfile" data-icon="newFile" title="Новый файл"><span>Файл</span></button>
+		<i class="sep"></i>
+		<button id="t-cut" class="ib" data-icon="cut" title="Вырезать (Ctrl+X)"></button>
+		<button id="t-copy" class="ib" data-icon="copy" title="Копировать (Ctrl+C)"></button>
+		<button id="t-paste" class="ib" data-icon="paste" title="Вставить (Ctrl+V)"></button>
+		<button id="t-rename" class="ib" data-icon="rename" title="Переименовать (F2)"></button>
+		<button id="t-trash" class="ib" data-icon="trash" title="В корзину (Delete). Shift+Delete — удалить совсем"></button>
+		<i class="sep"></i>
+		<button id="t-terminal" class="ib" data-icon="terminal" title="Терминал в этой папке"></button>
+		<button id="t-pin" class="ib" data-icon="pin" title="Закрепить папку в боковой панели"></button>
+		<span class="gap"></span>
+		<button id="t-hidden" class="ib" data-icon="eye" title="Показывать скрытые файлы (Ctrl+H)"></button>
+		<button id="t-view" class="ib" data-icon="grid" title="Плитки или список"></button>
 	</div>
-	<main id="list" role="list"></main>
-	<footer id="info"></footer>
+	<div class="fm-body">
+		<aside id="side" class="side"></aside>
+		<section class="fm-main">
+			<div class="cols head" id="head">
+				<button data-sort="name" class="c-name">Имя</button>
+				<button data-sort="size" class="c-size">Размер</button>
+				<button data-sort="mtime" class="c-date">Изменён</button>
+			</div>
+			<main id="list" tabindex="0" role="listbox" aria-multiselectable="true" translate="no"></main>
+		</section>
+	</div>
+	<footer id="info"><span id="count"></span><span id="sel"></span><span id="clipinfo"></span><span id="msg"></span></footer>
+	<div id="menu" class="ctx hidden" role="menu"></div>
+	<div id="modal" class="modal hidden"><div class="box"><p id="modal-text"></p><div class="btns"><button id="modal-no">Отмена</button><button id="modal-yes" class="danger">Удалить</button></div></div></div>
 	<script src="files.js"></script>
 </body>
 </html>

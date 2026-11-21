@@ -1,7 +1,11 @@
 .chars-page { border: 1px solid var(--border-strong); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.chars-page .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 8px 0; }
+.chars-page .modes button { height: 36px; font-size: 14px; font-weight: 600; }
+.chars-page .modes button.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .chars-page .cats { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border-strong); }
 .chars-page .cats button { padding: 3px 8px; font-size: 12px; }
 .chars-page .cats button.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .chars-page .grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 8px; align-content: start; }
 .chars-page .grid button { padding: 0; height: 34px; border-color: transparent; background: transparent; font-size: 18px; }
 .chars-page .grid button:hover { background: var(--hover); border-color: var(--border-strong); }
+.chars-page .grid.emoji button { font-size: 22px; height: 38px; font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; }

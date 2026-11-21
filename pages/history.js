@@ -56,7 +56,7 @@ function render() {
 		const del = document.createElement('button');
 		del.className = 'icon-btn';
 		del.title = 'Удалить из истории';
-		del.textContent = '×';
+		del.innerHTML = PROBLET_ICONS.icon('close', { size: 16 });
 		del.addEventListener('click', async () => {
 			await problet.removeVisit(v.id);
 			visits = visits.filter((x) => x.id !== v.id);

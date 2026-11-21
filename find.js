@@ -1,3 +1,4 @@
+PROBLET_ICONS.fill();
 const q = document.getElementById('q');
 const count = document.getElementById('count');
 

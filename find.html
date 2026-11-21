@@ -5,15 +5,16 @@
 	<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
 	<script src="pages/i18n-en.js"></script>
 	<script src="pages/i18n.js"></script>
+	<script src="pages/icons.js"></script>
 	<link rel="stylesheet" href="theme.css">
 	<link rel="stylesheet" href="find.css">
 </head>
 <body>
 	<input id="q" type="text" placeholder="Найти на странице" spellcheck="false" autocomplete="off">
 	<span id="count"></span>
-	<button id="prev" title="Предыдущее (Shift+Enter)">↑</button>
-	<button id="next" title="Следующее (Enter)">↓</button>
-	<button id="close" title="Закрыть (Esc)">×</button>
+	<button id="prev" title="Предыдущее (Shift+Enter)" data-icon="chevronUp" data-icon-size="16"></button>
+	<button id="next" title="Следующее (Enter)" data-icon="chevronDown" data-icon-size="16"></button>
+	<button id="close" title="Закрыть (Esc)" data-icon="close" data-icon-size="16"></button>
 	<script src="find.js"></script>
 </body>
 </html>

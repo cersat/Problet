@@ -12,6 +12,10 @@
 <body class="settings">
 	<main>
 		<h1>Настройки</h1>
+		<div id="safe-banner" class="safe-banner hidden">
+			<div><b>Безопасный режим.</b> Расширения, аддоны, свои кнопки, их клавиши и изменённые сочетания, расположение панелей, масштаб интерфейса, автообновление, перевод страниц, блокировщик и скрытие баннеров сейчас не применяются. Здесь видны и меняются твои сохранённые настройки: они заработают после выхода.</div>
+			<button id="safe-exit">Выйти</button>
+		</div>
 		<nav id="cats" class="cats"></nav>
 
 		<section>
@@ -236,7 +240,7 @@
 			</div>
 			<div class="setting">
 				<div class="what">Стрелки «назад» и «вперёд»<small>В панели инструментов и в кнопках перемещения в настройках</small></div>
-				<select data-setting="arrows"><option value="tri">◀ ▶</option><option value="arrow">← →</option><option value="angle">‹ ›</option><option value="heavy">❮ ❯</option><option value="double">« »</option><option value="dbl">⇐ ⇒</option><option value="outline">◁ ▷</option><option value="curved">↩ ↪</option></select>
+				<div id="arrow-pick" class="arrow-pick" role="radiogroup"></div>
 			</div>
 		</section>
 
@@ -444,6 +448,10 @@
 				<button id="make-default">Сделать стандартным браузером</button>
 			</div>
 			<div class="data-row">
+				<div class="what"><b>Стандартный проводник</b><span id="files-default-note">Папки из других программ и с рабочего стола будут открываться в проводнике Problet</span></div>
+				<button id="files-default">Сделать стандартным проводником</button>
+			</div>
+			<div class="data-row">
 				<div class="what"><b>Резервная копия</b><span>Настройки, закладки и история поиска в одном JSON-файле</span></div>
 				<button id="export">Экспорт</button>
 				<button id="import">Импорт</button>
@@ -528,6 +536,7 @@
 			<button type="button" id="addon-close">Закрыть</button>
 		</div>
 	</dialog>
+	<script src="icons.js"></script>
 	<script src="accel.js"></script>
 	<script src="settings.js"></script>
 </body>

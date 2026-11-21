@@ -44,11 +44,12 @@ npm start</code></pre>
 	<tr><td><code>identity.js</code></td><td>Маскировка: User-Agent, Sec-CH-UA, Do Not Track. Список <code>plain-ua-sites.txt</code>.</td></tr>
 	<tr><td><code>extensions.js</code>, <code>ext-shim.js</code></td><td>Расширения Chrome и Chrome Web Store; заплатки недостающих <code>chrome.*</code>.</td></tr>
 	<tr><td><code>addons.js</code></td><td>Аддоны Problet: формат, разрешения, API.</td></tr>
+	<tr><td><code>filemanager.js</code></td><td>Проводник: список папки, боковая панель, операции с файлами, превью, назначение стандартным проводником.</td></tr>
 	<tr><td><code>updater.js</code></td><td>Автообновление из релиза <code>latest</code>.</td></tr>
 	<tr><td><code>headless.js</code></td><td>Режим без окна и управление по HTTP.</td></tr>
 	<tr><td><code>theme.js</code>, <code>i18n-main.js</code></td><td>Тема (CSS-переменные для всех окон) и перевод главного процесса.</td></tr>
 	<tr><td><code>cache.js</code>, <code>offline.js</code>, <code>pagetranslate.js</code>, <code>importer.js</code>, <code>calc.js</code>, <code>desktop.js</code></td><td>Кеш, страницы для офлайна, перевод страниц, импорт из браузеров, калькулятор, интеграция с системой (команда <code>problet</code>, ярлыки).</td></tr>
-	<tr><td><code>pages/</code></td><td>Встроенные страницы <code>problet://</code>: по паре <code>имя.html</code> + <code>имя.js</code>, общие <code>common.css</code>, <code>i18n.js</code>, <code>accel.js</code>.</td></tr>
+	<tr><td><code>pages/</code></td><td>Встроенные страницы <code>problet://</code>: по паре <code>имя.html</code> + <code>имя.js</code>, общие <code>common.css</code>, <code>i18n.js</code>, <code>accel.js</code>, <code>icons.js</code> (все SVG-иконки и стрелки; его же читают главный процесс и каталог графического редактора), <code>maze.js</code> (лабиринт).</td></tr>
 	<tr><td><code>tools/</code></td><td><code>smoke.js</code> — сквозная проверка, <code>paint/</code> — сборка графического редактора, <code>adstub/</code> — заглушки рекламы.</td></tr>
 	<tr><td><code>docs/</code></td><td>Сайт проекта на GitHub Pages и эта документация.</td></tr>
 </table>

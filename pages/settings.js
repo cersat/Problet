@@ -24,7 +24,8 @@ function showCustom(on) {
 }
 
 async function load() {
-	const { settings, engines, accents, searchCount, version, arrowSets, themes: th, defaultKeywords: dk } = await problet.getSettings();
+	const { settings, safeMode, engines, accents, searchCount, version, arrowSets, themes: th, defaultKeywords: dk } = await problet.getSettings();
+	$('safe-banner').classList.toggle('hidden', !safeMode);
 	defaultKeywords = dk;
 	arrows = arrowSets;
 	themes = th;
@@ -35,6 +36,7 @@ async function load() {
 	$('ui-scale').value = String(settings.uiScale);
 	$('app-version').textContent = version;
 	current = settings;
+	renderArrows();
 	renderHotkeys();
 	renderPanels();
 	const select = $('engine');
@@ -135,7 +137,7 @@ function presetCard(p, own) {
 	if (own) {
 		const del = document.createElement('button');
 		del.className = 'del';
-		del.textContent = '✕';
+		del.innerHTML = ico('close');
 		del.title = 'Удалить набор';
 		del.addEventListener('click', (e) => {
 			e.stopPropagation();
@@ -149,6 +151,23 @@ function presetCard(p, own) {
 		card.append(del);
 	}
 	return card;
+}
+
+// Выбор стрелок «назад/вперёд»: кнопки с SVG-парами
+function renderArrows() {
+	const box = $('arrow-pick');
+	box.textContent = '';
+	for (const [k, a] of Object.entries(PROBLET_ICONS.ARROWS)) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.title = a.label;
+		b.setAttribute('role', 'radio');
+		b.setAttribute('aria-checked', String(current.arrows === k));
+		b.classList.toggle('on', current.arrows === k);
+		b.innerHTML = PROBLET_ICONS.arrow(k, 'back') + PROBLET_ICONS.arrow(k, 'forward');
+		b.addEventListener('click', () => applyTheme({ arrows: k }));
+		box.append(b);
+	}
 }
 
 function renderPresets() {
@@ -171,6 +190,7 @@ function applyTheme(patch, message) {
 		$('ui-scale').value = String(current.uiScale);
 		renderSwatches();
 		renderPresets();
+		renderArrows();
 		if (Object.hasOwn(patch, 'arrows')) renderPanels();
 		say(message || 'Сохранено');
 	});
@@ -188,10 +208,11 @@ const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панел�
 const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', sp4: 'Переменный промежуток 4', clock: 'Часы', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
 const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
 
+const ico = (name) => PROBLET_ICONS.icon(name, { size: 16 });
 function moveButton(text, title, disabled, onClick) {
 	const b = document.createElement('button');
 	b.className = 'move';
-	b.textContent = text;
+	b.innerHTML = text; // иконка из pages/icons.js
 	b.title = title;
 	b.disabled = disabled;
 	b.addEventListener('click', onClick);
@@ -289,7 +310,7 @@ window.addEventListener('focus', async () => {
 
 function renderPanels() {
 	if (!recording) renderHotkeys(); // у своих кнопок есть клавиши
-	const glyphs = arrows[current.arrows] || ['◀', '▶'];
+	const glyphs = [PROBLET_ICONS.arrow(current.arrows, 'back', { size: 16 }), PROBLET_ICONS.arrow(current.arrows, 'forward', { size: 16 })];
 	const order = current.panelOrder;
 	const box = $('panel-order');
 	box.textContent = '';
@@ -301,7 +322,7 @@ function renderPanels() {
 			[next[i], next[i + d]] = [next[i + d], next[i]];
 			saveLayout({ panelOrder: next });
 		};
-		row.append(moveButton('▲', 'Выше', i === 0, () => swap(-1)), moveButton('▼', 'Ниже', i === order.length - 1, () => swap(1)));
+		row.append(moveButton(ico('chevronUp'), 'Выше', i === 0, () => swap(-1)), moveButton(ico('chevronDown'), 'Ниже', i === order.length - 1, () => swap(1)));
 		box.append(row);
 	});
 	const lists = $('btn-lists');
@@ -380,8 +401,8 @@ function renderPanels() {
 				row.append(moveButton(glyphs[0], 'Назад по панели', alone, () => swap(-1)), moveButton(glyphs[1], 'Вперёд по панели', alone, () => swap(1)));
 			}
 			if (custom) {
-				const edit = moveButton('✎', 'Изменить кнопку', false, () => openCustom(custom));
-				const del = moveButton('✕', 'Удалить кнопку', false, () => saveLayout({ customButtons: current.customButtons.filter((c) => c.id !== id) }));
+				const edit = moveButton(ico('edit'), 'Изменить кнопку', false, () => openCustom(custom));
+				const del = moveButton(ico('trash'), 'Удалить кнопку', false, () => saveLayout({ customButtons: current.customButtons.filter((c) => c.id !== id) }));
 				row.append(edit, del);
 			}
 			group.append(row);
@@ -617,7 +638,8 @@ function iconEl(e) {
 		img.src = e.icon.icon;
 		img.alt = '';
 		ico.append(img);
-	} else ico.textContent = (e.icon && e.icon.letter) || '🧩';
+	} else if (e.icon && e.icon.letter) ico.textContent = e.icon.letter;
+	else ico.innerHTML = PROBLET_ICONS.icon('extensions', { size: 22 });
 	return ico;
 }
 async function loadExtensions() {
@@ -881,6 +903,25 @@ $('open-bookmarks').addEventListener('click', () => run(() => problet.openInNewT
 $('make-default').addEventListener('click', () => run(async () => {
 	const r = await problet.makeDefaultBrowser();
 	say(r.message, !r.ok);
+}));
+// Стандартный проводник: кнопка назначает Problet или возвращает системный
+let filesDefaultOn = false;
+async function showFilesDefault() {
+	try {
+		const r = await problet.filesDefault();
+		filesDefaultOn = r.on;
+		if (r.platform === 'darwin') {
+			$('files-default').disabled = true;
+			$('files-default-note').textContent = 'В macOS Finder нельзя заменить другим проводником';
+		}
+		$('files-default').textContent = r.on ? 'Вернуть системный проводник' : 'Сделать стандартным проводником';
+	} catch (e) { /* кнопка остаётся как есть */ }
+}
+showFilesDefault();
+$('files-default').addEventListener('click', () => run(async () => {
+	const r = await problet.setFilesDefault(!filesDefaultOn);
+	say(r.message, !r.ok);
+	await showFilesDefault();
 }));
 $('open-blocklist').addEventListener('click', () => run(() => problet.openInNewTab('blocklist')));
 $('manage-spaces').addEventListener('click', () => run(() => problet.openSpacesApplet()));
@@ -1192,7 +1233,7 @@ function renderKeywords() {
 		};
 		const del = document.createElement('button');
 		del.className = 'kw-del';
-		del.textContent = '✕';
+		del.innerHTML = ico('close');
 		del.title = 'Убрать префикс';
 		del.addEventListener('click', () => {
 			kwDraft.splice(i, 1);
@@ -1261,4 +1302,8 @@ run(async () => {
 	await loaded;
 	loadKeywords();
 	await renderTop();
+});
+$('safe-exit').addEventListener('click', async () => {
+	await problet.setSafeMode(false);
+	$('safe-banner').classList.add('hidden');
 });

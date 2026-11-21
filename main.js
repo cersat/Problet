@@ -142,7 +142,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline', 'game']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -248,7 +248,7 @@ const vhost = {
 	},
 	toolbar: () => win.webContents,
 	focus: (vc) => {
-		if (!win || win.isDestroyed()) return;
+		if (win && win.isDestroyed()) return; // окно уже закрыто, браузер выходит
 		win.webContents.focus();
 		vhost.send({ op: 'focus', id: vc.id });
 	},
@@ -442,20 +442,12 @@ function tabTitle(t) {
 	return t.title;
 }
 
-// Значки внутренних страниц (SVG в виде data-адреса); у новой вкладки — значок браузера
-const svgIcon = (body) => 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8fa3d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>');
-const INTERNAL_ICONS = {
-	settings: svgIcon('<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/>'),
-	bookmarks: svgIcon('<path d="M7 4h10v16l-5-4-5 4z"/>'),
-	history: svgIcon('<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>'),
-	version: svgIcon('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/>'),
-	passwords: svgIcon('<circle cx="8.5" cy="14" r="3.5"/><path d="M11 12l8-8M16 7l2.5 2.5M13.5 9.5L15 11"/>'),
-	downloads: svgIcon('<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>'),
-	offline: svgIcon('<path d="M6 4h9l3 3v13H6z"/><path d="M12 10v6M9.5 13.5L12 16l2.5-2.5"/>'),
-	files: svgIcon('<path d="M3.5 7.5a1.5 1.5 0 011.5-1.5h4l2 2.5h8a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5H5a1.5 1.5 0 01-1.5-1.5z"/>'),
-	svgedit: svgIcon('<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19z"/><path d="M14.5 6.5l3 3"/>'),
-	spaces: svgIcon('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
-};
+// Значки внутренних страниц (SVG в виде data-адреса, из общего набора иконок); у новой вкладки — значок браузера
+const ICONS = require('./pages/icons');
+const fm = require('./filemanager');
+const INTERNAL_ICONS = {};
+for (const name of ['settings', 'bookmarks', 'history', 'version', 'passwords', 'downloads', 'offline', 'svgedit', 'spaces', 'game', 'blocklist']) INTERNAL_ICONS[name] = ICONS.dataUrl(name);
+INTERNAL_ICONS.files = ICONS.dataUrl('folder');
 let browserIcon = '';
 
 function internalIcon(url) {
@@ -511,7 +503,7 @@ function layoutPayload() {
 	for (const k of LAYOUT_KEYS) out[k] = s[k];
 	out.plan = panelPlan();
 	out.tabsTwoRows = s.tabsTwoRows && s.tabsScale >= store.TWO_ROWS_MIN; // выбор сохраняется, а действует, пока панель растянута
-	out.arrows = store.ARROWS[s.arrows];
+	out.arrows = s.arrows;
 	out.extButtons = [...extensions.actions(), ...addons.actions()];
 	out.customButtons = s.customButtons.map((c) => ({ id: c.id, name: c.name, icon: c.icon, svg: c.svg }));
 	out.tabsBase = { row: TABBAR_HEIGHT, side: SIDE_WIDTH };
@@ -636,7 +628,7 @@ async function removeFolderAsk(id) {
 }
 
 function sendTabs() {
-	if (!win || win.isDestroyed()) return;
+	if (win && win.isDestroyed()) return; // окно уже закрыто, браузер выходит
 	sendTabEvents();
 	const s = settings();
 	win.webContents.send('tabs', {
@@ -652,7 +644,7 @@ function sendTabs() {
 
 // navigated — страница действительно сменилась, reset — вкладку переключили и адрес надо заменить в любом случае
 function sendState(navigated, reset) {
-	if (!win || win.isDestroyed()) return;
+	if (win && win.isDestroyed()) return; // окно уже закрыто, браузер выходит
 	scanIconTones(); // у новых иконок закладок узнаём тон в фоне
 	const tab = activeTab();
 	if (!tab) return;
@@ -672,6 +664,7 @@ function sendState(navigated, reset) {
 		pwOffer: offerFor(tab),
 		translated: !!tab.translated,
 		canTranslate: pageTranslate.translatable(url),
+		safeMode,
 	});
 }
 
@@ -1043,7 +1036,7 @@ function scheduleSession() {
 }
 
 function setWindowTitle(tab) {
-	win.setTitle(tab && tab.title ? tab.title + ' — Problet' : 'Problet');
+	win.setTitle((tab && tab.title ? tab.title + ' — Problet' : 'Problet') + (safeMode ? ' (' + tr('безопасный режим') + ')' : ''));
 }
 
 function onNavigated(tab) {
@@ -1156,7 +1149,7 @@ function wireTab(tab) {
 	// Страницы расширений в Chrome Web Store: добавляем свою кнопку «Установить в Problet»
 	const STORE_RE = /^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)\//i;
 	const injectStoreButton = () => {
-		if (!STORE_RE.test(wc.getURL())) return;
+		if (safeMode || !STORE_RE.test(wc.getURL())) return;
 		wc.executeJavaScript(extensions.storeButton(curLang(), extensions.storeIds())).catch(() => {});
 	};
 	wc.on('did-finish-load', injectStoreButton);
@@ -2816,7 +2809,7 @@ ipcMain.on('tab-rename', (e, id, name) => {
 });
 // Растягивание панели вкладок мышью
 ipcMain.on('tabs-scale', (e, v) => {
-	if (!fromToolbar(e) || typeof v !== 'number') return;
+	if (!fromToolbar(e) || typeof v !== 'number' || safeMode) return;
 	try {
 		store.setSettings({ tabsScale: v });
 		applySettings();
@@ -2926,7 +2919,7 @@ let panelKind = '';
 let panelReturn = 'tab';
 let panelClosedAt = 0;
 let panelOpenedAt = 0;
-const PANEL_SIZE = { bmstar: [340, 250], chars: [352, 400], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0], ext: [380, 440] };
+const PANEL_SIZE = { bmstar: [340, 250], chars: [352, 460], pwsave: [340, 290], pwfill: [340, 260], folder: [320, 0], ext: [380, 440] };
 let panelArg = '';
 
 let panelTimer = null;
@@ -3195,6 +3188,9 @@ ipcMain.handle('debug:run', async (e, action) => {
 		case 'devtools':
 			win.webContents.openDevTools({ mode: 'detach' });
 			return { message: 'Инструменты разработчика интерфейса открыты' };
+		case 'safe-mode':
+			await setSafeMode(!safeMode);
+			return { message: safeMode ? 'Безопасный режим включён' : 'Безопасный режим выключен', safeMode };
 		case 'restart':
 			restartApp();
 			return { message: 'Перезапуск…' };
@@ -3227,7 +3223,8 @@ ipcMain.on('update-get', (e) => {
 });
 
 handle('settings:get', () => ({
-	settings: store.getSettings(),
+	settings: store.rawSettings(),
+	safeMode,
 	engines: store.engineList(),
 	defaultKeywords: store.DEFAULT_KEYWORDS,
 	accents: accentList(),
@@ -3236,6 +3233,10 @@ handle('settings:get', () => ({
 	searchCount: store.searchCount(),
 	version: app.getVersion(),
 }));
+handle('safe:set', (on) => setSafeMode(on));
+ipcMain.on('safe-exit', (e) => {
+	if (fromToolbar(e)) setSafeMode(false);
+});
 handle('settings:set', (patch) => {
 	const result = store.setSettings(patch);
 	applySettings();
@@ -3272,48 +3273,51 @@ ipcMain.handle('search:run', (e, text) => {
 });
 
 // Открыть внутреннюю страницу (историю, закладки…) в новой вкладке
-// Проводник: список папки для страницы problet://files
-// На Windows над корнем диска есть ещё один уровень — список дисков, иначе с C: не перейти на D:
-const DRIVES = '::drives';
-function driveList() {
-	const out = [];
-	for (let c = 67; c <= 90; c++) { // C…Z: дисководы A и B не опрашиваем, они могут надолго задуматься
-		const root = String.fromCharCode(c) + ':\\';
-		try {
-			if (fs.existsSync(root)) out.push({ name: root.slice(0, 2), dir: true, size: 0, mtime: 0, hidden: false, path: root, url: pathToFileURL(root).href });
-		} catch (e) { /* диск не отвечает */ }
+// Проводник (problet://files): список папки, боковая панель, операции с файлами — в filemanager.js.
+// Изменять файлы может только сама страница проводника
+const filesGuard = (e) => {
+	guard(e);
+	if (!senderPageUrl(e).startsWith('problet://files')) throw new Error('Доступ запрещён');
+};
+const filesHandle = (channel, fn) => ipcMain.handle(channel, (e, ...args) => {
+	filesGuard(e);
+	return fn(...args);
+});
+handle('files:list', (dir) => fm.list(dir));
+filesHandle('files:places', () => fm.places());
+filesHandle('files:thumb', (p) => fm.thumb(p));
+filesHandle('files:pin', (dir, on) => fm.setPin(dir, !!on));
+filesHandle('files:op', (kind, args) => fm.op(String(kind), args));
+filesHandle('files:tab', (dir) => {
+	createTab('problet://files/?p=' + encodeURIComponent(path.resolve(String(dir))), { activate: true });
+});
+filesHandle('files:clip', (mode, paths) => (mode === undefined ? fm.getClip() : fm.setClip(mode, paths)));
+// Открыть файл: то, что браузер умеет показать, — во вкладке, остальное — программой системы
+filesHandle('files:launch', async (p, how) => {
+	p = path.resolve(String(p));
+	if (how === 'system' || (how !== 'tab' && !BROWSER_VIEWABLE.test(p))) {
+		const err = await shell.openPath(p);
+		if (err) throw new Error(err);
+		return 'system';
 	}
-	return out;
-}
-handle('files:list', (dir) => {
-	const onWin = process.platform === 'win32';
-	if (onWin && dir === DRIVES) return { path: 'Этот компьютер', virtual: true, parent: '', root: '', home: os.homedir(), truncated: false, entries: driveList() };
-	dir = path.resolve(String(dir || os.homedir()));
-	const up = path.dirname(dir);
-	const parent = up === dir ? (onWin ? DRIVES : '') : up;
-	const root = onWin ? DRIVES : '';
-	let names;
-	try {
-		names = fs.readdirSync(dir);
-	} catch (e) {
-		return { path: dir, parent, root, home: os.homedir(), truncated: false, entries: [], error: e.code === 'EACCES' || e.code === 'EPERM' ? 'Нет доступа к папке' : 'Не удалось открыть папку: ' + e.message };
+	const tab = tabs.find((t) => t.id === activeId);
+	if (how === 'newtab' || !tab) createTab(pathToFileURL(p).href, { activate: true });
+	else tab.view.webContents.loadURL(pathToFileURL(p).href).catch(() => {});
+	return 'tab';
+});
+const BROWSER_VIEWABLE = /\.(html?|xhtml|svg|png|jpe?g|gif|webp|avif|bmp|ico|pdf|txt|md|log|json|xml|csv|tsv|css|js|mjs|ts|py|c|h|cpp|hpp|java|rs|go|sh|ya?ml|toml|ini|conf|cfg|mp4|webm|ogg|ogv|mp3|wav|flac|m4a|opus)$/i;
+// Стандартный проводник системы
+handle('files-default:get', async () => ({ on: await fm.isDefault(), platform: process.platform }));
+handle('files-default:set', async (on) => {
+	if (!on) return fm.restoreDefault();
+	let launcher = process.execPath;
+	if (process.platform === 'linux' && process.env.APPIMAGE) {
+		// AppImage: тот же скрипт-посредник, что и у ярлыка браузера (передаёт папку запущенному окну)
+		const { apps } = require('./desktop').writeLauncher(process.env.APPIMAGE, path.join(__dirname, 'icon.png'), os.homedir(), app.getPath('userData'));
+		launcher = path.join(os.homedir(), '.local', 'share', 'problet', 'open.sh');
+		log('ярлык браузера обновлён', apps);
 	}
-	const entries = [];
-	for (const name of names.slice(0, 5000)) {
-		const full = path.join(dir, name);
-		let st;
-		try {
-			st = fs.statSync(full);
-		} catch (e) {
-			try {
-				st = fs.lstatSync(full); // битая ссылка
-			} catch (e2) {
-				continue;
-			}
-		}
-		entries.push({ name, dir: st.isDirectory(), size: st.isDirectory() ? 0 : st.size, mtime: st.mtimeMs, hidden: name.startsWith('.'), path: full, url: pathToFileURL(full).href });
-	}
-	return { path: dir, parent, root, home: os.homedir(), truncated: names.length > 5000, entries };
+	return fm.setDefault(launcher, path.join(__dirname, 'icon.png'));
 });
 
 // Страница problet:// не может сама перейти на file://, поэтому открываем файл в её вкладке отсюда
@@ -3385,7 +3389,7 @@ handle('bm:icon-set', (id, svg) => {
 	if (typeof svg !== 'string' || svg.length > 200000) throw new Error('Иконка слишком большая');
 	const data = svg ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) : '';
 	if (String(id).startsWith('cb:')) {
-		const list = settings().customButtons;
+		const list = store.rawSettings().customButtons;
 		if (!list.some((x) => x.id === id)) throw new Error('Кнопка не найдена');
 		store.setSettings({ customButtons: list.map((x) => (x.id === id ? { ...x, svg: data } : x)) });
 		applySettings();
@@ -3445,6 +3449,11 @@ ipcMain.handle('error:copy', (e) => {
 	if (info) clipboard.writeText(info.title + '\n' + info.text + '\n\nProblet ' + app.getVersion() + ', ' + process.platform + ' ' + process.arch + ', Electron ' + process.versions.electron);
 });
 ipcMain.on('error:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+ipcMain.handle('error:safe', (e) => {
+	if (!errorWindows.has(e.sender.id)) throw new Error('Доступ запрещён');
+	return setSafeMode(true);
+});
+ipcMain.handle('error:safe-state', () => safeMode);
 
 handle('default-browser:set', async () => {
 	if (!app.isPackaged) return { ok: false, message: 'Работает только в установленной версии Problet' };
@@ -3837,6 +3846,33 @@ handle('ext:remove', async (p) => {
 // Кнопки расширений на панели инструментов
 // Каждое расширение с кнопкой получает свою кнопку на панели инструментов, у удалённых кнопки пропадают
 let extReady = false;
+
+// ---------- Безопасный режим ----------
+// Включается без перезапуска: стандартные панели, без своих кнопок и их клавиш, без расширений и аддонов,
+// без автообновления, перевода страниц, блокировщика и скрытия баннеров, масштаб интерфейса 100%.
+// Сохранённые настройки не меняются: после выхода всё возвращается как было
+let safeMode = false;
+async function setSafeMode(on) {
+	on = !!on;
+	if (on === safeMode) return safeMode;
+	safeMode = on;
+	log(on ? 'безопасный режим включён' : 'безопасный режим выключен');
+	store.setSafe(on);
+	addons.setSafe(on);
+	if (win && !win.isDestroyed()) {
+		applySettings();
+		sendExtActions();
+		sendState();
+		setWindowTitle(activeTab());
+	}
+	try {
+		await extensions.setSafe(on);
+	} catch (e) {
+		log('расширения в безопасном режиме', e);
+	}
+	if (win && !win.isDestroyed()) sendExtActions();
+	return safeMode;
+}
 // Вкладки для расширений (chrome.tabs в ext-shim.js): номер вкладки — номер её страницы, окно одно
 function extTabList() {
 	return tabs.filter((t) => !t.view.webContents.isDestroyed()).map((t, index) => {
@@ -3883,7 +3919,7 @@ function sendTabEvents() {
 const extRelays = new Map();
 function syncRelays() {
 	const want = new Map();
-	for (const e of extensions.list()) {
+	if (!safeMode) for (const e of extensions.list()) {
 		if (e.id && !e.error && fs.existsSync(path.join(e.path, 'problet-relay.html'))) want.set(e.id, e);
 	}
 	for (const [id, w] of extRelays) {
@@ -3912,7 +3948,7 @@ const relayExt = (wc) => {
 
 function sendExtActions() {
 	if (extReady) syncRelays();
-	if (extReady) {
+	if (extReady && !safeMode) { // в безопасном режиме раскладка стандартная, сохранённую не трогаем
 		const ids = [...extensions.actions(), ...addons.actions()].map((x) => 'x:' + x.id);
 		const L = settings().btnLayout;
 		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.extra, ...L.hidden]);
@@ -4215,7 +4251,9 @@ function notFoundResponse(request, shownUrl) {
 	let html = read(__dirname, 'pages', '404.html')
 		.replace('/*THEME*/', read(__dirname, 'theme.css') + read(__dirname, 'pages', 'common.css'))
 		.replace('{{url}}', (shownUrl || request.url).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]));
-	if (curLang() === 'en') html = html.replace(/>([^<>]*[А-Яа-яЁё][^<>]*)</g, (_m, t) => '>' + tr(t) + '<'); // у неизвестного адреса нет своих скриптов: переводим сразу
+	if (curLang() === 'en') html = html.replace(/>([^<>]*[А-Яа-яЁё][^<>]*)</g, (_m, t) => '>' + tr(t) + '<').replace('<html lang="ru">', '<html lang="en">'); // у неизвестного адреса нет своих скриптов: переводим сразу
+	// Мини-игра «Лабиринт» — после перевода, чтобы он не трогал код игры (у неё свои строки на двух языках)
+	html = html.replace('/*MAZE_CSS*/', () => read(__dirname, 'pages', 'maze.css')).replace('/*MAZE_JS*/', () => read(__dirname, 'pages', 'maze.js').replace(/<\/script/gi, '<\\/script'));
 	return new Response(html, { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
@@ -4378,6 +4416,8 @@ function createWindow() {
 	win.contentView.on('bounds-changed', layout);
 	win.on('resize', closePanel);
 	win.on('close', saveSession);
+	// Скрытые окна-посредники расширений не дают сработать window-all-closed: без главного окна браузер выходит сам
+	win.on('closed', () => app.quit());
 	win.on('maximize', sendLayout);
 	win.on('unmaximize', sendLayout);
 	win.webContents.on('before-input-event', hotkeys);
@@ -4396,7 +4436,8 @@ const gotLock = headless.enabled || app.requestSingleInstanceLock(); // без �
 // Ссылка из системы (второй запуск или ярлык): показываем окно и открываем адрес в новой вкладке
 let incomingEarly = []; // ссылки, пришедшие до появления окна (macOS присылает их событием ещё при запуске)
 function openIncoming(arg, cwd) {
-	if (!win || !started) {
+	if (win && win.isDestroyed()) return; // окно уже закрыто, браузер выходит
+	if (!started) {
 		if (arg) incomingEarly.push([arg, cwd]);
 		return;
 	}
@@ -4440,6 +4481,15 @@ app.whenReady().then(() => {
 	// Оставляем только нужное системе: меню приложения, правку (копирование и вставка работают через него) и окно
 	if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { label: 'Окно', submenu: [{ role: 'minimize' }, { role: 'zoom' }] }]));
 	store.init(app.getPath('userData'));
+	fm.init(app.getPath('userData'), log);
+	// Запуск сразу в безопасном режиме: problet --safe-mode
+	if (process.argv.includes('--safe-mode')) {
+		safeMode = true;
+		store.setSafe(true);
+		addons.setSafe(true);
+		extensions.setSafe(true);
+		log('запуск в безопасном режиме');
+	}
 	vault.init(app.getPath('userData'), { onLock: () => sendState() });
 	vault.setAutoLock(settings().pwLock);
 	nativeTheme.themeSource = settings().darkTheme ? 'dark' : 'light';
@@ -4487,7 +4537,7 @@ app.whenReady().then(() => {
 	// Копия закладок: при запуске и раз в час проверяем, не пора ли
 	setTimeout(backupIfDue, 30000);
 	setInterval(backupIfDue, 3600000);
-	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster }));
+	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster, off: safeMode }));
 });
 function startHeadless() {
 	if (headless.flag('adblock')) store.setSettings({ adblock: true });

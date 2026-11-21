@@ -297,7 +297,8 @@ body.bookmarks h1 {
 }
 
 .nav-item:hover .mini {
-	display: block;
+	display: grid;
+	place-items: center;
 }
 
 .mini:hover {
@@ -397,6 +398,8 @@ body.bookmarks header input {
 }
 
 .icon-btn {
+	display: inline-grid;
+	place-items: center;
 	width: 28px;
 	height: 28px;
 	padding: 0;
@@ -1042,6 +1045,8 @@ body.version .actions {
 .prow select { width: 200px; }
 
 button.move {
+	display: inline-grid;
+	place-items: center;
 	width: 32px;
 	padding: 6px 0;
 	font-size: 12px;
@@ -1098,7 +1103,7 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .preset .look span.acc { flex: 0 0 34%; }
 .preset b { font-size: 13px; font-weight: 600; color: var(--text-strong); }
 .preset small { color: var(--muted); font-size: 11px; }
-.preset .del { position: absolute; bottom: 8px; right: 8px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 14px; line-height: 22px; cursor: pointer; }
+.preset .del { display: grid; place-items: center; position: absolute; bottom: 8px; right: 8px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 14px; line-height: 22px; cursor: pointer; }
 .preset .del:hover { background: var(--danger-bg); color: var(--danger); }
 .inline-form { display: flex; gap: 8px; }
 .inline-form input { margin-top: 0 !important; width: 200px; }
@@ -1121,7 +1126,7 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .kw-row input { margin: 0 !important; min-width: 0; width: 100%; box-sizing: border-box; }
 .kw-row .kw-key { font-family: ui-monospace, monospace; text-align: center; }
 .kw-row .kw-url { font-family: ui-monospace, monospace; font-size: 12px; }
-.kw-del { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.kw-del { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
 .kw-del:hover { background: var(--danger-bg); color: var(--danger); }
 .kw-actions { display: flex; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .kw-actions .gap { flex: 1; }
@@ -1132,3 +1137,14 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .top-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
 .top-row .host { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .top-row .count { color: var(--muted); white-space: nowrap; }
+
+/* Плашка безопасного режима в настройках */
+.safe-banner { display: flex; align-items: center; gap: 14px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid rgba(245, 165, 36, 0.45); border-radius: 10px; background: rgba(245, 165, 36, 0.1); font-size: 13px; line-height: 1.45; }
+.safe-banner b { color: #f5a524; }
+.safe-banner.hidden { display: none; }
+.safe-banner button { flex: none; }
+
+/* Выбор стрелок «назад/вперёд» */
+.arrow-pick { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 330px; }
+.arrow-pick button { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 8px; }
+.arrow-pick button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }

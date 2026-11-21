@@ -316,7 +316,7 @@ async function apply() {
 }
 
 // Проверка при запуске (через несколько секунд) и дальше по периоду из настроек (раз в минуту смотрим, не пора ли).
-// opts() -> { enabled, every: минут, restart, faster }
+// opts() -> { enabled, every: минут, restart, faster, off }
 // faster: пока релиз ещё собирается (status building), проверяем каждые 2 минуты
 const BUILDING_EVERY = 2;
 function schedule(opts) {
@@ -326,6 +326,7 @@ function schedule(opts) {
 	const run = async (startup) => {
 		if (busy || state.status === 'ready') return;
 		const o = opts();
+		if (o.off) return; // безопасный режим: сам не проверяет, обновиться можно только кнопкой
 		if (!startup) {
 			if (!o.enabled) return;
 			let every = Number(o.every);

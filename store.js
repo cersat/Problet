@@ -33,7 +33,7 @@ const HISTORY_KEEP = ['0', '365', '180', '90', '30', '7'];
 const TWO_ROWS_MIN = 1.8;
 
 // Стрелки «назад» и «вперёд» (в панели, в настройках перемещения кнопок)
-const ARROWS = { tri: ['◀', '▶'], arrow: ['←', '→'], angle: ['‹', '›'], heavy: ['❮', '❯'], double: ['«', '»'], dbl: ['⇐', '⇒'], outline: ['◁', '▷'], curved: ['↩', '↪'] };
+const ARROWS = require('./pages/icons').ARROWS; // наборы стрелок «назад/вперёд» (SVG)
 
 // Панели в порядке сверху вниз; page — окно со страницей. Всё, что выше page, находится над страницей, ниже — под ней
 const PANELS = ['tabs', 'toolbar', 'bmbar', 'extra']; // extra — четвёртая панель: пока на ней нет кнопок, её не видно
@@ -868,10 +868,29 @@ function resetSettings() {
 	data.settings = sanitizeSettings({});
 	scheduleSave();
 	changed('settings');
-	return getSettings();
+	return rawSettings();
 }
 
+// Безопасный режим: браузер работает со стандартными значениями этих настроек, а сохранённые не трогает
+let safe = false;
+function safeOverrides() {
+	return {
+		tabsPos: 'row', tabsScale: 1, tabsTwoRows: false, panelOrder: [...DEFAULT_ORDER], btnLayout: defaultButtons(),
+		customButtons: [], bmOnlyIcons: false, bookmarksBar: true, spacesPopup: false, hotkeys: {}, uiScale: 100,
+		autoUpdate: false, autoRestart: false, pageTranslate: false, adblock: false, hideCookieBanners: false,
+	};
+}
+function setSafe(on) {
+	safe = !!on;
+}
+const isSafe = () => safe;
+
+// Настройки, с которыми работает браузер
 function getSettings() {
+	return safe ? { ...data.settings, ...safeOverrides() } : { ...data.settings };
+}
+// Сохранённые настройки как есть (страница настроек показывает и меняет их)
+function rawSettings() {
 	return { ...data.settings };
 }
 
@@ -1003,7 +1022,7 @@ function setSettings(patch) {
 	data.settings = next;
 	scheduleSave();
 	changed('settings');
-	return getSettings();
+	return rawSettings();
 }
 
 // Страница результатов поиска одного из поисковиков (в подсказках она только дублирует историю поиска)
@@ -1411,7 +1430,7 @@ function importData(raw, mode) {
 module.exports = {
 	TWO_ROWS_MIN, EXT_BTN,
 	init, flush,
-	getSettings, setSettings, resetSettings, engineList, searchUrl, ARROWS,
+	getSettings, rawSettings, setSafe, isSafe, setSettings, resetSettings, engineList, searchUrl, ARROWS,
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
 	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, setBookmarkTones, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,

@@ -10,6 +10,7 @@ const { session } = require('electron');
 let ses = null;
 let file = '';
 let entries = []; // { path, id, name, version, error }
+let safe = false; // безопасный режим: расширения не загружаются, их фоновые процессы не работают
 
 function save() {
 	try {
@@ -92,7 +93,40 @@ async function init(session, userData) {
 		if (Array.isArray(raw)) paths = raw.filter((p) => typeof p === 'string');
 	} catch (e) { /* списка ещё нет */ }
 	entries = [];
-	for (const p of paths) entries.push(await loadOne(p));
+	for (const p of paths) entries.push(safe ? sleeping(p) : await loadOne(p));
+}
+
+// Запись о расширении, которое в безопасном режиме не загружено
+function sleeping(dir) {
+	let name = path.basename(dir);
+	let version = '';
+	try {
+		const m = readManifest(dir);
+		if (typeof m.name === 'string' && !m.name.startsWith('__MSG_')) name = m.name;
+		version = String(m.version || '');
+	} catch (e) { /* имя папки */ }
+	return { path: dir, id: '', name, version, error: '' };
+}
+
+// Включение и выключение безопасного режима без перезапуска: расширения выгружаются и загружаются заново
+async function setSafe(on) {
+	on = !!on;
+	if (on === safe) return;
+	safe = on;
+	if (!ses) return;
+	if (on) {
+		for (let i = 0; i < entries.length; i++) {
+			const e = entries[i];
+			if (e.id) {
+				try {
+					ses.extensions.removeExtension(e.id);
+				} catch (err) { /* уже выгружено */ }
+			}
+			entries[i] = { ...sleeping(e.path), name: e.name, version: e.version };
+		}
+	} else {
+		for (let i = 0; i < entries.length; i++) entries[i] = await loadOne(entries[i].path);
+	}
 }
 
 function list() {
@@ -104,7 +138,7 @@ async function add(dir) {
 	dir = path.resolve(dir);
 	if (entries.some((e) => e.path === dir)) throw new Error('Это расширение уже добавлено');
 	readManifest(dir);
-	const entry = await loadOne(dir);
+	const entry = safe ? sleeping(dir) : await loadOne(dir);
 	if (entry.error) throw new Error(entry.error);
 	entries.push(entry);
 	save();
@@ -402,4 +436,4 @@ function callbackPage(url) {
 	return 'chrome-extension://' + m[1] + '/problet-callback.html?u=' + encodeURIComponent(url);
 }
 
-module.exports = { sidePanelUrl, callbackPage, setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };
+module.exports = { setSafe, isSafe: () => safe, sidePanelUrl, callbackPage, setLog, init, list, add, remove, actions, pageUrl, installFromStore, storeId, storeIds, storeButton, crxToZip, unzip };

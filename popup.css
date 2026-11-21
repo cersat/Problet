@@ -37,6 +37,7 @@ body {
 
 .icon {
 	width: 16px;
+	display: flex;
 	flex: none;
 	color: var(--muted);
 	text-align: center;
@@ -74,7 +75,8 @@ body {
 }
 
 .row:hover .del, .row.selected .del {
-	display: block;
+	display: grid;
+	place-items: center;
 }
 
 .del:hover {

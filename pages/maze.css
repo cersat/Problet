@@ -1,0 +1,12 @@
+/* Мини-игра «Лабиринт» (problet://game и страницы 404) */
+#maze { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.mz-hud { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.mz-hud .mz-level { color: var(--text-strong); font-weight: 600; }
+.mz-canvas { display: block; border-radius: 10px; outline: none; box-shadow: 0 0 0 1px var(--border-strong); cursor: pointer; touch-action: none; }
+.mz-canvas:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.mz-msg { min-height: 20px; color: var(--accent); font-weight: 600; text-align: center; }
+.mz-bar { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+.mz-bar button { height: 32px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--control); color: var(--text); font: inherit; cursor: pointer; }
+.mz-bar button:hover { background: var(--hover); }
+.mz-fog { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+.mz-help { margin: 0; color: var(--faint); font-size: 12px; text-align: center; }

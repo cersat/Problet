@@ -1,4 +1,4 @@
-const SETS = {
+const SYMBOLS = {
 	'Знаки': '© ® ™ § ¶ † ‡ • … ‰ ′ ″ ‹ › « » “ ” „ ‘ ’ ‚ ‐ – — ¡ ¿ № ° ¦ ~ ^ ` | \\ @ # & * ¤ · ‽ ※ ⁂ ‖ ¨ ´ ‒ ― ¬',
 	'Валюты': '$ € £ ¥ ₽ ₴ ₸ ₹ ₩ ₺ ₪ ₫ ₿ ¢ ฿ ₦ ₱ ₡ ₲ ₭ ₮ ₼ ₾ ₣ ₤ ₳ ₥ ₯ ₠',
 	'Математика': '± × ÷ ≠ ≈ ≤ ≥ < > ∞ √ ∛ ∑ ∏ ∫ ∂ ∆ ∇ ∈ ∉ ∩ ∪ ⊂ ⊃ ⊆ ⊇ ∀ ∃ ∅ ∧ ∨ ¬ ⇒ ⇔ ∝ ∠ ⊥ ∥ ° ¼ ½ ¾ ⅓ ⅔ ⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ π ≡ ≢ ≅ ∼ ∓ ∘ ∙ ∴ ∵ ⌊ ⌋ ⌈ ⌉ ⊕ ⊗ ℕ ℤ ℚ ℝ ℂ',
@@ -12,27 +12,70 @@ const SETS = {
 	'Нумерация': 'Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ Ⅺ Ⅻ Ⅼ Ⅽ Ⅾ Ⅿ ① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ ⑪ ⑫ ⑬ ⑭ ⑮ ⑯ ⑰ ⑱ ⑲ ⑳ ❶ ❷ ❸ ❹ ❺ ❻ ❼ ❽ ❾ ❿ ⒈ ⒉ ⒊ ⒋ ⒌',
 	'Игры': '♔ ♕ ♖ ♗ ♘ ♙ ♚ ♛ ♜ ♝ ♞ ♟ ⚀ ⚁ ⚂ ⚃ ⚄ ⚅ ♤ ♧ ♡ ♢ 🂡 🂱 🃁 🃑 🃏 ⛀ ⛁ ⛂ ⛃',
 };
-let current = Object.keys(SETS)[0];
+const EMOJI = {
+	'Смайлы': '😀 😃 😄 😁 😆 😅 😂 🤣 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 😌 😔 😪 😴 😷 🤒 🤕 🤢 🤮 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 💩 🤡 👻 👽 🤖 😺 😸 😹 😻 😼 😽 🙀 😿 😾',
+	'Жесты и люди': '👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍ 💅 💪 🦾 🦵 🦶 👂 👃 🧠 👀 👁 👅 👄 👶 🧒 👦 👧 🧑 👨 👩 🧓 👴 👵 🙋 🙅 🙆 🤷 🤦 🙇 💁 👮 👷 💂 🕵 🧑‍💻 🧑‍🔬 🧑‍🚀 🧑‍🍳 🧑‍🎓 🧑‍🏫 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 🏃 🚶 💃 🕺 👫 👪',
+	'Животные и природа': '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐜 🕷 🦂 🐢 🐍 🦎 🦖 🐙 🦑 🦀 🐠 🐟 🐬 🐳 🦈 🐊 🐅 🐘 🦒 🦘 🐪 🐑 🐐 🦌 🐕 🐈 🐓 🦃 🦚 🦜 🕊 🐇 🐿 🦔 🌵 🎄 🌲 🌳 🌴 🌱 🌿 🍀 🍁 🍂 🍃 🍄 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌙 ⭐ 🌟 ✨ ⚡ 🔥 🌈 ☀ ⛅ ☁ 🌧 ⛈ 🌩 ❄ ☃ ⛄ 🌊 💧',
+	'Еда': '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶 🌽 🥕 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥗 🥘 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🍤 🍙 🍚 🍘 🍥 🥮 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 🌰 🥜 🍯 🥛 ☕ 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🧊',
+	'Путешествия': '🚗 🚕 🚙 🚌 🚎 🏎 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍 🛺 🚲 🛴 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈ 🛫 🛬 🛩 💺 🛰 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥 🛳 ⛴ 🚢 ⚓ 🚧 ⛽ 🚏 🚦 🚥 🗺 🗿 🗽 🗼 🏰 🏯 🏟 🎡 🎢 🎠 ⛲ ⛱ 🏖 🏝 🏜 🌋 ⛰ 🏔 🗻 🏕 ⛺ 🏠 🏡 🏘 🏚 🏗 🏭 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛 ⛪ 🕌 🕍 🛕 🌅 🌄 🌠 🎇 🎆 🌇 🌆 🏙 🌃 🌌 🌉 🌁',
+	'Занятия': '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸ 🥌 🎿 ⛷ 🏂 🏋 🤸 🤺 🤾 🏌 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖 🏵 🎗 🎫 🎟 🎪 🤹 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻 🎲 ♟ 🎯 🎳 🎮 🎰 🧩 🎉 🎊 🎈 🎁 🎀 🪅 🎃 🎄 🎆 🎇 🧨',
+	'Предметы': '⌚ 📱 💻 ⌨ 🖥 🖨 🖱 🖲 🕹 🗜 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽 🎞 📞 ☎ 📟 📠 📺 📻 🎙 🎚 🎛 🧭 ⏱ ⏲ ⏰ 🕰 ⌛ ⏳ 📡 🔋 🔌 💡 🔦 🕯 🧯 🛢 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖ 🧰 🔧 🔨 ⚒ 🛠 ⛏ 🔩 ⚙ 🧱 ⛓ 🧲 🔫 💣 🧨 🪓 🔪 🗡 ⚔ 🛡 🔮 📿 🧿 💈 ⚗ 🔭 🔬 🕳 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡 🧹 🧺 🧻 🚽 🚰 🚿 🛁 🧼 🪒 🧽 🔑 🗝 🚪 🛋 🛏 🧸 🖼 🛍 🛒 🎁 ✉ 📩 📨 📧 📦 📫 📮 📜 📃 📄 📑 📊 📈 📉 🗒 🗓 📆 📅 📇 🗃 🗳 🗄 📋 📁 📂 🗂 🗞 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔖 🔗 📎 🖇 📐 📏 🧮 📌 📍 ✂ 🖊 🖋 ✒ 🖌 🖍 📝 ✏ 🔍 🔎 🔏 🔐 🔒 🔓',
+	'Символы': '❤ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣ 💕 💞 💓 💗 💖 💘 💝 💟 ☮ ✝ ☪ 🕉 ☸ ✡ 🔯 🕎 ☯ ☦ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛ ☢ ☣ 📴 📳 🈶 🆚 💮 🉐 🅰 🅱 🆎 🆑 🅾 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💯 💢 ♨ 🚷 🚯 🚳 🚱 🔞 📵 🚭 ❗ ❕ ❓ ❔ ‼ ⁉ 🔅 🔆 〽 ⚠ 🚸 🔱 ⚜ 🔰 ♻ ✅ 💹 ❇ ✳ ❎ 🌐 💠 Ⓜ 🌀 💤 🏧 🚾 ♿ 🅿 🚹 🚺 🚼 🚻 🚮 🎦 📶 🆗 🆙 🆒 🆕 🆓 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟 ▶ ⏸ ⏯ ⏹ ⏺ ⏭ ⏮ ⏩ ⏪ 🔀 🔁 🔂 ◀ 🔼 🔽 ➡ ⬅ ⬆ ⬇ ↗ ↘ ↙ ↖ ↕ ↔ ↪ ↩ ⤴ ⤵ 🔄 🔃 🎵 🎶 ➕ ➖ ➗ ✖ ♾ 💲 💱 ™ © ® 〰 ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ✔ ☑ 🔘 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🟤 🔺 🔻 🔸 🔹 🔶 🔷 🔳 🔲 ▪ ▫ ◾ ◽ ◼ ◻ 🟥 🟧 🟨 🟩 🟦 🟪 ⬛ ⬜ 🟫 🔈 🔇 🔉 🔊 🔔 🔕 📣 📢 💬 💭 🗯 ♠ ♣ ♥ ♦ 🃏 🎴 🀄',
+	'Флаги': '🏳 🏴 🏁 🚩 🏳️‍🌈 🇬🇪 🇷🇺 🇺🇦 🇧🇾 🇰🇿 🇦🇲 🇦🇿 🇺🇿 🇰🇬 🇹🇯 🇲🇩 🇺🇸 🇬🇧 🇨🇦 🇩🇪 🇫🇷 🇮🇹 🇪🇸 🇵🇹 🇳🇱 🇧🇪 🇨🇭 🇦🇹 🇵🇱 🇨🇿 🇸🇰 🇭🇺 🇷🇴 🇧🇬 🇬🇷 🇹🇷 🇸🇪 🇳🇴 🇫🇮 🇩🇰 🇮🇸 🇮🇪 🇱🇹 🇱🇻 🇪🇪 🇮🇱 🇪🇬 🇮🇳 🇨🇳 🇯🇵 🇰🇷 🇰🇵 🇹🇭 🇻🇳 🇮🇩 🇦🇺 🇳🇿 🇧🇷 🇦🇷 🇲🇽 🇨🇱 🇨🇴 🇿🇦 🇳🇬 🇪🇺 🇺🇳',
+};
+const MODES = { emoji: EMOJI, symbols: SYMBOLS };
+const remembered = (key, fallback) => {
+	try {
+		return localStorage.getItem(key) || fallback;
+	} catch (e) {
+		return fallback;
+	}
+};
+const remember = (key, v) => {
+	try {
+		localStorage.setItem(key, v);
+	} catch (e) { /* не запомнится */ }
+};
+let mode = remembered('chars-mode', 'symbols') === 'emoji' ? 'emoji' : 'symbols';
+const current = { emoji: Object.keys(EMOJI)[0], symbols: Object.keys(SYMBOLS)[0] };
+for (const m of Object.keys(MODES)) {
+	const c = remembered('chars-cat-' + m, '');
+	if (Object.hasOwn(MODES[m], c)) current[m] = c;
+}
+
+for (const b of document.querySelectorAll('#modes button')) {
+	b.addEventListener('click', () => {
+		mode = b.dataset.mode;
+		remember('chars-mode', mode);
+		document.getElementById('grid').scrollTop = 0;
+		render();
+	});
+}
 
 function render() {
+	for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', b.dataset.mode === mode);
+	const sets = MODES[mode];
 	const cats = document.getElementById('cats');
 	cats.textContent = '';
-	for (const name of Object.keys(SETS)) {
+	for (const name of Object.keys(sets)) {
 		const b = document.createElement('button');
 		b.textContent = name;
-		if (name === current) b.className = 'on';
+		if (name === current[mode]) b.className = 'on';
 		b.addEventListener('click', () => {
-			current = name;
+			current[mode] = name;
+			remember('chars-cat-' + mode, name);
+			document.getElementById('grid').scrollTop = 0;
 			render();
 		});
 		cats.append(b);
 	}
 	const grid = document.getElementById('grid');
 	grid.textContent = '';
-	for (const ch of SETS[current].split(' ')) {
+	grid.classList.toggle('emoji', mode === 'emoji');
+	for (const ch of sets[current[mode]].split(' ')) {
 		const b = document.createElement('button');
 		b.textContent = ch;
-		b.title = 'U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+		b.title = [...ch].filter((c) => c !== '\u200d' && c !== '\ufe0f').map((c) => 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join(' ');
 		b.addEventListener('click', () => problet.charPick(ch));
 		grid.append(b);
 	}

@@ -12,7 +12,8 @@ let toastTimer = null;
 function el(tag, className, text) {
 	const node = document.createElement(tag);
 	if (className) node.className = className;
-	if (text !== undefined) node.textContent = text;
+	if (text !== undefined && /^icon:/.test(text)) node.innerHTML = PROBLET_ICONS.icon(text.slice(5), { size: 16 }); // icon:имя — иконка из pages/icons.js
+	else if (text !== undefined) node.textContent = text;
 	return node;
 }
 
@@ -110,13 +111,13 @@ function navItem(id, label, count, folder) {
 	}
 
 	if (folder) {
-		const rename = el('button', 'mini', '✎');
+		const rename = el('button', 'mini', 'icon:edit');
 		rename.title = 'Переименовать';
 		rename.addEventListener('click', (e) => {
 			e.stopPropagation();
 			openFolderDialog(folder);
 		});
-		const remove = el('button', 'mini', '✕');
+		const remove = el('button', 'mini', 'icon:trash');
 		remove.title = 'Удалить папку';
 		remove.addEventListener('click', (e) => {
 			e.stopPropagation();
@@ -171,10 +172,10 @@ function renderRow(b) {
 
 	if (b.folder && current === 'all') row.append(el('span', 'chip', folderName(b.folder)));
 
-	const edit = el('button', 'icon-btn', '✎');
+	const edit = el('button', 'icon-btn', 'icon:edit');
 	edit.title = 'Изменить';
 	edit.addEventListener('click', () => openEdit(b));
-	const remove = el('button', 'icon-btn', '✕');
+	const remove = el('button', 'icon-btn', 'icon:trash');
 	remove.title = 'Удалить';
 	remove.addEventListener('click', () => removeBookmark(b));
 	row.append(edit, remove);

@@ -47,6 +47,8 @@ input:focus {
 }
 
 button {
+	display: grid;
+	place-items: center;
 	width: 28px;
 	height: 28px;
 	flex: none;

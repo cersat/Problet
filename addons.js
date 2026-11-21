@@ -54,6 +54,7 @@ function loc(m, field) {
 }
 let state = {}; // id -> { granted: { perm: 'always' | 'denied' }, source }
 const addons = new Map(); // id -> { id, dir, manifest, error, world, bg }
+let safe = false; // безопасный режим: аддоны не работают (ни фон, ни скрипты на страницах, ни кнопки)
 const storageCache = new Map();
 const pendingReplies = new Map();
 let nextReq = 1;
@@ -217,6 +218,7 @@ function handler(request) {
 }
 
 function pageUrl(id, kind) {
+	if (safe) return '';
 	const a = addons.get(id);
 	if (!a || !a.manifest) return '';
 	const p = kind === 'popup' ? a.manifest.button && a.manifest.button.popup : a.manifest.options;
@@ -226,7 +228,7 @@ function pageUrl(id, kind) {
 // ---------- Фоновый скрипт ----------
 
 function startBackground(a) {
-	if (!a.manifest || !a.manifest.background || a.bg) return;
+	if (safe || !a.manifest || !a.manifest.background || a.bg) return;
 	const { WebContentsView } = require('electron');
 	const view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload-page.js'), contextIsolation: true, sandbox: true, backgroundThrottling: false } });
 	a.bg = view;
@@ -239,6 +241,17 @@ function startBackground(a) {
 		a.bg = null;
 	});
 	wc.loadURL(SCHEME + '://' + a.id + '/_background.html').catch((e) => ctx.log('фон аддона не загрузился', a.id, e.message));
+}
+
+// Безопасный режим включается и выключается без перезапуска
+function setSafe(on) {
+	on = !!on;
+	if (on === safe) return;
+	safe = on;
+	for (const a of addons.values()) {
+		if (on) stopBackground(a);
+		else startBackground(a);
+	}
 }
 
 function stopBackground(a) {
@@ -564,7 +577,7 @@ const picked = (a) => {
 
 async function call(sender, method, args) {
 	const a = byContents(sender);
-	if (!a) throw new Error('Доступ запрещён');
+	if (!a || safe) throw new Error('Доступ запрещён');
 	const fn = Object.hasOwn(API, method) ? API[method] : null;
 	if (!fn) throw new Error('Нет такого метода: ' + method);
 	return fn(a, ...(Array.isArray(args) ? args : []));
@@ -574,6 +587,7 @@ async function call(sender, method, args) {
 
 // Что вставить в страницу по этому адресу (спрашивает прелоад вкладки при каждой загрузке)
 function contentFor(url) {
+	if (safe) return [];
 	let u;
 	try {
 		u = new URL(url);
@@ -606,7 +620,7 @@ function contentFor(url) {
 // Скрипт на странице пишет своему фону
 async function fromContent(sender, id, kind, args, tab) {
 	const a = addons.get(id);
-	if (!a || !a.manifest || !tab || tab.incognito) throw new Error('Доступ запрещён');
+	if (safe || !a || !a.manifest || !tab || tab.incognito) throw new Error('Доступ запрещён');
 	let u;
 	try {
 		u = new URL(sender.getURL());
@@ -634,6 +648,7 @@ function iconData(a) {
 }
 
 function actions() {
+	if (safe) return [];
 	const out = [];
 	for (const a of addons.values()) {
 		if (!a.manifest || !a.manifest.button) continue;
@@ -643,6 +658,7 @@ function actions() {
 }
 
 function click(id) {
+	if (safe) return;
 	const a = addons.get(id);
 	if (a && a.manifest && a.manifest.button) emit('buttonClick', {}, a.id);
 }
@@ -893,4 +909,4 @@ function removeAll() {
 	for (const id of [...addons.keys()]) remove(id);
 }
 
-module.exports = { SCHEME, init, handler, pageUrl, call, reply, emit, contentFor, fromContent, actions, click, list, catalog, installFromCatalog, installFromUrl, installFromZip, remove, removeAll, resetPermissions, validate, matcher, PERMS };
+module.exports = { setSafe, SCHEME, init, handler, pageUrl, call, reply, emit, contentFor, fromContent, actions, click, list, catalog, installFromCatalog, installFromUrl, installFromZip, remove, removeAll, resetPermissions, validate, matcher, PERMS };

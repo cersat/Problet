@@ -49,3 +49,12 @@
 .code textarea { height: 180px; resize: vertical; padding: 8px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--bg, #1e1e20); color: inherit; font: 12px/1.4 ui-monospace, monospace; }
 .code .row button { flex: none; height: 30px; padding: 0 12px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--control, #38383c); color: inherit; font: inherit; cursor: pointer; }
 .code .row button.primary { background: var(--accent, #7c9cf5); border-color: var(--accent, #7c9cf5); color: var(--on-accent, #1d1d1f); }
+.ico { display: inline-flex; align-items: center; justify-content: center; pointer-events: none; }
+.icons button, .row button { display: inline-flex; align-items: center; justify-content: center; }
+.catalog .search { height: 28px; padding: 0 8px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: var(--bg, #1e1e20); color: inherit; font: inherit; }
+.catalog .row { flex-wrap: wrap; }
+.catalog .field { flex: 1; gap: 6px; }
+.catalog input[type=color] { width: 34px; height: 26px; padding: 0 2px; border: 1px solid var(--border-strong, #4a4a50); border-radius: 6px; background: transparent; cursor: pointer; }
+.catGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; max-height: 300px; overflow-y: auto; }
+.catGrid button { height: 36px !important; padding: 0 !important; display: grid; place-items: center; }
+.panel button.on { border-color: var(--accent, #7c9cf5); color: var(--accent, #7c9cf5); }

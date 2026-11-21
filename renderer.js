@@ -1,3 +1,4 @@
+PROBLET_ICONS.fill(); // иконки панелей из общего набора (pages/icons.js)
 let layoutState = {};
 let barData = { folders: [], bookmarks: [] };
 const back = document.getElementById('back');
@@ -69,6 +70,7 @@ for (const kind of ['chars', 'spaces']) {
 	});
 	btn.addEventListener('click', () => problet.openApplet(kind, appletRect(btn)));
 }
+document.getElementById('safemode').addEventListener('click', () => problet.safeExit());
 document.getElementById('newtab').addEventListener('contextmenu', (e) => {
 	e.preventDefault();
 	problet.newTabMenu();
@@ -124,7 +126,7 @@ function makeTab(t, state) {
 		mark.className = 'incog';
 		mark.title = 'Режим инкогнито';
 		mark.setAttribute('translate', 'yes');
-		mark.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 11h18M6 11l1.5-6h9L18 11"/><circle cx="8" cy="16" r="2.5"/><circle cx="16" cy="16" r="2.5"/><path d="M10.5 16h3"/></svg>';
+		mark.innerHTML = PROBLET_ICONS.icon('incognito', { size: 16 });
 		el.append(mark);
 	}
 	const text = document.createElement('span');
@@ -147,7 +149,7 @@ function makeTab(t, state) {
 	close.dataset.close = t.id;
 	close.title = 'Закрыть вкладку (Ctrl+W)';
 	close.setAttribute('translate', 'yes');
-	close.textContent = '×';
+	close.innerHTML = PROBLET_ICONS.icon('close', { size: 14, width: 2 });
 	el.append(text, close);
 	return el;
 }
@@ -375,8 +377,10 @@ problet.onState((state) => {
 	forward.disabled = !state.canGoForward;
 	translateBtn.classList.toggle('active', !!state.translated);
 	translateBtn.disabled = !state.canTranslate;
-	reload.textContent = state.loading ? '✕' : '⟳';
+	reload.dataset.icon = state.loading ? 'stop' : 'reload';
+	PROBLET_ICONS.fill(reload.parentNode);
 	reload.title = state.loading ? 'Остановить' : 'Обновить (Ctrl+R)';
+	document.getElementById('safemode').classList.toggle('hidden', !state.safeMode);
 	const zoomBtn = document.getElementById('zoom');
 	zoomBtn.classList.toggle('hidden', state.zoom === 100);
 	zoomBtn.textContent = state.zoom + '%';
@@ -578,8 +582,11 @@ function applyLayout(l) {
 	document.body.style.setProperty('--side-w', Math.round(l.tabsBase.side * scale) + 'px');
 	grip.dataset.edge = p.side ? (p.side === 'left' ? 'right' : 'left') : (p.before.includes('tabs') ? 'bottom' : 'top');
 	setTabsRows();
-	$id('back').textContent = l.arrows[0];
-	$id('forward').textContent = l.arrows[1];
+	if ($id('back').dataset.arrows !== l.arrows) {
+		$id('back').dataset.arrows = l.arrows;
+		$id('back').innerHTML = PROBLET_ICONS.arrow(l.arrows, 'back');
+		$id('forward').innerHTML = PROBLET_ICONS.arrow(l.arrows, 'forward');
+	}
 	document.getElementById('win-max').title = l.maximized ? 'Восстановить' : 'Развернуть';
 	document.getElementById('win-max-icon').innerHTML = l.maximized
 		? '<rect x="2.2" y="3.8" width="6" height="6"/><path d="M4 3.8V2.2h5.8v5.8H8.2"/>'

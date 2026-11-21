@@ -24,7 +24,8 @@ const when = (t) => new Date(t).toLocaleString(probletLocale(), { day: '2-digit'
 
 function button(text, onClick, cls) {
 	const b = document.createElement('button');
-	b.textContent = text;
+	if (text.startsWith('<svg')) b.innerHTML = text; // иконка из pages/icons.js
+	else b.textContent = text;
 	if (cls) b.className = cls;
 	b.addEventListener('click', async () => {
 		try {
@@ -53,7 +54,7 @@ function row(e) {
 	info.append(title, sub, meta);
 	el.append(info);
 	if (!e.missing) el.append(button('Открыть', () => problet.offlineOpen(e.id)));
-	el.append(button('×', async () => {
+	el.append(button(PROBLET_ICONS.icon('close', { size: 16 }), async () => {
 		await problet.offlineDelete(e.id);
 		await refresh();
 	}, 'icon-btn always'));

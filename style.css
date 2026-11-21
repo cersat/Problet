@@ -326,6 +326,20 @@ button.inner.pwoffer {
 	color: var(--accent);
 }
 
+button.inner.safemode {
+	width: auto;
+	gap: 5px;
+	padding: 0 9px 0 7px;
+	font-size: 12px;
+	white-space: nowrap;
+	color: #f5a524;
+	background: rgba(245, 165, 36, 0.14);
+}
+
+button.inner.safemode:hover {
+	background: rgba(245, 165, 36, 0.24);
+}
+
 button.inner.hidden {
 	display: none;
 }

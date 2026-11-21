@@ -12,4 +12,6 @@ contextBridge.exposeInMainWorld('problet', {
 	get: () => ipcRenderer.invoke('error:get'),
 	copy: () => ipcRenderer.invoke('error:copy'),
 	close: () => ipcRenderer.send('error:close'),
+	safeMode: () => ipcRenderer.invoke('error:safe'),
+	safeState: () => ipcRenderer.invoke('error:safe-state'),
 });

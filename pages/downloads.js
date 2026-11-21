@@ -22,7 +22,8 @@ function size(n) {
 
 function button(text, onClick, cls) {
 	const b = document.createElement('button');
-	b.textContent = text;
+	if (text.startsWith('<svg')) b.innerHTML = text; // иконка из pages/icons.js
+	else b.textContent = text;
 	if (cls) b.className = cls;
 	b.addEventListener('click', async () => {
 		try {
@@ -68,7 +69,7 @@ function row(d) {
 		if (d.state === 'done' && !d.missing) {
 			el.append(button('Открыть', () => problet.openDownload(d.id)), button('В папке', () => problet.showDownload(d.id)));
 		}
-		el.append(button('×', () => problet.removeDownload(d.id).then(refresh), 'icon-btn always'));
+		el.append(button(PROBLET_ICONS.icon('close', { size: 16 }), () => problet.removeDownload(d.id).then(refresh), 'icon-btn always'));
 	}
 	return el;
 }

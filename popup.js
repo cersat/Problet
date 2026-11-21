@@ -6,7 +6,7 @@ function makeRow(item, index, selected) {
 
 	const icon = document.createElement('span');
 	icon.className = 'icon';
-	icon.textContent = item.type === 'calc' ? '=' : item.type === 'page' ? '↗' : item.type === 'keyword' || item.type === 'remote' ? '⌕' : '↺';
+	icon.innerHTML = PROBLET_ICONS.icon(item.type === 'calc' ? 'calc' : item.type === 'page' ? 'external' : item.type === 'keyword' || item.type === 'remote' ? 'search' : 'restore', { size: 16 });
 
 	const text = document.createElement('span');
 	text.className = 'text';
@@ -38,7 +38,7 @@ function makeRow(item, index, selected) {
 	if (item.type === 'history') {
 		const del = document.createElement('button');
 		del.className = 'del';
-		del.textContent = '×';
+		del.innerHTML = PROBLET_ICONS.icon('close', { size: 14, width: 2 });
 		del.title = 'Удалить из истории поиска';
 		del.addEventListener('mousedown', (e) => {
 			e.preventDefault();
