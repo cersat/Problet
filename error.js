@@ -2,6 +2,10 @@ const $ = (id) => document.getElementById(id);
 window.problet.get().then((e) => {
 	$('title').textContent = e.title;
 	$('text').textContent = e.text;
+	if (e.fatal) {
+		$('hint').classList.add('hidden');
+		$('hint-fatal').classList.remove('hidden');
+	}
 });
 $('copy').addEventListener('click', async () => {
 	await window.problet.copy();

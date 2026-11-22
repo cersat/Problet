@@ -11,7 +11,7 @@ const childProcess = require('child_process');
 const extensions = require('./extensions');
 
 const SCHEME = 'problet-addon';
-const ID_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const ID_RE = /^(?!blocked$)[a-z0-9][a-z0-9-]{0,39}$/; // blocked — адрес заглушек блокировщика (problet-addon://blocked/), не id аддона
 const CATALOG = 'https://raw.githubusercontent.com/cersat/ProbletAddons/main/';
 const MAX_FILE = 20 * 1024 * 1024;
 const MAX_TOTAL = 60 * 1024 * 1024;
@@ -205,6 +205,8 @@ function init(userData, context) {
 
 function handler(request) {
 	const u = new URL(request.url);
+	// Заглушки блокировщика живут на этой схеме: она поддерживает CORS, и скрипты с crossorigin получают заглушку без ошибки
+	if (u.hostname === 'blocked') return require('./adblock').blockedResponse(u.pathname.split('/').pop()) || new Response('', { status: 404 });
 	const a = addons.get(u.hostname);
 	if (!a || !a.manifest) return new Response('Аддон не найден', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 	const rel = decodeURIComponent(u.pathname).replace(/^\/+/, '');

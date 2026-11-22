@@ -17,11 +17,16 @@
 	.lang:hover { color: var(--text); border-color: var(--accent); }
 	p.lead { color: var(--dim); font-size: 18px; margin: 12px 0 32px; }
 	h2 { font-size: 20px; margin: 40px 0 14px; }
-	.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-	.dl a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; color: var(--text); text-decoration: none; }
-	.dl a:hover { border-color: var(--accent); }
-	.dl b { display: block; font-size: 18px; }
-	.dl small { color: var(--dim); }
+	.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+	.os { display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+	.os b { font-size: 18px; }
+	.os .get { display: block; padding: 9px 12px; border-radius: 9px; background: var(--accent); color: var(--bg); font-weight: 600; text-align: center; text-decoration: none; }
+	.os .get:hover { filter: brightness(1.1); }
+	.os .get small { display: block; font-weight: 400; opacity: .85; font-size: 12px; }
+	.os .vars { display: flex; flex-wrap: wrap; gap: 6px; }
+	.os .vars button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; }
+	.os .vars button:hover { color: var(--text); }
+	.os .vars button.on { border-color: var(--accent); color: var(--text); }
 	.note { color: var(--dim); font-size: 14px; margin-top: 14px; }
 	ul { padding-left: 20px; }
 	li { margin: 6px 0; }
@@ -46,9 +51,9 @@
 
 	<h2>Скачать</h2>
 	<div class="dl" id="dl">
-		<a data-os="linux" href="https://github.com/cersat/Problet/releases/tag/latest"><b>Linux</b><small>AppImage или tar.gz</small></a>
-		<a data-os="win" href="https://github.com/cersat/Problet/releases/tag/latest"><b>Windows</b><small>установщик или zip</small></a>
-		<a data-os="mac" href="https://github.com/cersat/Problet/releases/tag/latest"><b>macOS</b><small>dmg или zip</small></a>
+		<div class="os" data-os="linux"><b>Linux</b><a class="get" href="https://github.com/cersat/Problet/releases/tag/latest">Скачать</a><div class="vars"></div></div>
+		<div class="os" data-os="win"><b>Windows</b><a class="get" href="https://github.com/cersat/Problet/releases/tag/latest">Скачать</a><div class="vars"></div></div>
+		<div class="os" data-os="mac"><b>macOS</b><a class="get" href="https://github.com/cersat/Problet/releases/tag/latest">Скачать</a><div class="vars"></div></div>
 	</div>
 	<p class="note" id="ver">Все сборки: <a href="https://github.com/cersat/Problet/releases">Releases</a>. Linux: после скачивания сделай AppImage исполняемым (<code>chmod +x</code>). macOS: приложение не подписано, при первом запуске открой его через контекстное меню → «Открыть». Обновляться можно прямо в браузере: «Настройки» → «Обновления».</p>
 
@@ -72,9 +77,6 @@
 		'.lead': 'A browser written from scratch on Electron. Your own bars and buttons, spaces, tab freezing, an ad blocker, a password manager and built-in tools instead of extensions.',
 		'#installed': '<b>Problet is already installed</b> — you are viewing this page in it. Updates arrive on their own: Settings → Updates.',
 		'h2:nth-of-type(1)': 'Download',
-		'#dl a[data-os="linux"] small': 'AppImage or tar.gz',
-		'#dl a[data-os="win"] small': 'installer or zip',
-		'#dl a[data-os="mac"] small': 'dmg or zip',
 		'#ver': 'All builds: <a href="https://github.com/cersat/Problet/releases">Releases</a>. Linux: after downloading, make the AppImage executable (<code>chmod +x</code>). macOS: the app is not signed; on first launch open it through the context menu → “Open”. You can update right in the browser: Settings → Updates.',
 		'h2:nth-of-type(2)': 'What’s inside',
 		'li:nth-child(1)': 'The tab, tool and bookmark bars can be rearranged any way you like; every button lives on any bar',
@@ -118,25 +120,63 @@
 	// Problet сообщает о себе через window.isProblet (только когда не маскируется под другой браузер)
 	if (window.isProblet === true) document.body.classList.add('is-problet');
 
-	// Прямые ссылки на файлы последней сборки; если GitHub не ответил, остаются ссылки на страницу релиза
+	// Выбор варианта загрузки: у каждой системы свои варианты, выбранный запоминается.
+	// Ссылки ведут прямо на файлы последней сборки; если GitHub не ответил — на страницу релиза
+	const VARIANTS = {
+		linux: [
+			{ id: 'appimage', re: /-linux-x86_64\.AppImage$/, ru: 'AppImage', en: 'AppImage', noteRu: 'один файл, обновляется сам; сделай исполняемым (chmod +x)', noteEn: 'a single file that updates itself; make it executable (chmod +x)' },
+			{ id: 'tar', re: /-linux-x64\.tar\.gz$/, ru: 'tar.gz', en: 'tar.gz', noteRu: 'архив: распакуй и запусти problet', noteEn: 'an archive: unpack it and run problet' },
+		],
+		win: [
+			{ id: 'setup', re: /-win-x64\.exe$/, ru: 'Установщик', en: 'Installer', noteRu: 'ставится в систему, обновляется сам', noteEn: 'installs into the system, updates itself' },
+			{ id: 'zip', re: /-win-x64\.zip$/, ru: 'Портативная (zip)', en: 'Portable (zip)', noteRu: 'без установки: распакуй куда угодно', noteEn: 'no installation: unpack anywhere' },
+		],
+		mac: [
+			{ id: 'arm-dmg', re: /-mac-arm64\.dmg$/, ru: 'Apple Silicon (dmg)', en: 'Apple Silicon (dmg)', noteRu: 'для Mac на M1 и новее', noteEn: 'for Macs with M1 or newer' },
+			{ id: 'x64-dmg', re: /-mac-x64\.dmg$/, ru: 'Intel (dmg)', en: 'Intel (dmg)', noteRu: 'для Mac на процессорах Intel', noteEn: 'for Macs with Intel processors' },
+			{ id: 'arm-zip', re: /-mac-arm64\.zip$/, ru: 'Apple Silicon (zip)', en: 'Apple Silicon (zip)', noteRu: 'архив для M1 и новее', noteEn: 'an archive for M1 or newer' },
+			{ id: 'x64-zip', re: /-mac-x64\.zip$/, ru: 'Intel (zip)', en: 'Intel (zip)', noteRu: 'архив для Intel', noteEn: 'an archive for Intel' },
+		],
+	};
+	const RELEASE = 'https://github.com/cersat/Problet/releases/tag/latest';
+	let assets = [];
+	const pick = {};
+	for (const os of Object.keys(VARIANTS)) {
+		let saved = '';
+		try { saved = localStorage.getItem('dl-' + os) || ''; } catch (e) { /* без запоминания */ }
+		pick[os] = VARIANTS[os].some((v) => v.id === saved) ? saved : VARIANTS[os][0].id;
+	}
+	function renderDl() {
+		for (const [os, list] of Object.entries(VARIANTS)) {
+			const card = document.querySelector('.os[data-os="' + os + '"]');
+			const v = list.find((x) => x.id === pick[os]);
+			const asset = assets.find((a) => v.re.test(a.name));
+			const get = card.querySelector('.get');
+			get.href = asset ? asset.browser_download_url : RELEASE;
+			get.innerHTML = (lang === 'en' ? 'Download ' : 'Скачать ') + (lang === 'en' ? v.en : v.ru) + '<small>' + (lang === 'en' ? v.noteEn : v.noteRu) + '</small>';
+			const box = card.querySelector('.vars');
+			box.textContent = '';
+			for (const x of list) {
+				const b = document.createElement('button');
+				b.type = 'button';
+				b.textContent = lang === 'en' ? x.en : x.ru;
+				b.className = x.id === pick[os] ? 'on' : '';
+				b.setAttribute('aria-pressed', String(x.id === pick[os]));
+				b.addEventListener('click', () => {
+					pick[os] = x.id;
+					try { localStorage.setItem('dl-' + os, x.id); } catch (e) { /* без запоминания */ }
+					renderDl();
+				});
+				box.append(b);
+			}
+		}
+	}
+	renderDl();
+	window.addEventListener('langchange', renderDl);
 	fetch('https://api.github.com/repos/cersat/Problet/releases/tags/latest').then((r) => (r.ok ? r.json() : null)).then((rel) => {
 		if (!rel) return;
-		const find = (re) => rel.assets.find((x) => re.test(x.name));
-		const set = (os, asset) => { if (asset) document.querySelector('#dl a[data-os="' + os + '"]').href = asset.browser_download_url; };
-		set('linux', find(/\.AppImage$/));
-		set('win', find(/-win-.*\.exe$/));
-		set('mac', find(/-mac-arm64\.dmg$/));
-		const intel = find(/-mac-x64\.dmg$/);
-		if (intel) {
-			const small = document.querySelector('#dl a[data-os="mac"] small');
-			const show = () => {
-				small.innerHTML = (lang === 'en' ? 'dmg for Apple Silicon · <span data-href="' : 'dmg для Apple Silicon · <span data-href="') + intel.browser_download_url + '">' + (lang === 'en' ? 'for Intel' : 'для Intel') + '</span>';
-				const span = small.querySelector('span');
-				span.addEventListener('click', (e) => { e.preventDefault(); location.href = span.dataset.href; });
-			};
-			show();
-			window.addEventListener('langchange', show);
-		}
+		assets = rel.assets || [];
+		renderDl();
 	}).catch(() => {});
 </script>
 </body>

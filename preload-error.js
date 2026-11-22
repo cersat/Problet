@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Язык окна ошибки: по нему pages/i18n.js переводит надписи
-const lang = ipcRenderer.sendSync('theme:get').lang === 'en' ? 'en' : 'ru';
+const lang = ipcRenderer.sendSync('error:lang') === 'en' ? 'en' : 'ru'; // окно может открыться и тогда, когда main.js не загрузился
 const setLang = () => {
 	if (document.documentElement) document.documentElement.dataset.lang = lang;
 };

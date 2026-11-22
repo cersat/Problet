@@ -15,6 +15,7 @@ const API = process.env.PROBLET_UPDATE_URL || 'https://api.github.com/repos/' + 
 const ARCH = { x64: ['x64', 'x86_64'], arm64: ['arm64', 'aarch64'] }[process.arch] || [process.arch];
 const OS = { linux: 'linux', win32: 'win', darwin: 'mac' }[process.platform];
 
+let setupInstall = null; // установлен ли Problet установщиком (Windows); объявлено до state: mode() читает его сразу
 // state: idle | checking | uptodate | available | downloading | ready | error
 let state = { status: 'idle', version: '', progress: 0, message: '', changelog: '', mode: mode() };
 let listeners = [];
@@ -255,7 +256,6 @@ function restartAppImage() {
 }
 
 // Windows: программа поставлена установщиком (рядом лежит деинсталлятор), а не распакована из zip
-let setupInstall = null;
 function installedWithSetup() {
 	if (setupInstall === null) {
 		try {

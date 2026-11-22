@@ -87,11 +87,9 @@ function log(...parts) {
 	} catch (e) { /* журнал не должен ронять браузер */ }
 }
 
-// Неожиданная ошибка в главном процессе не должна ронять браузер и показывать окно с ошибкой: пишем её в журнал и работаем дальше
-process.on('uncaughtException', (err) => {
-	log('uncaughtException', err);
-	showError('Ошибка в главном процессе', err instanceof Error ? err.stack || String(err) : String(err));
-});
+// Неожиданная ошибка в главном процессе не должна ронять браузер: пишем её в журнал и работаем дальше (окно с ошибкой показывает boot.js)
+const errorwin = require('./errorwin');
+process.on('uncaughtException', (err) => log('uncaughtException', err));
 process.on('unhandledRejection', (err) => log('unhandledRejection', err instanceof Error ? err : String(err)));
 // На Linux каждое новое окно (инструменты разработчика, окно ошибки) без своей иконки получает шестерёнку — задаём всем нашу
 app.on('browser-window-created', (_e, w) => {
@@ -100,34 +98,8 @@ app.on('browser-window-created', (_e, w) => {
 	} catch (e) { /* иконка не критична */ }
 });
 
-// Окно ошибки вместо стандартного: с текстом, который можно скопировать
-const errorWindows = new Map(); // id окна -> { title, text }
-let lastError = { text: '', at: 0 };
-
-function showError(title, text) {
-	try {
-		if (!app.isReady()) return;
-		if (text === lastError.text && Date.now() - lastError.at < 10000) return; // одна и та же ошибка подряд — одно окно
-		lastError = { text, at: Date.now() };
-		if (errorWindows.size >= 3) return;
-		const w = new BrowserWindow({
-			width: 620,
-			height: 420,
-			minWidth: 380,
-			minHeight: 260,
-			backgroundColor: '#1f1f23',
-			title: tr('Ошибка Problet'),
-			autoHideMenuBar: true,
-			icon: path.join(__dirname, 'icon.png'),
-			webPreferences: { preload: path.join(__dirname, 'preload-error.js'), contextIsolation: true, sandbox: true },
-		});
-		w.removeMenu();
-		const id = w.webContents.id;
-		errorWindows.set(id, { title, text });
-		w.on('closed', () => errorWindows.delete(id));
-		w.loadFile('error.html');
-	} catch (e) { /* показать ошибку не вышло — она всё равно в журнале */ }
-}
+// Окно ошибки (errorwin.js) показывается и для своих ошибок, например из showError('Заголовок', текст)
+const showError = (title, text) => errorwin.show(title, text);
 
 log('запуск', app.getVersion(), process.platform, process.arch, 'electron', process.versions.electron);
 app.on('render-process-gone', (_e, wc, details) => log('render-process-gone', wc && !wc.isDestroyed() ? wc.getURL() : '', details));
@@ -3443,17 +3415,8 @@ handle('page:open-tab', (name) => {
 	createTab('problet://' + name);
 });
 
-ipcMain.handle('error:get', (e) => errorWindows.get(e.sender.id) || { title: 'Ошибка', text: '' });
-ipcMain.handle('error:copy', (e) => {
-	const info = errorWindows.get(e.sender.id);
-	if (info) clipboard.writeText(info.title + '\n' + info.text + '\n\nProblet ' + app.getVersion() + ', ' + process.platform + ' ' + process.arch + ', Electron ' + process.versions.electron);
-});
-ipcMain.on('error:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
-ipcMain.handle('error:safe', (e) => {
-	if (!errorWindows.has(e.sender.id)) throw new Error('Доступ запрещён');
-	return setSafeMode(true);
-});
-ipcMain.handle('error:safe-state', () => safeMode);
+// Окно ошибки: безопасный режим включается без перезапуска, язык и заголовок — как у браузера
+errorwin.setup({ safe: { state: () => safeMode, enable: () => setSafeMode(true) }, lang: () => (curLang() === 'en' ? 'en' : 'ru'), title: (t) => tr(t) });
 
 handle('default-browser:set', async () => {
 	if (!app.isPackaged) return { ok: false, message: 'Работает только в установленной версии Problet' };
@@ -4284,7 +4247,6 @@ function uiResponse(url, request) {
 
 function internalHandler(request) {
 	const url = new URL(request.url);
-	if (url.hostname === 'blocked') return adblock.blockedResponse(path.posix.basename(url.pathname)) || notFoundResponse(request);
 	if (url.hostname === 'ui') return uiResponse(url, request);
 	return pageResponse(url.hostname, url.pathname, request);
 }

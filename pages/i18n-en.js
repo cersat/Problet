@@ -1234,6 +1234,8 @@
 		['Такой папки нет', 'This folder does not exist'],
 		['Это файл, а не папка', 'This is a file, not a folder'],
 		['Раз уж ты здесь — пройди лабиринт', 'Since you are here, solve the maze'],
+		['Problet не смог запуститься', 'Problet could not start'],
+		['Браузер не смог запуститься. Скопируй текст ошибки и отправь разработчику. «Безопасный режим» перезапустит браузер без расширений, аддонов и своих настроек панелей.', 'The browser could not start. Copy the error text and send it to the developer. “Safe mode” restarts the browser without extensions, addons and your bar settings.'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

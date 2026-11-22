@@ -83,7 +83,8 @@ function isBlocked(details) {
 }
 
 // Вместо пустоты отдаём заглушку «Реклама заблокирована»: картинку для картинок, страницу для рамок, пустышки для скриптов и стилей.
-// Редирект на data: Chromium запрещает, поэтому отдаём их по своему адресу problet://blocked/ (его обрабатывает main.js через blockedResponse)
+// Редирект на data: Chromium запрещает, поэтому отдаём их по своему адресу problet-addon://blocked/ (обрабатывает addons.js через blockedResponse).
+// Схема problet-addon поддерживает CORS, поэтому заглушка подходит и скриптам с атрибутом crossorigin
 const TEXT = 'Реклама заблокирована';
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 300 100">'
 	+ '<rect width="300" height="100" fill="#ececf2" stroke="#c9c9d6" stroke-width="2"/>'
@@ -103,16 +104,24 @@ const BLOCKED = {
 	'empty.css': ['text/css', ''],
 };
 
-function blockedResponse(name) {
+// origin — заголовок Origin запроса: скрипт с crossorigin грузится по CORS, и заглушке нужно разрешение для этого сайта
+function blockedResponse(name, origin) {
 	const entry = BLOCKED[name];
-	return entry ? new Response(entry[1], { headers: { 'Content-Type': entry[0] } }) : null;
+	if (!entry) return null;
+	const headers = { 'Content-Type': entry[0] };
+	if (origin && origin !== 'null') {
+		headers['Access-Control-Allow-Origin'] = origin;
+		headers['Access-Control-Allow-Credentials'] = 'true';
+		headers.Vary = 'Origin';
+	} else headers['Access-Control-Allow-Origin'] = '*';
+	return new Response(entry[1], { headers });
 }
 
 function replacement(type) {
-	if (type === 'image') return 'problet://blocked/image.svg';
-	if (type === 'subFrame') return 'problet://blocked/frame.html';
-	if (type === 'script') return 'problet://blocked/empty.js';
-	if (type === 'stylesheet') return 'problet://blocked/empty.css';
+	if (type === 'image') return 'problet-addon://blocked/image.svg';
+	if (type === 'subFrame') return 'problet-addon://blocked/frame.html';
+	if (type === 'script') return 'problet-addon://blocked/empty.js';
+	if (type === 'stylesheet') return 'problet-addon://blocked/empty.css';
 	return null;
 }
 
@@ -221,7 +230,7 @@ function start(session, store) {
 			if (observer) observer({ host, type: details.resourceType, blocked: true });
 			blocked++;
 			store.addBlocked();
-			const url = details.resourceType === 'script' ? 'problet://blocked/adshield.js' : replacement(details.resourceType);
+			const url = details.resourceType === 'script' ? 'problet-addon://blocked/adshield.js' : replacement(details.resourceType);
 			callback(url ? { redirectURL: url } : { cancel: true });
 			return;
 		}

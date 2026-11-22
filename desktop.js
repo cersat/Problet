@@ -84,7 +84,8 @@ function startInbox(userData, onUrl) {
 	drain();
 }
 
-// Команда problet в терминале: запускает этот же Problet и передаёт ей все аргументы без изменений, как прямой вызов программы.
+// Команда problet в терминале: запускает этот же Problet и передаёт ей все аргументы без изменений, как прямой вызов программы,
+// и ждёт, пока браузер закроется. problet --detach — запустить в фоне и сразу вернуться, ничего не печатая (это делает boot.js).
 // Linux: скрипт ~/.local/bin/problet; Windows: problet.cmd в папке, которая добавляется в PATH пользователя
 function installCommand(exePath, home, platform = process.platform, env = process.env) {
 	if (platform === 'linux') {
@@ -108,7 +109,8 @@ function installCommand(exePath, home, platform = process.platform, env = proces
 	if (platform === 'win32') {
 		const dir = path.join(env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'Problet', 'bin');
 		const file = path.join(dir, 'problet.cmd');
-		const text = '@echo off\r\n"' + exePath + '" %*\r\n';
+		// start /wait: команда ждёт, пока браузер закроется (с --detach Problet сам уходит в фон и выходит сразу)
+		const text = '@echo off\r\nstart "" /wait "' + exePath + '" %*\r\n';
 		let same = false;
 		try { same = fs.readFileSync(file, 'utf8') === text; } catch (e) { /* ещё не создан */ }
 		if (!same) {
