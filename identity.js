@@ -49,7 +49,7 @@ function build(kind, appVersion, plain) {
 	if (plain) {
 		return {
 			kind: 'problet',
-			userAgent: 'Mozilla/5.0 (' + platform.ua + ') AppleWebKit/537.36 (KHTML, like Gecko) Problet/' + (appVersion || '0') + ' Safari/537.36',
+			userAgent: 'Mozilla/5.0 (' + platform.ua + ') AppleWebKit/537.36 (KHTML, like Gecko) Problet/' + (appVersion || '0'), // без Safari/: иначе на Windows определители видят «Safari», а на Linux — «браузер на WebKit»
 			brands: [GREASE, { brand: 'Problet', version: appMajor }],
 			fullBrands: [{ brand: GREASE.brand, version: '99.0.0.0' }, { brand: 'Problet', version: appVersion || '0' }],
 			platform: platform.name,

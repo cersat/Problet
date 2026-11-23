@@ -241,6 +241,7 @@ const SETTING_DEFAULTS = {
 	tabsPos: 'row',
 	tabsScale: 1,
 	tabsTwoRows: false,
+	tabsAlign: 'bottom',
 	panelOrder: [...DEFAULT_ORDER],
 	btnLayout: defaultButtons(),
 	btnMemory: { tabs: [], toolbar: [], bmbar: [], extra: [] }, // где кнопка стояла на каждой панели, даже когда её там нет
@@ -278,6 +279,7 @@ const ENUM_SETTINGS = {
 	cacheKeep: ['always', 'month', 'week', 'day', 'hour', 'restart'],
 	maskAs: ['chrome', 'problet', 'firefox'],
 	tabsPos: ['row', 'left', 'right'], // row — панель вкладок в ряду остальных панелей, left/right — сбоку от страницы
+	tabsAlign: ['bottom', 'center', 'top'], // где на растянутой панели вкладок стоят кнопки и прочие элементы, которые не растягиваются
 	arrows: Object.keys(ARROWS),
 	freezeAfter: ['1', '2', '5', '10', '30', '60', '120', '300', '600', '1440', '0'], // через сколько минут без просмотра вкладка замораживается; 0 — никогда
 	updateEvery: ['15', '30', '60', '180', '360', '720', '1440'], // период авто-проверки обновлений в минутах
@@ -875,7 +877,7 @@ function resetSettings() {
 let safe = false;
 function safeOverrides() {
 	return {
-		tabsPos: 'row', tabsScale: 1, tabsTwoRows: false, panelOrder: [...DEFAULT_ORDER], btnLayout: defaultButtons(),
+		tabsPos: 'row', tabsScale: 1, tabsTwoRows: false, tabsAlign: 'bottom', panelOrder: [...DEFAULT_ORDER], btnLayout: defaultButtons(),
 		customButtons: [], bmOnlyIcons: false, bookmarksBar: true, spacesPopup: false, hotkeys: {}, uiScale: 100,
 		autoUpdate: false, autoRestart: false, pageTranslate: false, adblock: false, hideCookieBanners: false,
 	};

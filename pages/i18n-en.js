@@ -1236,6 +1236,11 @@
 		['Раз уж ты здесь — пройди лабиринт', 'Since you are here, solve the maze'],
 		['Problet не смог запуститься', 'Problet could not start'],
 		['Браузер не смог запуститься. Скопируй текст ошибки и отправь разработчику. «Безопасный режим» перезапустит браузер без расширений, аддонов и своих настроек панелей.', 'The browser could not start. Copy the error text and send it to the developer. “Safe mode” restarts the browser without extensions, addons and your bar settings.'],
+		['Кнопки на растянутой панели вкладок', 'Buttons on a stretched tab bar'],
+		['Где стоят элементы, которые не растягиваются вместе с панелью: кнопки, поле адреса и другие', 'Where the items that do not stretch with the bar go: buttons, the address field and others'],
+		['Внизу', 'At the bottom'],
+		['Посередине', 'In the middle'],
+		['Вверху', 'At the top'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

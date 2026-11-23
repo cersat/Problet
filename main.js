@@ -467,7 +467,7 @@ function toolbarTop() {
 	return (p.strip ? uiPx(TITLEBAR_HEIGHT) : 0) + panelsHeight(p.before.slice(0, at));
 }
 
-const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'tabsScale', 'tabsTwoRows'];
+const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'tabsScale', 'tabsTwoRows', 'tabsAlign'];
 
 function layoutPayload() {
 	const s = settings();
@@ -1112,6 +1112,14 @@ function wireTab(tab) {
 		if (!tab.incognito) addons.emit('tabUpdated', { id: tab.id, url: wc.getURL(), title: wc.getTitle() });
 		if (tab.id === activeId && isNewTab(wc.getURL()) && Date.now() - tab.created < 5000 && win && win.isFocused()) focusAddress();
 	});
+	// Фон вида — как у страницы (см. syncPageBg); пока новая страница грузится — снова фон темы, чтобы не мигать белым
+	wc.on('did-start-navigation', (e) => {
+		if (!e.isMainFrame || e.isSameDocument || tab.view.virtual) return;
+		tab.pageBg = '';
+		tab.view.setBackgroundColor(bgColor());
+	});
+	wc.on('dom-ready', () => syncPageBg(tab));
+	wc.on('did-finish-load', () => syncPageBg(tab));
 	// Включённый блокировщик прячет остатки рекламы на самой странице
 	wc.on('dom-ready', () => {
 		if (!/^(https?|file):/i.test(wc.getURL())) return;
@@ -1840,11 +1848,43 @@ const translator = pageTranslate.create({ onChange: (tab) => { if (tab.id === ac
 const translateTarget = () => (settings().translateTo && settings().translateTo !== 'auto' ? settings().translateTo : i18nMain.lang());
 
 // Тёмная тема любой страницы: инверсия цветов, повторный вызов возвращает как было
+// Фон вида вкладки = фон самой страницы. Ещё не отрисованные при быстрой прокрутке куски Chromium заливает фоном вида:
+// с фоном темы на светлых страницах это чёрные полосы. Цвет считается в отдельном мире, страница его не видит и не подменит.
+// Учитываем и «тёмную страницу» (фильтр invert + hue-rotate на <html>)
+const PAGE_BG_JS = `(() => {
+	const parse = (c) => { const m = /rgba?\\(([^)]+)\\)/.exec(c || ''); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; };
+	const html = document.documentElement;
+	let c = parse(getComputedStyle(html).backgroundColor);
+	if (!c || c.a === 0) c = document.body ? parse(getComputedStyle(document.body).backgroundColor) : null;
+	const darkCanvas = /dark/.test(getComputedStyle(html).colorScheme) && matchMedia('(prefers-color-scheme: dark)').matches;
+	const base = darkCanvas ? { r: 18, g: 18, b: 18 } : { r: 255, g: 255, b: 255 };
+	if (!c || c.a === 0) c = { ...base, a: 1 };
+	let r = c.r * c.a + base.r * (1 - c.a), g = c.g * c.a + base.g * (1 - c.a), b = c.b * c.a + base.b * (1 - c.a);
+	if (/invert/.test(html.style.filter)) {
+		r = 255 - r; g = 255 - g; b = 255 - b;
+		const m = [[-0.574, 1.43, 0.144], [0.426, 0.43, 0.144], [0.426, 1.43, -0.856]]; // hue-rotate(180deg)
+		[r, g, b] = m.map((row) => row[0] * r + row[1] * g + row[2] * b);
+	}
+	const hex = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+	return '#' + hex(r) + hex(g) + hex(b);
+})()`;
+function syncPageBg(tab) {
+	if (!tab || !tab.view || tab.view.virtual) return;
+	const wc = tab.view.webContents;
+	if (wc.isDestroyed()) return;
+	// мир 990: ниже миров аддонов (1001 и дальше) и не 999 (мир предзагрузки)
+	wc.executeJavaScriptInIsolatedWorld(990, [{ code: PAGE_BG_JS }]).then((hex) => {
+		if (!/^#[0-9a-f]{6}$/.test(hex) || !tab.view || tab.view.virtual) return;
+		tab.pageBg = hex;
+		tab.view.setBackgroundColor(hex);
+	}).catch(() => {});
+}
+
 const DARK_PAGE_JS = "document.documentElement.style.filter = document.documentElement.style.filter ? '' : 'invert(1) hue-rotate(180deg)'";
 const ACTION_RUN = {
 	darkPage: () => {
 		const wc = activeContents();
-		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(DARK_PAGE_JS, true).catch(() => {});
+		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(DARK_PAGE_JS, true).then(() => syncPageBg(activeTab())).catch(() => {});
 	},
 	translate: () => {
 		const tab = activeTab();
@@ -2568,7 +2608,7 @@ function applySettings() {
 	if (panel) panel.setBackgroundColor(bgColor());
 	for (const v of [win, popup, findView, panel, tipView]) if (v) uiZoom(v.webContents);
 	for (const t of tabs) {
-		t.view.setBackgroundColor(bgColor());
+		t.view.setBackgroundColor(t.pageBg || bgColor());
 		if (t.view.virtual) t.view.webContents.refreshZoom(); // масштаб интерфейса делится обратно у внутренних страниц
 	}
 	vtBounds = '';

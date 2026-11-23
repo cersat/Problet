@@ -11,14 +11,20 @@ const tabsEl = document.getElementById('tabs');
 
 let currentUrl = '';
 
-// Кириллица и прочие не-ASCII символы показываем читаемо, пока поле не в фокусе. Служебные %20, %2F и т.п. остаются как есть
+// Пока поле не в фокусе, адрес показываем читаемо: все %XX превращаем в символы (%20 — пробел, %5C — \\, кириллица и т.д.).
+// Невидимые и опасные для показа символы (управляющие, смена направления текста) остаются в виде %XX — их не подделать под другой адрес.
+// Символы, которые меняют смысл адреса (/ ? # & = + %), тоже остаются закодированными: иначе ?a=1%262 выглядел бы как два параметра.
+// В фокусе и при копировании адрес настоящий
+const HIDDEN = /[/?#&=+%\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]/g;
 function pretty(url) {
-	return url.replace(/(?:%[89a-f][0-9a-f])+/gi, (m) => {
+	return url.replace(/(?:%[0-9a-f]{2})+/gi, (m) => {
+		let text;
 		try {
-			return decodeURIComponent(m);
+			text = decodeURIComponent(m);
 		} catch (e) {
-			return m;
+			return m; // не UTF-8 — показываем как есть
 		}
+		return text.replace(HIDDEN, (ch) => encodeURIComponent(ch));
 	});
 }
 
@@ -578,6 +584,7 @@ function applyLayout(l) {
 	}
 	// Размер панели вкладок и ручка, за которую её растягивают
 	const scale = l.tabsScale;
+	document.body.dataset.tabsAlign = l.tabsAlign || 'bottom';
 	document.body.style.setProperty('--tabs-h', Math.round(l.tabsBase.row * scale) + 'px');
 	document.body.style.setProperty('--side-w', Math.round(l.tabsBase.side * scale) + 'px');
 	grip.dataset.edge = p.side ? (p.side === 'left' ? 'right' : 'left') : (p.before.includes('tabs') ? 'bottom' : 'top');

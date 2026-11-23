@@ -75,6 +75,15 @@ button:disabled {
 	background: var(--tabbar);
 }
 
+/* Где на растянутой панели вкладок стоят нерастягиваемые элементы (кнопки, поле адреса и т.п.): снизу, посередине или сверху */
+body[data-tabs-align="center"] .tabbar {
+	align-items: center;
+}
+
+body[data-tabs-align="top"] .tabbar {
+	align-items: flex-start;
+}
+
 .tabs {
 	display: flex;
 	flex: 0 1 calc(var(--n, 1) * 222px);
