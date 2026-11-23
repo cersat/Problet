@@ -2,6 +2,9 @@
 // {} в строке — любая подстановка (имя, число, адрес); в переводе можно {1}, {2}, если порядок другой. «menu|» — вариант для меню.
 (function (root) {
 	const PAIRS = [
+		['Эта учётная запись — с правами администратора', 'This account has administrator rights'],
+		['Из неё защиту правами администратора можно снять, так что от ребёнка, который сидит в этой учётной записи, она не защитит. Включай её в отдельной учётной записи ребёнка без прав администратора.', 'From this account the administrator protection can be removed, so it will not stop a child who uses this account. Turn it on in the child\'s own account without administrator rights.'],
+		['Всё равно включить', 'Turn on anyway'],
 		['Защитить правами администратора', 'Protect with administrator rights'],
 		['Настройки запишутся ещё и в системную папку, откуда их без прав администратора не удалить и не изменить. Включение и выключение спросит права администратора. Работает, если у ребёнка своя учётная запись без прав администратора', 'The settings are also written to a system folder where they cannot be deleted or changed without administrator rights. Turning this on or off asks for administrator rights. It works if the child has their own account without administrator rights'],
 		['Сначала включи родительский контроль', 'Turn on parental control first'],

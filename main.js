@@ -3177,12 +3177,26 @@ function parentalGate(url) {
 	parental.recordAttempt(url, why);
 	return 'problet://parental/?u=' + encodeURIComponent(url) + '&r=' + why;
 }
-// Правила поменялись или время вышло: открытые вкладки, которые теперь нельзя смотреть, перезагружаем — их перехватит проверка
+// Правила поменялись, время вышло или контроль выключили: вкладки, которые теперь нельзя смотреть, перезагружаем (их перехватит проверка),
+// а вкладки со страницей блокировки, которые теперь можно, возвращаем туда, куда шли
 function parentalApply() {
 	for (const t of tabs) {
 		const wc = t.view.webContents;
 		if (t.pendingUrl || !wc || wc.isDestroyed()) continue;
 		const url = wc.getURL();
+		let target = '';
+		try {
+			const u = new URL(url);
+			if (u.protocol === 'problet:' && u.host === 'parental') target = u.searchParams.get('u') || '';
+		} catch (e) { /* пустая вкладка */ }
+		if (target || t.parentalBlocked) {
+			const to = target || url;
+			if (parental.check(to)) continue;
+			t.parentalBlocked = false;
+			if (target) wc.loadURL(to).catch(() => {});
+			else wc.reload(); // блокировка показана на месте страницы Problet
+			continue;
+		}
 		if (!parental.check(url)) continue;
 		if (t.view.virtual) wc.reload();
 		else wc.loadURL(url).catch(() => {});
@@ -3200,21 +3214,6 @@ setInterval(() => {
 	if (parental.tick(PARENTAL_TICK, key)) parentalApply();
 }, PARENTAL_TICK).unref();
 
-// Браузер был заперт и открыт паролем: страницы блокировки возвращаем туда, куда шли
-function parentalReopen() {
-	for (const t of tabs) {
-		const wc = t.view.webContents;
-		if (t.pendingUrl || !wc || wc.isDestroyed()) continue;
-		const url = wc.getURL();
-		let to = '';
-		try {
-			const u = new URL(url);
-			if (u.protocol === 'problet:' && u.host === 'parental') to = u.searchParams.get('u') || '';
-		} catch (e) { /* пустая вкладка */ }
-		if (to) wc.loadURL(to).catch(() => {});
-		else if (t.view.virtual) wc.reload();
-	}
-}
 handle('parental:status', () => parental.status());
 handle('parental:set-on', async (on, pw) => {
 	await parental.setOn(!!on, pw);
@@ -3222,13 +3221,25 @@ handle('parental:set-on', async (on, pw) => {
 	return parental.status();
 });
 handle('parental:set-admin', async (on) => {
+	// Защита держится на том, что у ребёнка нет прав администратора: в такой учётной записи её можно просто снять
+	if (on && require('./parental-store').isPrivileged()) {
+		const r = await dialog.showMessageBox(win, {
+			type: 'warning',
+			message: tr('Эта учётная запись — с правами администратора'),
+			detail: tr('Из неё защиту правами администратора можно снять, так что от ребёнка, который сидит в этой учётной записи, она не защитит. Включай её в отдельной учётной записи ребёнка без прав администратора.'),
+			buttons: [tr('Всё равно включить'), tr('Отмена')],
+			defaultId: 1,
+			cancelId: 1,
+		});
+		if (r.response !== 0) throw new Error('Отменено');
+	}
 	await parental.setAdmin(!!on);
 	return parental.status();
 });
 handle('parental:unlock', (pw) => {
 	const was = parental.isLocked();
 	parental.unlock(pw);
-	if (was) parentalReopen();
+	if (was) parentalApply();
 	return parental.status();
 });
 handle('parental:get', () => {
@@ -3245,6 +3256,8 @@ handle('parental:stats', () => parental.stats());
 ipcMain.handle('parental:blocked', (e) => {
 	guard(e);
 	const page = new URL(senderPageUrl(e));
+	const tab = senderTab(e);
+	if (tab && page.host !== 'parental') tab.parentalBlocked = true; // блокировка показана на месте страницы Problet
 	const url = page.host === 'parental' ? page.searchParams.get('u') || '' : page.href;
 	const why = parental.check(url) || (page.host === 'parental' ? page.searchParams.get('r') : null);
 	return { url, reason: ['time', 'locked'].includes(why) ? why : why ? 'site' : null, ...parental.info() };
@@ -3255,7 +3268,8 @@ ipcMain.handle('parental:enter', (e, url, pw) => {
 	const target = String(url);
 	const why = parental.check(target);
 	parental.enter(target, pw, why);
-	if (why === 'locked') return parentalReopen();
+	if (tab) tab.parentalBlocked = false;
+	if (why === 'locked') return parentalApply();
 	if (tab && !tab.view.webContents.isDestroyed()) {
 		if (tab.view.virtual && tab.view.webContents.getURL() === target) tab.view.webContents.reload();
 		else tab.view.webContents.loadURL(target).catch(() => {});

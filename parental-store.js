@@ -167,4 +167,19 @@ async function writeAdmin(text) {
 	if (text !== null ? now !== text : now !== null) throw new Error('Не удалось получить права администратора');
 }
 
-module.exports = { init, readAll, saveMain, saveCopies, writeAdmin, pack, unpack, adminFile };
+// Учётная запись с правами администратора: из неё защиту правами администратора можно снять, поэтому она бесполезна
+function isPrivileged() {
+	try {
+		if (process.platform === 'win32') {
+			const out = execFileSync('whoami', ['/groups', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+			return /S-1-5-32-544/.test(out); // группа «Администраторы», даже если сейчас права не подняты
+		}
+		if (typeof process.getuid === 'function' && process.getuid() === 0) return true;
+		const groups = execFileSync('id', ['-Gn'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/);
+		return groups.some((g) => ['sudo', 'wheel', 'admin'].includes(g));
+	} catch (e) {
+		return false;
+	}
+}
+
+module.exports = { isPrivileged, init, readAll, saveMain, saveCopies, writeAdmin, pack, unpack, adminFile };
