@@ -23,13 +23,13 @@
 		},
 	};
 
-	box.innerHTML = '<div class="mz-hud"><span class="mz-level"></span><span class="mz-moves"></span><span class="mz-time"></span><span class="mz-best"></span></div>'
+	box.innerHTML = '<div class="mz-hud"><span class="mz-level"></span><span class="mz-moves"></span><span class="mz-run"></span><span class="mz-time"></span><span class="mz-best"></span></div>'
 		+ '<canvas class="mz-canvas" tabindex="0" aria-label="' + L('Лабиринт: управление стрелками или WASD', 'Maze: use the arrow keys or WASD') + '"></canvas>'
 		+ '<div class="mz-msg" aria-live="polite"></div>'
 		+ '<div class="mz-bar"><button class="mz-new">' + L('Новый лабиринт', 'New maze') + '</button>'
 		+ '<button class="mz-reset">' + L('С первого уровня', 'Back to level 1') + '</button>'
 		+ '<label class="mz-fog"><input type="checkbox"> ' + L('Туман', 'Fog') + '</label></div>'
-		+ '<p class="mz-help">' + L('Стрелки или WASD — ходить, с Shift — бежать до развилки. Дойди до флажка.', 'Arrows or WASD to move, hold Shift to run to the next fork. Reach the flag.') + '</p>';
+		+ '<p class="mz-help">' + L('Стрелки или WASD — ходить, с Shift — бежать до развилки (с уровнями всё короче). Кружки одного цвета — порталы. Дойди до флажка.', 'Arrows or WASD to move, hold Shift to run to the next fork (shorter on higher levels). Circles of one colour are portals. Reach the flag.') + '</p>';
 	const $ = (c) => box.querySelector(c);
 	const canvas = $('.mz-canvas');
 	const ctx = canvas.getContext('2d');
@@ -49,20 +49,33 @@
 	let started = 0;
 	let finished = false;
 	let timer = 0;
+	let ex = 0; // выход
+	let ey = 0;
+	let portals = new Map(); // клетка -> клетка-пара
+	let portalColor = new Map();
 
-	const sizeFor = (lv) => Math.min(compact ? 21 : 31, 7 + (lv - 1) * 2);
+	// Сложность растёт с уровнем: размер, ветвистость (больше развилок и тупиков), короче бег с Shift, с 25-го уровня порталы
+	const PORTAL_LEVEL = 25;
+	const sizeFor = (lv) => Math.min(compact ? 41 : 51, lv <= 8 ? 7 + (lv - 1) * 2 : 21 + Math.floor((lv - 8) / 3) * 2);
+	const branchFor = (lv) => Math.min(0.9, (lv - 1) * 0.06); // 0 — длинные коридоры, ближе к 1 — много коротких тупиков
+	const runFor = (lv) => (lv <= 4 ? Infinity : Math.max(2, 30 - lv)); // сколько клеток можно пробежать за одно нажатие
+	const portalsFor = (lv) => (lv < PORTAL_LEVEL ? 0 : Math.min(5, 1 + Math.floor((lv - PORTAL_LEVEL) / 4)));
+	const PORTAL_COLORS = ['#c77dff', '#ffb347', '#4dd0e1', '#ff6b8b', '#b5e655'];
 
-	// Лабиринт: обход в глубину со случайным выбором соседей (у каждого лабиринта ровно один путь между клетками)
+	// Лабиринт «растущим деревом»: продолжаем то с последней клетки (длинные коридоры), то со случайной (развилки).
+	// Между любыми двумя клетками ровно один путь
 	function generate() {
 		W = sizeFor(level);
 		H = compact ? Math.max(7, Math.round(W * 0.62)) : W;
 		walls = new Uint8Array(W * H).fill(15);
 		const visited = new Uint8Array(W * H);
-		const stack = [0];
+		const branch = branchFor(level);
+		const active = [0];
 		visited[0] = 1;
 		const DIRS = [[0, -1, 1, 4], [1, 0, 2, 8], [0, 1, 4, 1], [-1, 0, 8, 2]];
-		while (stack.length) {
-			const c = stack[stack.length - 1];
+		while (active.length) {
+			const i = Math.random() < branch ? Math.floor(Math.random() * active.length) : active.length - 1;
+			const c = active[i];
 			const x = c % W;
 			const y = (c - x) / W;
 			const opts = DIRS.filter(([dx, dy]) => {
@@ -71,7 +84,7 @@
 				return nx >= 0 && ny >= 0 && nx < W && ny < H && !visited[ny * W + nx];
 			});
 			if (!opts.length) {
-				stack.pop();
+				active.splice(i, 1);
 				continue;
 			}
 			const [dx, dy, bit, back] = opts[Math.floor(Math.random() * opts.length)];
@@ -79,7 +92,43 @@
 			walls[c] &= ~bit;
 			walls[n] &= ~back;
 			visited[n] = 1;
-			stack.push(n);
+			active.push(n);
+		}
+		// Выход — в самой дальней по пути клетке от старта
+		const dist = new Int32Array(W * H).fill(-1);
+		const queue = [0];
+		dist[0] = 0;
+		let far = 0;
+		for (let q = 0; q < queue.length; q++) {
+			const c = queue[q];
+			if (dist[c] > dist[far]) far = c;
+			for (const [dx, dy, bit] of DIRS) {
+				if (walls[c] & bit) continue;
+				const n = c + dy * W + dx;
+				if (dist[n] < 0) {
+					dist[n] = dist[c] + 1;
+					queue.push(n);
+				}
+			}
+		}
+		ex = far % W;
+		ey = (far - ex) / W;
+		// Порталы: пары клеток, шагнул на одну — оказался на другой. Не на старте, не на выходе и не рядом с ними
+		portals = new Map();
+		portalColor = new Map();
+		const free = [];
+		for (let c = 0; c < W * H; c++) {
+			const x = c % W;
+			const y = (c - x) / W;
+			if (x + y > 2 && Math.abs(x - ex) + Math.abs(y - ey) > 2) free.push(c);
+		}
+		for (let k = 0; k < portalsFor(level) && free.length >= 2; k++) {
+			const a = free.splice(Math.floor(Math.random() * free.length), 1)[0];
+			const b = free.splice(Math.floor(Math.random() * free.length), 1)[0];
+			portals.set(a, b);
+			portals.set(b, a);
+			portalColor.set(a, PORTAL_COLORS[k]);
+			portalColor.set(b, PORTAL_COLORS[k]);
 		}
 		seen = new Uint8Array(W * H);
 		trail = new Uint8Array(W * H);
@@ -130,9 +179,24 @@
 			ctx.fillRect(x * cell + cell * 0.3, y * cell + cell * 0.3, cell * 0.4, cell * 0.4);
 		}
 		ctx.globalAlpha = 1;
+		// порталы
+		for (const [c, color] of portalColor) {
+			if (fog && !seen[c]) continue;
+			const x = c % W;
+			const y = (c - x) / W;
+			ctx.strokeStyle = color;
+			ctx.fillStyle = color;
+			ctx.lineWidth = Math.max(1.5, cell / 8);
+			ctx.beginPath();
+			ctx.arc(x * cell + cell / 2, y * cell + cell / 2, cell * 0.34, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.globalAlpha = 0.35;
+			ctx.beginPath();
+			ctx.arc(x * cell + cell / 2, y * cell + cell / 2, cell * 0.2, 0, Math.PI * 2);
+			ctx.fill();
+			ctx.globalAlpha = 1;
+		}
 		// выход
-		const ex = W - 1;
-		const ey = H - 1;
 		if (!fog || seen[ey * W + ex]) {
 			ctx.fillStyle = '#5fc47f';
 			const s = cell * 0.22;
@@ -181,11 +245,14 @@
 	const fmt = (ms) => (ms / 1000).toFixed(1) + L(' с', ' s');
 	function hud() {
 		$('.mz-level').textContent = L('Уровень ', 'Level ') + level + ' · ' + W + '×' + H;
+		const run = runFor(level);
+		$('.mz-run').textContent = run === Infinity ? '' : L('Бег: ', 'Run: ') + run;
 		$('.mz-moves').textContent = L('Ходов: ', 'Moves: ') + moves;
 		$('.mz-time').textContent = L('Время: ', 'Time: ') + fmt(started ? (finished ? finished : Date.now()) - started : 0);
-		const best = store.get('best', {})[W + 'x' + H + (fog ? 'f' : '')];
+		const best = store.get('best', {})[recordKey()];
 		$('.mz-best').textContent = best ? L('Рекорд: ', 'Best: ') + fmt(best) : '';
 	}
+	const recordKey = () => 'L' + level + (fog ? 'f' : ''); // рекорд на каждый уровень: лабиринты разных уровней устроены по-разному
 	function msg(t) {
 		$('.mz-msg').textContent = t;
 	}
@@ -198,6 +265,14 @@
 		moves++;
 		trail[py * W + px] = 1;
 		reveal();
+		const to = portals.get(py * W + px);
+		if (to !== undefined) {
+			px = to % W;
+			py = (to - px) / W;
+			trail[to] = 1;
+			reveal();
+			return 'portal';
+		}
 		return true;
 	}
 	const openings = (x, y) => 4 - [1, 2, 4, 8].filter((b) => walls[y * W + x] & b).length;
@@ -208,28 +283,29 @@
 			clearInterval(timer);
 			timer = setInterval(hud, 100);
 		}
-		if (!step(dx, dy, bit)) return;
-		// бег: по коридору до развилки или тупика
-		if (run) {
-			let guard = W * H;
-			while (guard-- > 0 && !(px === W - 1 && py === H - 1) && openings(px, py) === 2) {
+		const first = step(dx, dy, bit);
+		if (!first) return;
+		// бег: по коридору до развилки, тупика или портала, но не дальше, чем позволяет уровень
+		if (run && first !== 'portal') {
+			let left = runFor(level) - 1;
+			while (left-- > 0 && !(px === ex && py === ey) && openings(px, py) === 2) {
 				const back = { 1: 4, 2: 8, 4: 1, 8: 2 }[bit];
 				const next = [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]].find(([, , b]) => b !== back && !(walls[py * W + px] & b));
 				if (!next) break;
 				[dx, dy, bit] = next;
-				step(dx, dy, bit);
+				if (step(dx, dy, bit) === 'portal') break;
 			}
 		}
 		draw();
 		hud();
-		if (px === W - 1 && py === H - 1) win();
+		if (px === ex && py === ey) win();
 	}
 
 	function win() {
 		finished = Date.now();
 		clearInterval(timer);
 		const time = finished - started;
-		const key = W + 'x' + H + (fog ? 'f' : '');
+		const key = recordKey();
 		const best = store.get('best', {});
 		const record = !best[key] || time < best[key];
 		if (record) {
@@ -239,7 +315,8 @@
 		hud();
 		level++;
 		store.set('level', level);
-		msg((record ? L('Новый рекорд! ', 'New record! ') : '') + L('Уровень пройден за ', 'Level cleared in ') + fmt(time) + L('. Enter — дальше', '. Press Enter for the next one'));
+		const news = level === PORTAL_LEVEL ? L(' Дальше — порталы!', ' Portals ahead!') : '';
+		msg((record ? L('Новый рекорд! ', 'New record! ') : '') + L('Уровень пройден за ', 'Level cleared in ') + fmt(time) + L('. Enter — дальше', '. Press Enter for the next one') + news);
 	}
 
 	canvas.addEventListener('keydown', onKey);
