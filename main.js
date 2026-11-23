@@ -1135,7 +1135,7 @@ function wireTab(tab) {
 	wc.on('did-finish-load', () => {
 		if (settings().pageTranslate && !tab.translated && !tab.translateOff) translator.start(tab, translateTarget());
 		if (!tab.incognito) addons.emit('tabUpdated', { id: tab.id, url: wc.getURL(), title: wc.getTitle() });
-		if (tab.id === activeId && isNewTab(wc.getURL()) && Date.now() - tab.created < 5000 && win && win.isFocused()) focusAddress();
+		if (tab.id === activeId && isNewTab(wc.getURL()) && !parental.check(wc.getURL()) && Date.now() - tab.created < 5000 && win && win.isFocused()) focusAddress();
 	});
 	// Фон вида — как у страницы (см. syncPageBg); пока новая страница грузится — снова фон темы, чтобы не мигать белым
 	wc.on('did-start-navigation', (e) => {
@@ -1319,7 +1319,7 @@ function activateTab(id) {
 	}
 	applySpaceFreeze();
 	setWindowTitle(tab);
-	if (isNewTab(tab.view.webContents.getURL() || tab.url)) focusAddress();
+	if (isNewTab(tab.view.webContents.getURL() || tab.url) && !parental.check(tab.view.webContents.getURL() || tab.url)) focusAddress(); // на заблокированной новой вкладке фокус нужен полю пароля
 	else focusWc(tab.view.webContents);
 	sendTabs();
 	sendState(true, true);
@@ -3200,14 +3200,35 @@ setInterval(() => {
 	if (parental.tick(PARENTAL_TICK, key)) parentalApply();
 }, PARENTAL_TICK).unref();
 
+// Браузер был заперт и открыт паролем: страницы блокировки возвращаем туда, куда шли
+function parentalReopen() {
+	for (const t of tabs) {
+		const wc = t.view.webContents;
+		if (t.pendingUrl || !wc || wc.isDestroyed()) continue;
+		const url = wc.getURL();
+		let to = '';
+		try {
+			const u = new URL(url);
+			if (u.protocol === 'problet:' && u.host === 'parental') to = u.searchParams.get('u') || '';
+		} catch (e) { /* пустая вкладка */ }
+		if (to) wc.loadURL(to).catch(() => {});
+		else if (t.view.virtual) wc.reload();
+	}
+}
 handle('parental:status', () => parental.status());
-handle('parental:set-on', (on, pw) => {
-	parental.setOn(!!on, pw);
+handle('parental:set-on', async (on, pw) => {
+	await parental.setOn(!!on, pw);
 	parentalApply();
 	return parental.status();
 });
+handle('parental:set-admin', async (on) => {
+	await parental.setAdmin(!!on);
+	return parental.status();
+});
 handle('parental:unlock', (pw) => {
+	const was = parental.isLocked();
 	parental.unlock(pw);
+	if (was) parentalReopen();
 	return parental.status();
 });
 handle('parental:get', () => {
@@ -3226,7 +3247,7 @@ ipcMain.handle('parental:blocked', (e) => {
 	const page = new URL(senderPageUrl(e));
 	const url = page.host === 'parental' ? page.searchParams.get('u') || '' : page.href;
 	const why = parental.check(url) || (page.host === 'parental' ? page.searchParams.get('r') : null);
-	return { url, reason: why === 'time' ? 'time' : why ? 'site' : null, ...parental.info() };
+	return { url, reason: ['time', 'locked'].includes(why) ? why : why ? 'site' : null, ...parental.info() };
 });
 ipcMain.handle('parental:enter', (e, url, pw) => {
 	guard(e);
@@ -3234,6 +3255,7 @@ ipcMain.handle('parental:enter', (e, url, pw) => {
 	const target = String(url);
 	const why = parental.check(target);
 	parental.enter(target, pw, why);
+	if (why === 'locked') return parentalReopen();
 	if (tab && !tab.view.webContents.isDestroyed()) {
 		if (tab.view.virtual && tab.view.webContents.getURL() === target) tab.view.webContents.reload();
 		else tab.view.webContents.loadURL(target).catch(() => {});
@@ -4545,7 +4567,7 @@ function showWindow() {
 		win.once('focus', () => {
 			holdFocus = false;
 			const tab = activeTab();
-			if (tab && isNewTab(tab.view.webContents.getURL() || tab.url)) focusAddress();
+			if (tab && isNewTab(tab.view.webContents.getURL() || tab.url) && !parental.check(tab.view.webContents.getURL() || tab.url)) focusAddress();
 			else if (tab) focusWc(tab.view.webContents);
 		});
 	}

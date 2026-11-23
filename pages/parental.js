@@ -18,6 +18,8 @@ problet.parentalBlocked().then((st) => {
 		const until = new Date(st.periodEnd).toLocaleString(EN ? 'en-GB' : 'ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hour12: false });
 		const used = span(Math.min(st.used, st.limit));
 		$('why').textContent = L('Время пользования браузером закончилось: ' + used + ' из ' + span(st.limit) + '. Снова можно будет ' + until + '.', 'Browser time is up: ' + used + ' of ' + span(st.limit) + '. Available again on ' + until + '.');
+	} else if (st.reason === 'locked') {
+		$('why').textContent = L('Настройки родительского контроля удалены или изменены не через браузер, поэтому Problet заперт. Введи пароль родительского контроля, чтобы продолжить.', 'Parental control settings were deleted or changed outside the browser, so Problet is locked. Enter the parental control password to continue.');
 	} else {
 		$('why').textContent = L('Этот сайт закрыт родительским контролем.', 'This site is blocked by parental control.');
 	}

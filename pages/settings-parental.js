@@ -20,6 +20,9 @@
 		st = await problet.parentalStatus();
 		const locked = st.on && !st.unlocked;
 		el('pc-lock').hidden = !locked;
+		el('pc-lock-title').textContent = st.locked
+			? L('Настройки родительского контроля удалены или изменены не через браузер, поэтому Problet заперт. Введи пароль родительского контроля', 'Parental control settings were deleted or changed outside the browser, so Problet is locked. Enter the parental control password')
+			: L('Раздел закрыт паролем родительского контроля', 'This section is protected by the parental control password');
 		el('pc-body').hidden = locked;
 		el('pc-on').checked = st.on;
 		el('pc-on-only').hidden = !st.on;
@@ -30,6 +33,7 @@
 	}
 
 	function show() {
+		el('pc-admin').checked = cfg.admin;
 		el('pc-time').checked = cfg.time.on;
 		el('pc-time-row').hidden = !cfg.time.on;
 		el('pc-limit-n').value = cfg.time.limit.n;
@@ -124,6 +128,19 @@
 		}
 	});
 
+	el('pc-admin').addEventListener('change', async () => {
+		const on = el('pc-admin').checked;
+		el('pc-admin').disabled = true;
+		say(L('Ждём подтверждения прав администратора…', 'Waiting for administrator approval…'));
+		try {
+			await problet.parentalSetAdmin(on);
+			say(on ? L('Настройки защищены правами администратора', 'Settings are protected with administrator rights') : L('Защита правами администратора снята', 'Administrator protection is off'));
+		} catch (e) {
+			fail(e);
+		}
+		el('pc-admin').disabled = false;
+		refresh().catch(fail);
+	});
 	el('pc-time').addEventListener('change', () => save({ time: { on: el('pc-time').checked } }));
 	const span2 = () => save({ time: { limit: { n: Number(el('pc-limit-n').value), unit: el('pc-limit-unit').value }, period: { n: Number(el('pc-period-n').value), unit: el('pc-period-unit').value } } });
 	for (const id of ['pc-limit-n', 'pc-limit-unit', 'pc-period-n', 'pc-period-unit']) el(id).addEventListener('change', span2);

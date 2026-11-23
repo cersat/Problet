@@ -2,13 +2,19 @@
 // {} в строке — любая подстановка (имя, число, адрес); в переводе можно {1}, {2}, если порядок другой. «menu|» — вариант для меню.
 (function (root) {
 	const PAIRS = [
+		['Защитить правами администратора', 'Protect with administrator rights'],
+		['Настройки запишутся ещё и в системную папку, откуда их без прав администратора не удалить и не изменить. Включение и выключение спросит права администратора. Работает, если у ребёнка своя учётная запись без прав администратора', 'The settings are also written to a system folder where they cannot be deleted or changed without administrator rights. Turning this on or off asks for administrator rights. It works if the child has their own account without administrator rights'],
+		['Сначала включи родительский контроль', 'Turn on parental control first'],
+		['Не удалось получить права администратора', 'Could not get administrator rights'],
+		['Нет программы для запроса прав администратора: {}', 'No program to request administrator rights: {}'],
+		['Права администратора не получены', 'Administrator rights were not granted'],
 		['Заблокировано', 'Blocked'],
 		['Пароль родительского контроля', 'Parental control password'],
 		['Войти', 'Enter'],
 		['Родительский контроль', 'Parental control'],
 		['Раздел закрыт паролем родительского контроля', 'This section is protected by the parental control password'],
 		['Включить родительский контроль', 'Enable parental control'],
-		['При первом включении нужно придумать пароль, дальше любое изменение здесь требует этот пароль. Если пароль забыт, удали файл parental.json в папке Problet', 'The first time, you create a password; after that, every change here needs it. If the password is forgotten, delete parental.json in the Problet folder'],
+		['При первом включении нужно придумать пароль, дальше любое изменение здесь требует этот пароль. Если настройки удалят или изменят не через браузер, Problet запрётся до ввода пароля', 'The first time, you create a password; after that, every change here needs it. If the settings are deleted or changed outside the browser, Problet locks until the password is entered'],
 		['Ещё раз', 'Repeat'],
 		['Ограничивать использование по времени', 'Limit usage time'],
 		['Считается время, пока окно Problet активно или на вкладке играет звук', 'Time counts while the Problet window is active or a tab is playing sound'],

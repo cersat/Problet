@@ -1,8 +1,7 @@
 // Родительский контроль: пароль, ограничение времени, ограничение сайтов, статистика.
-// Живёт в отдельном файле в стандартной папке Problet (не в профиле): его не сбрасывают ни --user-data-dir, ни сброс настроек, ни импорт
-const fs = require('fs');
-const path = require('path');
+// Живёт отдельно от профиля (см. parental-store.js): его не сбрасывают ни --user-data-dir, ни сброс настроек, ни импорт
 const crypto = require('crypto');
+const pstore = require('./parental-store');
 
 const UNIT_MS = { min: 60000, h: 3600000, d: 86400000, w: 604800000 };
 const LIMIT_UNITS = ['min', 'h'];
@@ -12,8 +11,8 @@ const UNLOCK_MS = 10 * 60000; // после ввода пароля настро
 const HOSTS_LIMIT = 1000;
 const ATTEMPTS_LIMIT = 500;
 
-let file = '';
 let data = null;
+let lockdown = false; // настройки не сходятся (удалены или поправлены вне браузера): всё закрыто до ввода пароля
 let timer = null;
 let unlockedUntil = 0;
 // Что открыли паролем: ключ сайта -> { time, site } — до какого времени действует разрешение для каждой причины.
@@ -58,9 +57,11 @@ function sanitize(raw) {
 		if (v && Number.isFinite(v.ms)) hosts[String(h).slice(0, 300)] = { ms: Math.max(0, v.ms), last: Number(v.last) || 0 };
 	}
 	const attempts = (Array.isArray(st.attempts) ? st.attempts : []).filter((a) => a && typeof a.url === 'string').slice(-ATTEMPTS_LIMIT)
-		.map((a) => ({ t: Number(a.t) || 0, url: a.url.slice(0, 2000), reason: a.reason === 'time' ? 'time' : 'site' }));
+		.map((a) => ({ t: Number(a.t) || 0, url: a.url.slice(0, 2000), reason: ['time', 'locked'].includes(a.reason) ? a.reason : 'site' }));
 	return {
+		rev: Number.isSafeInteger(r.rev) && r.rev > 0 ? r.rev : 0,
 		on: r.on === true && !!pass,
+		admin: r.admin === true,
 		pass,
 		time: { on: t.on === true, limit: cleanSpan(t.limit, LIMIT_UNITS, d.time.limit), period: cleanSpan(t.period, PERIOD_UNITS, d.time.period) },
 		sites: { on: s.on === true, white: s.white === true, list: cleanList(s.list) },
@@ -69,26 +70,54 @@ function sanitize(raw) {
 	};
 }
 
+// Настройки без статистики: то, что лежит в копиях и в системной записи
+const record = () => ({ rev: data.rev, on: data.on, admin: data.admin, pass: data.pass, time: data.time, sites: data.sites });
+const isObj = (x) => !!x && typeof x === 'object';
+
 // appData — общая папка программ пользователя; --user-data-dir её не меняет
 function init(appData, name) {
-	file = path.join(appData, name, 'parental.json');
-	let raw = null;
+	pstore.init(appData, name);
+	let all = { main: null, copies: [], admin: null };
 	try {
-		raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-	} catch (e) { /* файла нет — контроль выключен */ }
-	data = sanitize(raw);
+		all = pstore.readAll();
+	} catch (e) { /* читать нечего */ }
+	const main = isObj(all.main) ? sanitize(all.main) : null;
+	const copies = all.copies.map((c) => (isObj(c) ? sanitize(c) : c));
+	const admin = isObj(all.admin) ? sanitize(all.admin) : null;
+	// Самая свежая подписанная запись — ей и верим
+	const valid = [main, ...copies, admin].filter(isObj);
+	const newest = valid.sort((a, b) => b.rev - a.rev)[0];
+	if (!newest) {
+		data = sanitize(null);
+		return;
+	}
+	data = sanitize({ ...newest, usage: main ? main.usage : null, stats: main ? main.stats : null });
+	if (main && main.rev === newest.rev) data = main;
+	const same = (r) => isObj(r) && r.rev === newest.rev && r.on === newest.on;
+	const samePass = (r) => isObj(r) && r.pass && newest.pass && r.pass.hash === newest.pass.hash;
+	if (newest.on) {
+		// Включённый контроль обязан быть одинаковым везде
+		if (!same(main) || !copies.every(same)) lockdown = true;
+		if (newest.admin && !(admin && admin.on && samePass(admin))) lockdown = true;
+	}
+	if (admin && admin.on && !(newest.on && samePass(admin))) lockdown = true; // системная запись говорит «включено», а в файлах иначе
+	if (lockdown) data.on = true;
 }
 
 function save() {
 	clearTimeout(timer);
 	timer = null;
 	try {
-		fs.mkdirSync(path.dirname(file), { recursive: true });
-		fs.writeFileSync(file + '.tmp', JSON.stringify(data), 'utf8');
-		fs.renameSync(file + '.tmp', file);
+		pstore.saveMain(data);
 	} catch (e) {
 		console.error('Не удалось сохранить родительский контроль:', e.message);
 	}
+}
+// Поменялись сами настройки: новая версия везде — в основном файле и в копиях
+function saveAll() {
+	data.rev++;
+	save();
+	pstore.saveCopies(record());
 }
 function scheduleSave(delay = 2000) {
 	if (!timer) timer = setTimeout(save, delay);
@@ -97,7 +126,8 @@ function flush() {
 	if (timer) save();
 }
 
-const isOn = () => !!(data && data.on);
+const isOn = () => !!(data && (data.on || lockdown));
+const isLocked = () => lockdown;
 
 // ---------- Пароль ----------
 const hashOf = (pw, salt) => crypto.scryptSync(String(pw), Buffer.from(salt, 'hex'), 32).toString('hex');
@@ -120,13 +150,29 @@ function createPass(pw) {
 	if (typeof pw !== 'string' || pw.length < MIN_PASS) throw new Error('Пароль слишком короткий');
 	const salt = crypto.randomBytes(16).toString('hex');
 	data.pass = { salt, hash: hashOf(pw, salt) };
-	save();
+}
+// Пароль после запирания: переписываем все копии из самой свежей подписанной записи и открываем браузер
+function recover(pw) {
+	verify(pw);
+	if (data.admin && !isObj(pstore.unpack(readAdmin()))) data.admin = false; // системной записи нет — защита снята, включить её можно заново
+	lockdown = false;
+	saveAll();
+	unlockedUntil = Date.now() + UNLOCK_MS;
+}
+function readAdmin() {
+	try {
+		return require('fs').readFileSync(pstore.adminFile(), 'utf8');
+	} catch (e) {
+		return null;
+	}
 }
 function unlock(pw) {
+	if (lockdown) return recover(pw);
 	verify(pw);
 	unlockedUntil = Date.now() + UNLOCK_MS;
 }
 function isUnlocked() {
+	if (lockdown) return false;
 	if (!data.pass) return true; // пароля ещё нет — закрывать нечего
 	if (Date.now() > unlockedUntil) return false;
 	unlockedUntil = Date.now() + UNLOCK_MS;
@@ -136,20 +182,42 @@ function requireUnlocked() {
 	if (!isUnlocked()) throw new Error('Нужен пароль родительского контроля');
 }
 
-// Включение и выключение: первый раз пароль создаётся, потом его надо ввести
-function setOn(on, pw) {
+// Включение и выключение: первый раз пароль создаётся, потом его надо ввести.
+// Выключение под защитой администратора сначала убирает системную запись (спросит права)
+async function setOn(on, pw) {
+	if (lockdown) throw new Error('Нужен пароль родительского контроля');
 	if (!data.pass) {
 		if (!on) return;
 		createPass(pw);
 	} else verify(pw);
+	if (!on && data.admin) {
+		await pstore.writeAdmin(null);
+		data.admin = false;
+	}
 	data.on = !!on;
 	unlockedUntil = Date.now() + UNLOCK_MS;
 	if (!on) grants.clear();
-	save();
+	saveAll();
+}
+
+// Защита правами администратора: системная запись, которую без прав не удалить и не изменить
+async function setAdmin(on) {
+	requireUnlocked();
+	if (!data.on) throw new Error('Сначала включи родительский контроль');
+	if (!!on === data.admin) return;
+	if (on) {
+		const next = { ...record(), rev: data.rev + 1, admin: true };
+		await pstore.writeAdmin(pstore.pack(next));
+		data.admin = true;
+	} else {
+		await pstore.writeAdmin(null);
+		data.admin = false;
+	}
+	saveAll();
 }
 
 function publicConfig() {
-	return { on: data.on, time: data.time, sites: data.sites };
+	return { on: data.on, admin: data.admin, time: data.time, sites: data.sites };
 }
 function setConfig(patch) {
 	requireUnlocked();
@@ -157,7 +225,7 @@ function setConfig(patch) {
 	const next = sanitize({ ...data, time: { ...data.time, ...(p.time || {}) }, sites: { ...data.sites, ...(p.sites || {}) } });
 	data.time = next.time;
 	data.sites = next.sites;
-	save();
+	saveAll();
 }
 
 // ---------- Время ----------
@@ -251,6 +319,7 @@ function check(url) {
 	if (!data || !data.on) return null;
 	const k = checkable(url);
 	if (!k) return null;
+	if (lockdown) return 'locked';
 	const g = grants.get(k) || { time: 0, site: 0 };
 	const now = Date.now();
 	if (timeOver() && g.time <= now) return 'time';
@@ -270,6 +339,7 @@ function recordAttempt(url, reason) {
 // Кнопка «Войти» на странице блокировки: сайт открывается, лимит не сбрасывается.
 // Открытое при исчерпанном времени действует до конца промежутка, открытый запрещённый сайт — до закрытия браузера
 function enter(url, pw, reason) {
+	if (lockdown) return recover(pw);
 	verify(pw);
 	const k = checkable(url);
 	if (!k) return;
@@ -280,7 +350,7 @@ function enter(url, pw, reason) {
 }
 
 function status() {
-	return { on: data.on, hasPass: !!data.pass, unlocked: data.pass ? Date.now() <= unlockedUntil : true, minPass: MIN_PASS };
+	return { on: data.on || lockdown, locked: lockdown, hasPass: !!data.pass, unlocked: !lockdown && (data.pass ? Date.now() <= unlockedUntil : true), minPass: MIN_PASS, adminPath: pstore.adminFile() };
 }
 function info() {
 	return { used: data.time.on ? usedNow() : 0, limit: limitMs(), timeOn: data.on && data.time.on, periodEnd: periodStart() + data.time.period.n * UNIT_MS[data.time.period.unit] };
@@ -300,4 +370,4 @@ function badArgs(argv) {
 	});
 }
 
-module.exports = { init, flush, isOn, status, setOn, unlock, isUnlocked, publicConfig, setConfig, tick, check, keyOf, checkable, recordAttempt, enter, info, stats, badArgs, BLOCKED_SWITCHES, MIN_PASS };
+module.exports = { init, flush, isOn, isLocked, status, setOn, setAdmin, unlock, isUnlocked, publicConfig, setConfig, tick, check, keyOf, checkable, recordAttempt, enter, info, stats, badArgs, BLOCKED_SWITCHES, MIN_PASS };

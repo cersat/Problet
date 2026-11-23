@@ -108,6 +108,7 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		versionInfo: () => call('version:info'),
 		parentalStatus: () => call('parental:status'),
 		parentalSetOn: (on, pw) => call('parental:set-on', on, pw),
+		parentalSetAdmin: (on) => call('parental:set-admin', on),
 		parentalUnlock: (pw) => call('parental:unlock', pw),
 		parentalGet: () => call('parental:get'),
 		parentalSet: (patch) => call('parental:set', patch),

@@ -505,13 +505,13 @@
 		<section id="parental">
 			<h2>Родительский контроль</h2>
 			<form id="pc-lock" class="pc-lock" hidden>
-				<div class="what">Раздел закрыт паролем родительского контроля</div>
+				<div class="what" id="pc-lock-title">Раздел закрыт паролем родительского контроля</div>
 				<input type="password" id="pc-lock-pass" placeholder="Пароль" autocomplete="off">
 				<button class="primary" type="submit">Открыть</button>
 			</form>
 			<div id="pc-body">
 				<div class="setting">
-					<div class="what">Включить родительский контроль<small>При первом включении нужно придумать пароль, дальше любое изменение здесь требует этот пароль. Если пароль забыт, удали файл parental.json в папке Problet</small></div>
+					<div class="what">Включить родительский контроль<small>При первом включении нужно придумать пароль, дальше любое изменение здесь требует этот пароль. Если настройки удалят или изменят не через браузер, Problet запрётся до ввода пароля</small></div>
 					<label class="switch"><input type="checkbox" id="pc-on"><span></span></label>
 				</div>
 				<form id="pc-ask" class="pc-ask" hidden>
@@ -523,6 +523,10 @@
 				</form>
 				<div id="pc-on-only" hidden>
 					<h3>Настройки</h3>
+					<div class="setting">
+						<div class="what">Защитить правами администратора<small id="pc-admin-note">Настройки запишутся ещё и в системную папку, откуда их без прав администратора не удалить и не изменить. Включение и выключение спросит права администратора. Работает, если у ребёнка своя учётная запись без прав администратора</small></div>
+						<label class="switch"><input type="checkbox" id="pc-admin"><span></span></label>
+					</div>
 					<div class="setting">
 						<div class="what">Ограничивать использование по времени<small>Считается время, пока окно Problet активно или на вкладке играет звук</small></div>
 						<label class="switch"><input type="checkbox" id="pc-time"><span></span></label>
