@@ -577,11 +577,10 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		const scope = pass.form || document;
 		const inputs = [...scope.querySelectorAll('input')];
 		const at = inputs.indexOf(pass);
-		for (let i = at - 1; i >= 0; i--) {
-			const el = inputs[i];
-			if (TEXT_TYPES.includes(el.type) && visible(el) && !el.disabled) return el;
-		}
-		return null;
+		const before = inputs.slice(0, at).reverse().filter((el) => TEXT_TYPES.includes(el.type) && visible(el) && !el.disabled);
+		// В регистрации перед паролем часто стоят имя и фамилия: берём ближайшее поле, похожее на логин, а не на имя
+		return before.find((el) => el.type === 'email' || el.type === 'tel' || /username|email/i.test(el.autocomplete) || LOGINISH.test(el.name + ' ' + el.id) && !isPersonName(el))
+			|| before.find((el) => !isPersonName(el)) || before[0] || null;
 	}
 
 	document.addEventListener('submit', (e) => {
@@ -607,7 +606,10 @@ if (location.protocol !== 'problet:' && window === window.top) {
 
 	let filled = ''; // пароль, который подставили мы: его отправка не повод предлагать сохранение
 	let lastField = null;
-	const LOGINISH = /user|login|email|e-mail|mail|phone|account|acc|name|логин|почт|телефон/i;
+	// Похоже на логин. Голого name здесь нет: имя и фамилия (firstName, fullname) — не логин, а username ловит user
+	const LOGINISH = /user|login|email|e-mail|mail|phone|account|acc|identifier|логин|почт|телефон/i;
+	const PERSON_NAME = /(first|last|full|given|family|sur|middle|display|real)[-_ ]?name|^name$|имя|фамил/i;
+	const isPersonName = (el) => el.type !== 'email' && el.type !== 'tel' && (PERSON_NAME.test(el.name) || PERSON_NAME.test(el.id) || /name/i.test(el.autocomplete) && !/username/i.test(el.autocomplete));
 	const fieldsFor = (el) => {
 		const scope = el.form || document;
 		const pass = el.type === 'password' ? el : [...scope.querySelectorAll('input[type=password]')].find(visible) || null;
@@ -620,6 +622,7 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		}
 		// Вход в два шага: пароля на странице ещё нет, но поле похоже на логин
 		const hint = el.type + ' ' + el.autocomplete + ' ' + el.name + ' ' + el.id;
+		if (isPersonName(el)) return null;
 		return el.type === 'email' || el.type === 'tel' || LOGINISH.test(hint) ? { pass: null, login: el } : null;
 	};
 	// Форма создания аккаунта: поле нового пароля, два поля пароля или адрес страницы регистрации

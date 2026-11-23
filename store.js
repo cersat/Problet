@@ -523,6 +523,16 @@ function sanitizeSession(raw) {
 	return { tabs, active, spaces, space };
 }
 
+// Окно: место, размер (в обычном режиме) и режим; quiet — запуститься без захвата фокуса (перезапуск после обновления, когда окно было в фоне)
+function sanitizeWindow(raw) {
+	const r = raw && typeof raw === 'object' ? raw : {};
+	const n = (v) => (Number.isFinite(v) ? Math.round(v) : null);
+	const out = { mode: ['normal', 'maximized', 'fullscreen'].includes(r.mode) ? r.mode : 'normal', minimized: r.minimized === true, quiet: r.quiet === true };
+	const b = { x: n(r.x), y: n(r.y), width: n(r.width), height: n(r.height) };
+	if (b.x !== null && b.y !== null && b.width >= 100 && b.height >= 100) Object.assign(out, b);
+	return out;
+}
+
 // История посещений: новые сверху, только http/https/file
 function sanitizeVisits(raw) {
 	const out = [];
@@ -615,6 +625,7 @@ function sanitize(raw) {
 		bookmarks: [],
 		searchHistory: [],
 		session: sanitizeSession(r.session),
+		window: sanitizeWindow(r.window),
 		cacheClearedAt: Number.isFinite(r.cacheClearedAt) ? r.cacheClearedAt : 0,
 		visits: sanitizeVisits(r.visits),
 		downloads: sanitizeDownloads(r.downloads),
@@ -720,6 +731,15 @@ function getSession() {
 function setSession(raw) {
 	data.session = sanitizeSession(raw);
 	scheduleSave();
+}
+
+function getWindow() {
+	return data.window;
+}
+
+function setWindow(raw) {
+	data.window = sanitizeWindow(raw);
+	scheduleSave(1000);
 }
 
 function getCacheClearedAt() {
@@ -1437,7 +1457,7 @@ module.exports = {
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
 	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, setBookmarkTones, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
 	exportData, looksLikeBackup, importData,
-	getSession, setSession, getCacheClearedAt, setCacheClearedAt,
+	getSession, setSession, getWindow, setWindow, getCacheClearedAt, setCacheClearedAt,
 	onChange, notify: changed, DEFAULT_SPACE,
 	addBlocked, blockedTotal,
 	getZoom, setZoom,

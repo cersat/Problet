@@ -297,6 +297,7 @@ async function apply() {
 	}
 	if (state.status === 'available') await prepare();
 	if (state.status !== 'ready') return;
+	if (hooks.beforeRestart) hooks.beforeRestart();
 	if (mode() === 'appimage') {
 		restartAppImage();
 	} else if (mode() === 'installer') {
@@ -343,4 +344,6 @@ function schedule(opts) {
 	if (mode() !== 'dev') timer = setInterval(run, 60 * 1000);
 }
 
-module.exports = { looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };
+const hooks = {}; // beforeRestart: главный процесс сохраняет окно и сессию перед перезапуском в новую версию
+
+module.exports = { hooks, looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };

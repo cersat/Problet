@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, protocol, net, dialog, nativeTheme, session, Menu, clipboard, shell, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, protocol, net, dialog, nativeTheme, session, Menu, clipboard, shell, nativeImage, Notification, screen } = require('electron');
 const crypto = require('crypto');
 const path = require('path');
 const os = require('os');
@@ -195,7 +195,7 @@ function loadInActive(url) {
 	hideSuggest();
 	tab.pendingUrl = null;
 	tab.view.webContents.loadURL(url).catch(() => {});
-	tab.view.webContents.focus();
+	focusWc(tab.view.webContents);
 }
 
 // История поисковых запросов не пополняется из вкладок инкогнито
@@ -221,7 +221,7 @@ const vhost = {
 	toolbar: () => win.webContents,
 	focus: (vc) => {
 		if (win && win.isDestroyed()) return; // окно уже закрыто, браузер выходит
-		win.webContents.focus();
+		focusWc(win.webContents);
 		vhost.send({ op: 'focus', id: vc.id });
 	},
 	external: (vc, url) => {
@@ -336,13 +336,13 @@ function switchView(tab, url, toVirtual) {
 	tab.fwdSegs = [];
 	swapView(tab, toVirtual ? new vtab.VirtualView(vhost) : newRealView(tab));
 	tab.view.webContents.loadURL(url).catch(() => {});
-	if (tab.id === activeId) tab.view.webContents.focus();
+	if (tab.id === activeId) focusWc(tab.view.webContents);
 }
 
 function restoreSegment(tab, seg) {
 	swapView(tab, seg.virtual ? new vtab.VirtualView(vhost) : newRealView(tab));
 	tab.view.webContents.navigationHistory.restore({ entries: seg.entries, index: seg.index }).catch(() => {});
-	if (tab.id === activeId) tab.view.webContents.focus();
+	if (tab.id === activeId) focusWc(tab.view.webContents);
 }
 
 const canBack = (tab) => !!tab && (tab.view.webContents.navigationHistory.canGoBack() || tab.backSegs.length > 0);
@@ -641,7 +641,7 @@ function sendState(navigated, reset) {
 }
 
 function focusAddress() {
-	win.webContents.focus();
+	focusWc(win.webContents);
 	win.webContents.send('focus-address');
 }
 
@@ -1295,7 +1295,7 @@ function activateTab(id) {
 	applySpaceFreeze();
 	setWindowTitle(tab);
 	if (isNewTab(tab.view.webContents.getURL() || tab.url)) focusAddress();
-	else tab.view.webContents.focus();
+	else focusWc(tab.view.webContents);
 	sendTabs();
 	sendState(true, true);
 	scheduleSession();
@@ -1691,13 +1691,17 @@ ipcMain.on('pw:need-fill', (e, hasPass, signup) => {
 	if (fillAsked.has(key)) return;
 	if (fillAsked.size > 2000) fillAsked.clear();
 	fillAsked.add(key);
-	fillCtx = { tabId: tab.id, origin, templates };
+	fillCtx = { tabId: tab.id, origin, templates, key };
 	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8) });
 });
 handle('pw:fill-options', () => {
 	if (!fillCtx) return null;
+	// Сохранённых записей для сайта нет, а шаблонные логины есть — предлагаем их (скорее всего, это новый аккаунт)
+	if (!fillCtx.templates && vault.isUnlocked() && !vault.forOrigin(fillCtx.origin).length && settings().loginTemplates.length) fillCtx.templates = true;
 	if (fillCtx.templates) return { host: new URL(fillCtx.origin).hostname, templates: true, unlocked: true, items: settings().loginTemplates.map((username, i) => ({ i, username })) };
 	const items = vault.isUnlocked() ? vault.forOrigin(fillCtx.origin).map((x, i) => ({ i, username: x.username })) : [];
+	// Окно закроется пустым: не считаем, что мы уже спрашивали, иначе на следующем поле (например, почте) ничего не предложим
+	if (vault.isUnlocked() && !items.length) fillAsked.delete(fillCtx.key);
 	return { host: new URL(fillCtx.origin).hostname, unlocked: vault.isUnlocked(), items };
 });
 handle('pw:fill-pick', (i) => {
@@ -2164,7 +2168,7 @@ function ensurePopup() {
 	clearTimeout(popupTimer);
 	if (popup) return;
 	const typing = win.webContents.isFocused(); // новый слой забирает фокус у адресной строки: возвращаем
-	const keep = () => typing && win && !win.isDestroyed() && !win.webContents.isFocused() && win.webContents.focus();
+	const keep = () => typing && win && !win.isDestroyed() && !win.webContents.isFocused() && focusWc(win.webContents);
 	popup = createLayer('preload-popup.js', 'popup.html');
 	popupReady = false;
 	keep();
@@ -2205,7 +2209,7 @@ function showFind() {
 	if (popup) win.contentView.addChildView(popup);
 	findView.setVisible(true);
 	findView.webContents.send('find-open', findText);
-	findView.webContents.focus();
+	focusWc(findView.webContents);
 }
 
 function openFind() {
@@ -2240,7 +2244,7 @@ function closeFind() {
 	const wc = activeContents();
 	if (wc) {
 		wc.stopFindInPage('clearSelection');
-		wc.focus();
+		focusWc(wc);
 	}
 }
 
@@ -2779,7 +2783,7 @@ ipcMain.on('popup-pick', (e, i) => {
 		navigate(item.text);
 	} else if (item.type === 'calc') {
 		// Результат калькулятора кладём в адресную строку, чтобы его можно было скопировать
-		win.webContents.focus();
+		focusWc(win.webContents);
 		win.webContents.send('set-address', { text: item.text, select: true });
 	} else {
 		searchFor(item.text);
@@ -2793,7 +2797,7 @@ ipcMain.on('popup-delete', (e, i) => {
 	store.removeSearch(item.text);
 	sug.items = buildSuggestions(sug.original);
 	sug.selected = -1;
-	win.webContents.focus();
+	focusWc(win.webContents);
 	win.webContents.send('set-address', { text: sug.original, select: false });
 	renderSuggest();
 });
@@ -2964,7 +2968,7 @@ function ensurePanel() {
 		closePanel();
 	});
 	panel.webContents.on('did-finish-load', () => {
-		if (panelOpen && panelKind !== 'pwsave') panel.webContents.focus();
+		if (panelOpen && panelKind !== 'pwsave') focusWc(panel.webContents);
 	});
 }
 
@@ -2980,7 +2984,7 @@ function closePanel() {
 		panel = null;
 	}, LAYER_IDLE_MS);
 	const back = panelReturn === 'toolbar' ? win.webContents : activeContents();
-	if (back && !back.isDestroyed() && !win.webContents.isFocused() && !(back === win.webContents)) back.focus();
+	if (back && !back.isDestroyed() && !win.webContents.isFocused() && !(back === win.webContents)) focusWc(back);
 }
 
 // rect — положение кнопки в окне; без неё панель встаёт у верхнего края
@@ -3038,7 +3042,7 @@ function openPanel(kind, rect, arg = '') {
 		});
 		panel.webContents.loadURL(extPage(arg, 'popup')).catch(() => {});
 	} else panel.webContents.loadURL('problet://' + kind + '/?popup=1' + (arg ? '&id=' + encodeURIComponent(arg) : '')).catch(() => {});
-	if (kind !== 'pwsave') panel.webContents.focus();
+	if (kind !== 'pwsave') focusWc(panel.webContents);
 }
 
 ipcMain.on('applet-open', (e, kind, rect) => {
@@ -3528,7 +3532,7 @@ handle('chars:pick', (ch) => {
 	closePanel();
 	const wc = toolbar ? win.webContents : activeContents();
 	if (!wc || wc.isDestroyed()) return;
-	wc.focus();
+	focusWc(wc);
 	wc.insertText(ch);
 });
 
@@ -3864,7 +3868,10 @@ async function setSafeMode(on) {
 	addons.setSafe(on);
 	if (win && !win.isDestroyed()) {
 		applySettings();
-		sendExtActions();
+		// Раскладку с кнопками расширений не пересчитываем, пока расширения загружаются заново: иначе их кнопки
+		// посчитаются удалёнными, выпадут из раскладки и вернутся уже в конец панели (sendExtActions ниже, после загрузки)
+		if (extReady) syncRelays();
+		sendLayout();
 		sendState();
 		setWindowTitle(activeTab());
 	}
@@ -3962,10 +3969,28 @@ function sendExtActions() {
 			if (keep.length !== next[key].length) changed = true;
 			next[key] = keep;
 		}
+		// Вернувшаяся кнопка (расширение снова загрузилось) встаёт на прежнее место — по памяти расположения
+		// (сразу после прежней соседки); новая — в конец панели инструментов
+		const mem = settings().btnMemory || {};
 		for (const id of ids) {
 			if (has.has(id)) continue;
-			next.toolbar.push(id);
 			changed = true;
+			const panel = ['toolbar', 'bmbar', 'tabs', 'extra'].find((k) => (mem[k] || []).includes(id));
+			if (!panel) {
+				next.toolbar.push(id);
+				continue;
+			}
+			const list = next[panel];
+			const order = mem[panel];
+			let put = 0;
+			for (let j = order.indexOf(id) - 1; j >= 0; j--) {
+				const k = list.indexOf(order[j]);
+				if (k >= 0) {
+					put = k + 1;
+					break;
+				}
+			}
+			list.splice(put, 0, id);
 		}
 		if (changed) {
 			try {
@@ -4372,14 +4397,73 @@ ipcMain.on('vt:title', (e, title) => {
 	if (vt) vt.view.webContents.titled(title);
 });
 
+// Место и режим окна переживают перезапуск: сохраняем при каждом изменении и перед перезапуском в новую версию
+function savedBounds() {
+	const w = store.getWindow();
+	if (w.width === undefined) return { width: 1200, height: 800 };
+	// Окно должно хоть частью попадать на один из экранов: монитор могли отключить
+	const visible = screen.getAllDisplays().some((d) => {
+		const a = d.workArea;
+		return w.x < a.x + a.width - 50 && w.x + w.width > a.x + 50 && w.y < a.y + a.height - 50 && w.y + 30 > a.y;
+	});
+	return visible ? { x: w.x, y: w.y, width: w.width, height: w.height } : { width: w.width, height: w.height };
+}
+function saveWindow(quiet = false) {
+	if (headless.enabled || !win || win.isDestroyed()) return;
+	const b = win.getNormalBounds();
+	// У свёрнутого окна режим не узнать надёжно: оставляем прежний
+	const mode = win.isMinimized() ? store.getWindow().mode : win.isFullScreen() ? 'fullscreen' : win.isMaximized() ? 'maximized' : 'normal';
+	store.setWindow({ ...b, mode, minimized: win.isMinimized(), quiet });
+}
+let winSaveTimer = null;
+function scheduleWindowSave() {
+	clearTimeout(winSaveTimer);
+	winSaveTimer = setTimeout(() => saveWindow(), 500);
+}
+// Перезапуск в новую версию: окно в фоне или свёрнуто — новое тоже не должно забирать фокус
+updater.hooks.beforeRestart = () => {
+	clearTimeout(winSaveTimer);
+	saveWindow(!!win && !win.isDestroyed() && (!win.isFocused() || win.isMinimized()));
+	saveSession();
+	store.flush();
+};
+// Тихий запуск: пока человек сам не переключится в окно, не переводим фокус внутрь него — на Linux и Windows это поднимает окно поверх остальных
+let holdFocus = false;
+function focusWc(wc) {
+	if (holdFocus && win && !win.isDestroyed() && !win.isFocused()) return;
+	wc.focus();
+}
+function showWindow() {
+	const w = store.getWindow();
+	if (w.quiet) {
+		holdFocus = true;
+		win.once('focus', () => {
+			holdFocus = false;
+			const tab = activeTab();
+			if (tab && isNewTab(tab.view.webContents.getURL() || tab.url)) focusAddress();
+			else if (tab) focusWc(tab.view.webContents);
+		});
+	}
+	if (w.quiet) store.setWindow({ ...w, quiet: false });
+	if (w.mode === 'fullscreen') {
+		if (w.quiet) win.showInactive();
+		win.setFullScreen(true);
+	} else if (w.mode === 'maximized') {
+		if (w.quiet) win.showInactive(); // maximize() на скрытом окне в некоторых оконных менеджерах отдаёт ему фокус
+		win.maximize();
+		if (!w.quiet) win.focus();
+	} else if (w.quiet) win.showInactive();
+	else win.show();
+	if (w.quiet && w.minimized) win.minimize();
+}
+
 function createWindow() {
 	win = new BrowserWindow({
-		width: 1200,
-		height: 800,
+		...(headless.enabled ? { width: 1200, height: 800 } : savedBounds()),
 		minWidth: 480,
 		minHeight: 320,
 		backgroundColor: bgColor(),
-		show: !headless.enabled,
+		show: false,
 		icon: path.join(__dirname, 'icon.png'),
 		autoHideMenuBar: true,
 		frame: false, // заголовок окна рисуем сами: панель вкладок и кнопки окна лежат в нём
@@ -4418,6 +4502,14 @@ function createWindow() {
 	win.contentView.on('bounds-changed', layout);
 	win.on('resize', closePanel);
 	win.on('close', saveSession);
+	if (!headless.enabled) {
+		for (const ev of ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) win.on(ev, scheduleWindowSave);
+		win.on('close', () => {
+			clearTimeout(winSaveTimer);
+			saveWindow();
+		});
+		showWindow();
+	}
 	// Скрытые окна-посредники расширений не дают сработать window-all-closed: без главного окна браузер выходит сам
 	win.on('closed', () => app.quit());
 	win.on('maximize', sendLayout);
