@@ -156,11 +156,18 @@ function start(ctx) {
 		const wc = t.view.webContents;
 		watchConsole(wc);
 		await sizeView(wc);
+		// Не открылось (нет сети, сервер не отвечает): браузер покажет свою страницу ошибки, но в отчёте это неудача
+		let fail = null;
+		const onFail = (_e, code, desc, _u, isMain) => {
+			if (isMain && code !== -3) fail = desc || String(code);
+		};
+		wc.on('did-fail-load', onFail);
 		wc.loadURL(url).catch(() => {});
 		const t0 = Date.now();
 		const loaded = await waitLoaded(wc);
 		await sleep(Number.isFinite(wait) ? wait : 1000);
-		return { ...info(t), loaded, loadMs: Date.now() - t0 };
+		if (!wc.isDestroyed()) wc.removeListener('did-fail-load', onFail);
+		return { ...info(t), loaded: loaded && !fail, loadMs: Date.now() - t0, ...(fail ? { error: fail } : {}) };
 	}
 
 	const oneShot = opt('fetch');
@@ -235,7 +242,7 @@ async function fetchMode(ctx, target, o) {
 			const first = i === 0;
 			const r = await o.open(/^[a-z][a-z0-9+.-]*:/i.test(target) ? target : 'https://' + target, o.wait);
 			const wc = o.wcOf(r.id);
-			const run = { console: consoleLog.splice(0), loaded: r.loaded, loadMs: r.loadMs, title: r.title, finalUrl: r.url, hosts: summary() };
+			const run = { console: consoleLog.splice(0), loaded: r.loaded, ...(r.error ? { error: r.error } : {}), loadMs: r.loadMs, title: r.title, finalUrl: r.url, hosts: summary() };
 			if (first && o.text) run.text = await limit(wc.executeJavaScript('document.body ? document.body.innerText : ""'), 15000, 'текст').catch((e) => 'Ошибка: ' + e.message);
 			if (first && o.shot) {
 				try {

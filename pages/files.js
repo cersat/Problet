@@ -134,7 +134,7 @@ function crumbs() {
 	const nav = $('crumbs');
 	nav.textContent = '';
 	if (data.virtual) {
-		nav.append(Object.assign(document.createElement('a'), { textContent: tr(data.path) }));
+		nav.append(Object.assign(document.createElement('a'), { textContent: tr(data.path), translate: false }));
 		return;
 	}
 	const sep = data.path.includes('\\') ? '\\' : '/';
@@ -160,6 +160,7 @@ function crumbs() {
 		const a = document.createElement('a');
 		a.textContent = label;
 		a.title = p;
+		a.translate = false; // имена папок — данные, их не переводим
 		a.addEventListener('click', (ev) => {
 			ev.stopPropagation();
 			go(p);

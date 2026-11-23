@@ -2,6 +2,7 @@
 // {} в строке — любая подстановка (имя, число, адрес); в переводе можно {1}, {2}, если порядок другой. «menu|» — вариант для меню.
 (function (root) {
 	const PAIRS = [
+		['закреплена', 'pinned'],
 		['Эта учётная запись — с правами администратора', 'This account has administrator rights'],
 		['Из неё защиту правами администратора можно снять, так что от ребёнка, который сидит в этой учётной записи, она не защитит. Включай её в отдельной учётной записи ребёнка без прав администратора.', 'From this account the administrator protection can be removed, so it will not stop a child who uses this account. Turn it on in the child\'s own account without administrator rights.'],
 		['Всё равно включить', 'Turn on anyway'],

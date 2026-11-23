@@ -32,7 +32,7 @@
 <pre><code>problet --headless --fetch=https://example.com --runs=3 --wait=4000 --adblock --text --shot=page.png --eval="document.title"</code></pre>
 <table>
 	<tr><th>Ключ</th><th>Что делает</th></tr>
-	<tr><td><code>--fetch=URL</code></td><td>Какую страницу загрузить. Отчёт JSON печатается в stdout, после чего браузер выходит.</td></tr>
+	<tr><td><code>--fetch=URL</code></td><td>Какую страницу загрузить. Отчёт JSON печатается в stdout, после чего браузер выходит. Если страница не открылась (нет сети, сервер не отвечает), в отчёте будет <code>"loaded": false</code> и причина в <code>error</code>. Текст, снимок и <code>--eval</code> делаются по первой загрузке.</td></tr>
 	<tr><td><code>--runs=N</code></td><td>Загрузить N раз, каждый раз с чистого листа; счётчики запросов складываются.</td></tr>
 	<tr><td><code>--wait=мс</code></td><td>Сколько ждать после окончания загрузки, пока страница дорисуется. По умолчанию 4000.</td></tr>
 	<tr><td><code>--size=1280x800</code></td><td>Размер страницы.</td></tr>

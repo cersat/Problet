@@ -2359,7 +2359,7 @@ function showPageMenu(tab, params) {
 function showTabsMenu() {
 	const short = (t) => (t.length > 60 ? t.slice(0, 59) + '…' : t);
 	const items = visibleTabs().map((t) => ({
-		label: short((t.pinned ? '📌 ' : '') + (tabTitle(t) || t.pendingUrl || t.url || 'Новая вкладка')),
+		label: short(tabTitle(t) || t.pendingUrl || t.url || tr('Новая вкладка')) + (t.pinned ? ' — ' + tr('закреплена') : ''),
 		type: 'checkbox',
 		checked: t.id === activeId,
 		click: () => activateTab(t.id),
@@ -3268,8 +3268,8 @@ ipcMain.handle('parental:enter', (e, url, pw) => {
 	const target = String(url);
 	const why = parental.check(target);
 	parental.enter(target, pw, why);
+	if (why === 'locked') return parentalApply(); // браузер был заперт: открываем все вкладки, и эту тоже
 	if (tab) tab.parentalBlocked = false;
-	if (why === 'locked') return parentalApply();
 	if (tab && !tab.view.webContents.isDestroyed()) {
 		if (tab.view.virtual && tab.view.webContents.getURL() === target) tab.view.webContents.reload();
 		else tab.view.webContents.loadURL(target).catch(() => {});
