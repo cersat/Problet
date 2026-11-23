@@ -47,7 +47,7 @@ button.danger:hover {
 	background: var(--danger-bg);
 }
 
-input[type=text], select {
+input[type=text], input[type=password], input[type=number], select {
 	height: 34px;
 	padding: 0 10px;
 	border: 1px solid var(--border-strong);
@@ -56,7 +56,7 @@ input[type=text], select {
 	outline: none;
 }
 
-input[type=text]:focus, select:focus {
+input[type=text]:focus, input[type=password]:focus, input[type=number]:focus, select:focus {
 	border-color: var(--accent);
 }
 
@@ -1148,3 +1148,19 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .arrow-pick { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 330px; }
 .arrow-pick button { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 8px; }
 .arrow-pick button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* Настройки → Родительский контроль */
+.pc-lock, .pc-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); }
+.pc-lock .what, .pc-ask .what { flex: 1 1 100%; }
+.pc-lock input, .pc-ask input { width: 200px; }
+.pc-lock[hidden], .pc-ask[hidden], .setting[hidden], .pc-ask input[hidden] { display: none; }
+.pc-time-row .what { min-width: 180px; }
+.pc-time-row input[type=number] { width: 72px; }
+.pc-time-row select { width: auto; max-width: none; }
+.pc-time-row .pc-in { color: var(--muted); }
+#pc-list { width: 280px; max-width: 50%; padding: 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); font: 13px ui-monospace, monospace; resize: vertical; outline: none; }
+#pc-list:focus { border-color: var(--accent); }
+.pc-view-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; color: var(--text); }
+.pc-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 13px; }
+.pc-table td { padding: 5px 8px 5px 0; border-top: 1px solid var(--border); word-break: break-all; }
+.pc-table td:first-child { color: var(--text-strong); }

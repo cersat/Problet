@@ -1,7 +1,7 @@
 {
   "name": "problet",
   "productName": "Problet",
-  "version": "9.2.5",
+  "version": "9.3.0",
   "description": "Problet — минимальный браузер на Electron",
   "main": "boot.js",
   "scripts": {
@@ -18,6 +18,11 @@
     "appId": "com.cersat.problet",
     "productName": "Problet",
     "executableName": "problet",
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeCliInspectArguments": false,
+      "enableNodeOptionsEnvironmentVariable": false
+    },
     "directories": {
       "output": "dist",
       "buildResources": "build"

@@ -502,6 +502,62 @@
 		</section>
 
 		<p id="status" class="status"></p>
+		<section id="parental">
+			<h2>Родительский контроль</h2>
+			<form id="pc-lock" class="pc-lock" hidden>
+				<div class="what">Раздел закрыт паролем родительского контроля</div>
+				<input type="password" id="pc-lock-pass" placeholder="Пароль" autocomplete="off">
+				<button class="primary" type="submit">Открыть</button>
+			</form>
+			<div id="pc-body">
+				<div class="setting">
+					<div class="what">Включить родительский контроль<small>При первом включении нужно придумать пароль, дальше любое изменение здесь требует этот пароль. Если пароль забыт, удали файл parental.json в папке Problet</small></div>
+					<label class="switch"><input type="checkbox" id="pc-on"><span></span></label>
+				</div>
+				<form id="pc-ask" class="pc-ask" hidden>
+					<div class="what" id="pc-ask-title"></div>
+					<input type="password" id="pc-ask-pass" placeholder="Пароль" autocomplete="off">
+					<input type="password" id="pc-ask-pass2" placeholder="Ещё раз" autocomplete="off" hidden>
+					<button class="primary" type="submit">OK</button>
+					<button type="button" id="pc-ask-cancel">Отмена</button>
+				</form>
+				<div id="pc-on-only" hidden>
+					<h3>Настройки</h3>
+					<div class="setting">
+						<div class="what">Ограничивать использование по времени<small>Считается время, пока окно Problet активно или на вкладке играет звук</small></div>
+						<label class="switch"><input type="checkbox" id="pc-time"><span></span></label>
+					</div>
+					<div class="setting pc-time-row" id="pc-time-row" hidden>
+						<div class="what">Ограничивать использование на<small>Когда время вышло, вместо любой страницы открывается «Заблокировано»</small></div>
+						<input type="number" id="pc-limit-n" min="1" max="9999">
+						<select id="pc-limit-unit"><option value="min">мин</option><option value="h">ч</option></select>
+						<span class="pc-in">в</span>
+						<input type="number" id="pc-period-n" min="1" max="9999">
+						<select id="pc-period-unit"><option value="h">ч</option><option value="d">дн</option><option value="w">нед</option></select>
+					</div>
+					<div class="setting">
+						<div class="what">Ограничивать сайты</div>
+						<label class="switch"><input type="checkbox" id="pc-sites"><span></span></label>
+					</div>
+					<div id="pc-sites-rows" hidden>
+						<div class="setting">
+							<div class="what">Белый список ограниченных сайтов<small>Открываются только сайты из списка. Страницы Problet белый список не трогает</small></div>
+							<label class="switch"><input type="checkbox" id="pc-white"><span></span></label>
+						</div>
+						<div class="setting">
+							<div class="what">Ограничивать сайты:<small>По одному в строке: youtube.com (вместе с поддоменами), youtube.com/shorts (только этот путь), problet://settings (страница Problet), file:// (файлы с диска)</small></div>
+							<textarea id="pc-list" rows="5" spellcheck="false" placeholder="youtube.com&#10;problet://game"></textarea>
+						</div>
+					</div>
+					<h3>Просмотр</h3>
+					<div class="pc-view-head"><span id="pc-used"></span><button type="button" id="pc-refresh">Обновить</button></div>
+					<div class="what plist-title">Сайты и время на них</div>
+					<table class="pc-table" id="pc-hosts"></table>
+					<div class="what plist-title">Попытки открыть заблокированное</div>
+					<table class="pc-table" id="pc-attempts"></table>
+				</div>
+			</div>
+		</section>
 	</main>
 
 	<dialog id="cb-dialog">
@@ -543,5 +599,6 @@
 	<script src="icons.js"></script>
 	<script src="accel.js"></script>
 	<script src="settings.js"></script>
+	<script src="settings-parental.js"></script>
 </body>
 </html>

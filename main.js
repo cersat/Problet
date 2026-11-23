@@ -19,6 +19,7 @@ const passcsv = require('./passcsv');
 const { tryCalc } = require('./calc');
 const { themePayload, accentList, PRESETS, TINTS, CONTRASTS, UI_SCALES, THEME_KEYS, PALETTES } = require('./theme');
 const headless = require('./headless');
+const parental = require('./parental');
 const offline = require('./offline');
 const i18nMain = require('./i18n-main');
 const vtab = require('./vtab');
@@ -27,6 +28,29 @@ const { tr } = i18nMain;
 // Память: молодое поколение кучи V8 в каждом процессе ограничено 2 МБ (по умолчанию растёт до 16). Страницы с большим числом
 // недолговечных объектов собирают мусор чаще, зато каждая вкладка занимает заметно меньше (в замерах около 20 МБ на 7 вкладок)
 app.commandLine.appendSwitch('js-flags', '--max-semi-space-size=2');
+
+// Родительский контроль: с ним нельзя запускаться с параметрами, которые дают обойти его (управление браузером снаружи, отладчик, режим без окна)
+parental.init(app.getPath('appData'), 'Problet');
+if (parental.isOn()) {
+	const bad = parental.badArgs(process.argv.slice(1).concat(process.execArgv));
+	for (const sw of parental.BLOCKED_SWITCHES) if (app.commandLine.hasSwitch(sw) && !bad.some((a) => a.replace(/^-+/, '').split('=')[0].toLowerCase() === sw)) bad.push('--' + sw);
+	let inspector = false;
+	try {
+		inspector = !!require('inspector').url();
+		if (inspector) require('inspector').close();
+	} catch (e) { /* отладчика нет */ }
+	if (inspector && !bad.length) bad.push('--inspect');
+	if (bad.length) {
+		for (const sw of parental.BLOCKED_SWITCHES) app.commandLine.removeSwitch(sw);
+		const text = 'Родительский контроль запрещает запуск с параметрами: ' + bad.join(' ');
+		console.error(text);
+		if (headless.enabled) process.exit(1);
+		app.whenReady().then(() => {
+			dialog.showErrorBox('Problet', tr(text));
+			app.exit(1);
+		});
+	}
+}
 
 // Режим без окна: одноразовый профиль, если папка профиля не задана явно
 if (headless.enabled && !process.argv.some((a) => a.startsWith('--user-data-dir='))) {
@@ -114,7 +138,7 @@ const SIDE_WIDTH = 220; // ширина вертикальной панели в
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline', 'game']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline', 'game', 'parental']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -419,6 +443,7 @@ const ICONS = require('./pages/icons');
 const fm = require('./filemanager');
 const INTERNAL_ICONS = {};
 for (const name of ['settings', 'bookmarks', 'history', 'version', 'passwords', 'downloads', 'offline', 'svgedit', 'spaces', 'game', 'blocklist']) INTERNAL_ICONS[name] = ICONS.dataUrl(name);
+INTERNAL_ICONS.parental = ICONS.dataUrl('lock');
 INTERNAL_ICONS.files = ICONS.dataUrl('folder');
 let browserIcon = '';
 
@@ -3145,6 +3170,76 @@ const DEBUG_ASK = {
 	'clear-site-data': 'Удалить все данные сайтов (куки, локальные хранилища, базы, кеш сервис-воркеров)? Придётся входить на сайты заново.',
 	'clear-cookies': 'Удалить все куки? Придётся входить на сайты заново.',
 };
+// ---------- Родительский контроль ----------
+function parentalGate(url) {
+	const why = parental.check(url);
+	if (!why) return null;
+	parental.recordAttempt(url, why);
+	return 'problet://parental/?u=' + encodeURIComponent(url) + '&r=' + why;
+}
+// Правила поменялись или время вышло: открытые вкладки, которые теперь нельзя смотреть, перезагружаем — их перехватит проверка
+function parentalApply() {
+	for (const t of tabs) {
+		const wc = t.view.webContents;
+		if (t.pendingUrl || !wc || wc.isDestroyed()) continue;
+		const url = wc.getURL();
+		if (!parental.check(url)) continue;
+		if (t.view.virtual) wc.reload();
+		else wc.loadURL(url).catch(() => {});
+	}
+}
+// Учёт времени: считается, пока окно в фокусе или на какой-нибудь вкладке играет звук
+const PARENTAL_TICK = 5000;
+setInterval(() => {
+	if (!parental.isOn() || !win || win.isDestroyed()) return;
+	const audible = tabs.find((t) => !t.view.virtual && !t.view.webContents.isDestroyed() && t.view.webContents.isCurrentlyAudible());
+	const focused = win.isFocused() && !win.isMinimized();
+	if (!focused && !audible) return;
+	const tab = focused ? activeTab() : audible;
+	const key = tab && !tab.view.webContents.isDestroyed() ? parental.checkable(tab.view.webContents.getURL()) : '';
+	if (parental.tick(PARENTAL_TICK, key)) parentalApply();
+}, PARENTAL_TICK).unref();
+
+handle('parental:status', () => parental.status());
+handle('parental:set-on', (on, pw) => {
+	parental.setOn(!!on, pw);
+	parentalApply();
+	return parental.status();
+});
+handle('parental:unlock', (pw) => {
+	parental.unlock(pw);
+	return parental.status();
+});
+handle('parental:get', () => {
+	if (!parental.isUnlocked()) throw new Error('Нужен пароль родительского контроля');
+	return parental.publicConfig();
+});
+handle('parental:set', (patch) => {
+	parental.setConfig(patch);
+	parentalApply();
+	return parental.publicConfig();
+});
+handle('parental:stats', () => parental.stats());
+// Страница блокировки: что за адрес и почему
+ipcMain.handle('parental:blocked', (e) => {
+	guard(e);
+	const page = new URL(senderPageUrl(e));
+	const url = page.host === 'parental' ? page.searchParams.get('u') || '' : page.href;
+	const why = parental.check(url) || (page.host === 'parental' ? page.searchParams.get('r') : null);
+	return { url, reason: why === 'time' ? 'time' : why ? 'site' : null, ...parental.info() };
+});
+ipcMain.handle('parental:enter', (e, url, pw) => {
+	guard(e);
+	const tab = senderTab(e);
+	const target = String(url);
+	const why = parental.check(target);
+	parental.enter(target, pw, why);
+	if (tab && !tab.view.webContents.isDestroyed()) {
+		if (tab.view.virtual && tab.view.webContents.getURL() === target) tab.view.webContents.reload();
+		else tab.view.webContents.loadURL(target).catch(() => {});
+	}
+});
+
 function restartApp() {
 	store.flush();
 	if (process.env.APPIMAGE) updater.restartAppImage();
@@ -4290,6 +4385,15 @@ const fileResponse = (filePath, request, shownUrl) => (fs.existsSync(filePath) ?
 // Файл внутренней страницы host с путём pathname
 function pageResponse(host, pathname, request, shownUrl) {
 	const root = path.join(__dirname, 'pages');
+	// Родительский контроль: вместо запрещённой страницы Problet (и вместо «Не найдено») — страница блокировки по тому же адресу
+	if (parental.isOn() && host !== 'parental' && (pathname === '/' || pathname === '' || /\.html$/.test(pathname) || /^\/debug\/?$/.test(pathname))) {
+		const shown = shownUrl || 'problet://' + host + (pathname || '/');
+		const why = parental.check(shown);
+		if (why) {
+			parental.recordAttempt(shown, why);
+			return fileResponse(path.join(root, 'parental.html'), request, shownUrl);
+		}
+	}
 	if (!INTERNAL_PAGES.has(host)) return notFoundResponse(request, shownUrl);
 	const name = pathname === '/' || pathname === '' || (host === 'version' && /^\/debug\/?$/.test(pathname)) ? (pathname === '/' || pathname === '' ? host : 'debug') + '.html' : path.posix.basename(pathname);
 	if (!/^[\w-]+\.(html|js|css)$/.test(name)) return notFoundResponse(request, shownUrl);
@@ -4426,6 +4530,7 @@ updater.hooks.beforeRestart = () => {
 	saveWindow(!!win && !win.isDestroyed() && (!win.isFocused() || win.isMinimized()));
 	saveSession();
 	store.flush();
+	parental.flush();
 };
 // Тихий запуск: пока человек сам не переключится в окно, не переводим фокус внутрь него — на Linux и Windows это поднимает окно поверх остальных
 let holdFocus = false;
@@ -4589,6 +4694,7 @@ app.whenReady().then(() => {
 	nativeTheme.themeSource = settings().darkTheme ? 'dark' : 'light';
 	registerInternalPages();
 	cache.start(session.defaultSession, store);
+	adblock.setGate(parentalGate);
 	adblock.start(session.defaultSession, store);
 	startIdentity(session.defaultSession);
 	setupDownloads(session.defaultSession);
@@ -4662,5 +4768,8 @@ function startHeadless() {
 	});
 }
 
-app.on('before-quit', () => store.flush());
+app.on('before-quit', () => {
+	store.flush();
+	parental.flush();
+});
 app.on('window-all-closed', () => app.quit());

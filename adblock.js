@@ -200,6 +200,10 @@ function localRedirect(details) {
 	return null;
 }
 
+// Проверка главного документа до всего остального (родительский контроль): вернёт адрес, куда отправить вместо него
+let gate = null;
+const setGate = (fn) => { gate = fn; };
+
 let observer = null;
 const observe = (fn) => { observer = fn; }; // сообщает о каждом запросе и о том, заблокирован ли он (режим без окна)
 
@@ -207,6 +211,13 @@ function start(session, store) {
 	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
 		const s = store.getSettings();
+		if (details.resourceType === 'mainFrame' && gate) {
+			const to = gate(details.url);
+			if (to) {
+				callback({ redirectURL: to });
+				return;
+			}
+		}
 		if (details.resourceType === 'mainFrame') {
 			const to = localRedirect(details);
 			if (to) {
@@ -269,4 +280,4 @@ const COOKIE_CSS = [
 
 const blockedCount = () => blocked;
 
-module.exports = { localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, COOKIE_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { setGate, localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, COOKIE_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };

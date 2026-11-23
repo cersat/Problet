@@ -1,0 +1,9 @@
+/* Страница блокировки родительским контролем */
+.parental-page main { max-width: 520px; margin: 12vh auto 0; padding: 0 20px; text-align: center; }
+.parental-page .lock { width: 56px; height: 56px; fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.parental-page h1 { font-size: 26px; margin: 10px 0 14px; color: var(--text-strong); }
+.parental-page p { line-height: 1.55; }
+.parental-page .url { color: var(--muted); word-break: break-all; font: 13px ui-monospace, monospace; }
+.parental-page form { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+.parental-page input { flex: 0 1 280px; }
+.parental-page .err { min-height: 20px; color: var(--danger-border, #d94b4b); }
