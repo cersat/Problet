@@ -443,6 +443,24 @@ if (location.protocol !== 'problet:' && window === window.top) {
 				def(nav, 'userAgent', () => id.userAgent);
 				def(nav, 'appVersion', () => id.userAgent.replace('Mozilla/', ''));
 			}
+			// «Скрывать метаданные системы»: ни системы, ни производителя, ни железа
+			if (id.hide) {
+				def(nav, 'platform', () => '');
+				def(nav, 'vendor', () => '');
+				def(nav, 'oscpu', () => undefined);
+				def(nav, 'hardwareConcurrency', () => 4); // число нужно сайтам для пулов воркеров, поэтому одинаковое у всех, а не настоящее
+				def(nav, 'deviceMemory', () => undefined);
+				def(nav, 'cpuClass', () => undefined);
+				// Видеокарта через WebGL
+				for (const G of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+					if (!G) continue;
+					const orig = G.prototype.getParameter;
+					G.prototype.getParameter = function (p) {
+						if (p === 0x9245 || p === 0x9246) return ''; // UNMASKED_VENDOR_WEBGL, UNMASKED_RENDERER_WEBGL
+						return orig.call(this, p);
+					};
+				}
+			}
 			if (id.kind === 'firefox') {
 				try {
 					delete nav.userAgentData;
@@ -456,10 +474,12 @@ if (location.protocol !== 'problet:' && window === window.top) {
 				brands,
 				mobile: false,
 				platform: id.platform,
+				// С «Скрывать метаданные системы» архитектура, модель и версия системы пустые
 				getHighEntropyValues: (hints) => Promise.resolve({
 					brands,
 					mobile: false,
 					platform: id.platform,
+					...(id.hide ? { architecture: '', bitness: '', model: '', platformVersion: '', wow64: false, formFactors: [] } : {}),
 					fullVersionList: id.fullBrands.map((b) => ({ brand: b.brand, version: b.version })),
 					uaFullVersion: id.full,
 				}),

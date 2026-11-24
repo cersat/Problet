@@ -2570,8 +2570,9 @@ function profileFor(url) {
 }
 
 function refreshIdentity() {
-	profile = identity.build(settings().maskAs, app.getVersion());
-	plainProfile = identity.build('problet', app.getVersion(), true);
+	const hide = !!settings().hideSystem;
+	profile = identity.build(settings().maskAs, app.getVersion(), false, hide);
+	plainProfile = identity.build('problet', app.getVersion(), true, hide);
 	session.defaultSession.setUserAgent(profile.userAgent);
 	if (incSession) incSession.setUserAgent(profile.userAgent);
 	for (const t of tabs) if (t.view.webContents && !t.view.webContents.isDestroyed()) t.view.webContents.setUserAgent(profile.userAgent);
@@ -2611,7 +2612,7 @@ ipcMain.on('adblock:youtube', (e) => {
 });
 
 ipcMain.on('identity:get', (e) => {
-	e.returnValue = identity.pagePayload(profileFor((e.senderFrame && e.senderFrame.url) || e.sender.getURL()) || identity.build('problet', app.getVersion()), settings().dnt);
+	e.returnValue = identity.pagePayload(profileFor((e.senderFrame && e.senderFrame.url) || e.sender.getURL()) || identity.build('problet', app.getVersion(), false, !!settings().hideSystem), settings().dnt);
 });
 
 // ---------- Тема и применение настроек ----------

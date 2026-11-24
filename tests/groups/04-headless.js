@@ -55,6 +55,31 @@ module.exports = {
 		const j5 = json(r5.out);
 		t.check('недоступный адрес: отчёт есть, загрузка не удалась с причиной, браузер не завис', r5.ms < 40000 && j5 && j5.runs[0].loaded === false && !!j5.runs[0].error, { ms: r5.ms, out: r5.out.slice(0, 200) });
 
+		// Сайт-определитель браузера (подставляем его имя через --host-resolver-rules): видит только Problet
+		const port = new URL(base).port;
+		const r8 = await run(['--headless', '--host-resolver-rules=MAP whatismybrowser.com 127.0.0.1:' + port, '--fetch=http://whatismybrowser.com/headers', '--wait=500', '--eval=JSON.stringify({ h: JSON.parse(document.getElementById("h").textContent), ua: navigator.userAgent, av: navigator.appVersion, platform: navigator.platform, vendor: navigator.vendor, brands: navigator.userAgentData.brands, uadPlatform: navigator.userAgentData.platform })'], t.env);
+		let id8 = null;
+		try { id8 = JSON.parse(json(r8.out).runs[0].eval); } catch (e) { /* разберём ниже */ }
+		const ver = require(path.join(root, 'package.json')).version;
+		t.check('определитель: заголовок User-Agent — только «Problet/версия»', id8 && id8.h['user-agent'] === 'Problet/' + ver, id8 && id8.h['user-agent']);
+		// Client Hints Chromium шлёт только по https, поэтому здесь их может не быть вовсе; подмену самих заголовков проверяет группа 02
+		t.check('определитель: Sec-CH-UA — только Problet (если есть), системы и прочего нет', id8 && (id8.h['sec-ch-ua'] === undefined || id8.h['sec-ch-ua'] === '"Problet";v="' + ver.split('.')[0] + '"') && !Object.keys(id8.h).some((k) => /^sec-ch-ua-(platform|mobile|arch|model|bitness)/.test(k)), id8 && Object.fromEntries(Object.entries(id8.h).filter(([k]) => k.startsWith('sec-ch'))));
+		t.check('определитель: navigator — только Problet в строке и брендах; система, как и везде, на месте', id8 && id8.ua === 'Problet/' + ver && id8.brands.length === 1 && id8.brands[0].brand === 'Problet' && id8.platform !== '' && id8.uadPlatform !== '', id8 && { ua: id8.ua, platform: id8.platform, vendor: id8.vendor, brands: id8.brands });
+		// «Скрывать метаданные системы» — на всех сайтах
+		const hideDir = path.join(t.dir, 'hide');
+		fs.mkdirSync(hideDir, { recursive: true });
+		fs.writeFileSync(path.join(hideDir, 'data.json'), JSON.stringify({ settings: { hideSystem: true, language: 'ru' } }));
+		const r10 = await run(['--headless', '--user-data-dir=' + hideDir, '--fetch=' + base + '/headers', '--wait=500', '--eval=JSON.stringify({ h: JSON.parse(document.getElementById("h").textContent), ua: navigator.userAgent, platform: navigator.platform, vendor: navigator.vendor, cores: navigator.hardwareConcurrency, mem: String(navigator.deviceMemory), uad: navigator.userAgentData.platform, gl: (() => { const c = document.createElement("canvas").getContext("webgl"); return c ? c.getParameter(0x9246) : "нет webgl"; })() })'], t.env);
+		let h10 = null;
+		try { h10 = JSON.parse(json(r10.out).runs[0].eval); } catch (e) { /* разберём ниже */ }
+		const SYS = /Linux|Windows|Macintosh|X11|x86_64|Win64/;
+		t.check('скрыть систему: в заголовке User-Agent нет системы', h10 && !SYS.test(h10.h['user-agent']) && /Chrome\/\d+/.test(h10.h['user-agent']), h10 && h10.h['user-agent']);
+		t.check('скрыть систему: navigator без системы, производителя, памяти; ядер одинаково у всех', h10 && !SYS.test(h10.ua) && h10.platform === '' && h10.vendor === '' && h10.uad === '' && h10.cores === 4 && h10.mem === 'undefined', h10 && { ua: h10.ua, platform: h10.platform, vendor: h10.vendor, cores: h10.cores, mem: h10.mem, uad: h10.uad });
+		t.check('скрыть систему: WebGL не называет видеокарту', h10 && (h10.gl === '' || h10.gl === 'нет webgl'), h10 && h10.gl);
+		const r9 = await run(['--headless', '--fetch=' + base + '/headers', '--wait=300', '--eval=navigator.userAgent'], t.env);
+		const ua9 = (json(r9.out) || { runs: [{}] }).runs[0].eval || '';
+		t.check('обычный сайт: как раньше — Chrome и Problet в User-Agent', /Chrome\/\d+/.test(ua9) && /Problet\//.test(ua9), ua9);
+
 		// --detach: команда сразу возвращается и ничего не печатает
 		const r6 = await run(['--detach', '--headless', '--fetch=' + base + '/a', '--wait=100'], t.env, 15000);
 		t.check('--detach: команда сразу свободна и молчит', r6.code === 0 && r6.ms < 5000 && r6.out.trim() === '', { code: r6.code, ms: r6.ms, out: r6.out.slice(0, 200) });

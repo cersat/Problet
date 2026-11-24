@@ -103,8 +103,19 @@ module.exports = {
 		const chrome = id1.build('chrome', '9.3.0');
 		const plain = id1.build('problet', '9.3.0', true);
 		t.check('User-Agent как у Chrome', /Chrome\/\d+/.test(chrome.userAgent) && /Safari\//.test(chrome.userAgent), chrome.userAgent);
-		t.check('упрощённый User-Agent Problet без Safari/ (иначе сайты видят Safari на Windows)', !/Safari\//.test(plain.userAgent) && /Problet\/9.3.0/.test(plain.userAgent), plain.userAgent);
-		const ff = id1.build('firefox', '9.3.0');
-		t.check('User-Agent как у Firefox', /Firefox\/\d+/.test(ff.userAgent) && !ff.brands, ff.userAgent);
+		t.check('для сайтов-определителей User-Agent — только «Problet/версия», бренд только Problet', plain.userAgent === 'Problet/9.3.0' && plain.brands.length === 1 && plain.brands[0].brand === 'Problet', plain);
+		t.check('маскировка не прячет систему: она остаётся в platform', plain.platform !== '' && chrome.platform !== '', [plain.platform, chrome.platform]);
+		let h = id1.applyHeaders({ 'User-Agent': 'x', 'sec-ch-ua': 'x', 'sec-ch-ua-platform': '"Linux"', 'sec-ch-ua-mobile': '?0' }, plain, false);
+		t.check('без «Скрывать метаданные» Sec-CH-UA-Platform не трогается', h['sec-ch-ua'] === '"Problet";v="9"' && h['sec-ch-ua-platform'] === '"Linux"', h);
+		// «Скрывать метаданные системы»
+		for (const kind of ['chrome', 'problet', 'firefox']) {
+			const p = id1.build(kind, '9.3.0', false, true);
+			t.check('скрыть систему (' + kind + '): в User-Agent нет системы, platform пустой', !/Linux|Windows|Mac|X11|x86|Win64/.test(p.userAgent) && p.platform === '' && p.hide, p.userAgent);
+		}
+		const hp = id1.build('chrome', '9.3.0', false, true);
+		h = id1.applyHeaders({ 'User-Agent': 'x', 'sec-ch-ua': 'x', 'sec-ch-ua-platform': '"Linux"', 'sec-ch-ua-platform-version': '"6"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-arch': '"x86"', 'sec-ch-ua-bitness': '"64"', 'sec-ch-ua-model': '""', 'sec-ch-ua-full-version-list': 'x' }, hp, false);
+		t.check('скрыть систему: Sec-CH-UA-Platform, -Arch, -Bitness, -Model, -Mobile убраны, бренды остались', !Object.keys(h).some((k) => /platform|arch|bitness|model|mobile/.test(k)) && /Chromium/.test(h['sec-ch-ua']) && /Chromium/.test(h['sec-ch-ua-full-version-list']), h);
+		const pp = id1.pagePayload(hp, false);
+		t.check('скрыть систему: странице передаётся признак скрытия', pp.hide === true && pp.platform === '' && pp.userAgent === hp.userAgent, pp);
 	},
 };

@@ -14,6 +14,7 @@ const ROUTES = {
 	'/dark': () => page('Тёмная', '<style>html,body{background:#111;color:#eee}</style><p>тёмный сайт</p>'),
 	'/light': () => page('Светлая', '<style>html,body{background:#fff;color:#111}</style><p>светлый сайт</p>'),
 	'/sound': () => page('Звук', '<p>тишина</p>'),
+	'/headers': () => null, // ответ собирается из самого запроса (см. ниже)
 	'/ok.js': () => ['text/javascript', 'window.okLoaded = 1;'],
 	'/ads/banner.js': () => ['text/javascript', 'window.adLoaded = 1;'],
 	'/file.bin': (res) => {
@@ -31,6 +32,10 @@ function start() {
 		if (!r) {
 			res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
 			return res.end(page('Нет', 'нет такой страницы'));
+		}
+		if (path === '/headers') {
+			res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+			return res.end(page('Заголовки', '<pre id="h">' + JSON.stringify(req.headers).replace(/</g, '&lt;') + '</pre>'));
 		}
 		const out = r(res);
 		if (out === undefined) return;

@@ -1,4 +1,4 @@
-# Сайты, которые определяют браузер по User-Agent. При маскировке под Problet на них из UA и Sec-CH-UA убирается Chrome/Chromium, чтобы они видели именно Problet. Один домен на строку (поддомены тоже)
+# Сайты, которые определяют браузер по User-Agent. При маскировке под Problet они видят только Problet: User-Agent «Problet/версия», в Sec-CH-UA и navigator — ни Chrome, ни движка, ни системы. Один домен на строку (поддомены тоже)
 whatismybrowser.com
 whatsmybrowser.org
 useragentstring.com

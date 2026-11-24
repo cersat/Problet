@@ -2,6 +2,8 @@
 // {} в строке — любая подстановка (имя, число, адрес); в переводе можно {1}, {2}, если порядок другой. «menu|» — вариант для меню.
 (function (root) {
 	const PAIRS = [
+		['Скрывать метаданные системы', 'Hide system metadata'],
+		['На всех сайтах: в User-Agent и Sec-CH-UA нет системы, архитектуры и модели, navigator.platform и navigator.vendor пустые, число ядер одинаковое у всех, память и видеокарта не сообщаются. На открытых страницах вступит после перезагрузки', 'On all sites: no OS, architecture or model in User-Agent and Sec-CH-UA, navigator.platform and navigator.vendor are empty, the core count is the same for everyone, memory and graphics card are not reported. Open pages pick it up after a reload'],
 		['закреплена', 'pinned'],
 		['Эта учётная запись — с правами администратора', 'This account has administrator rights'],
 		['Из неё защиту правами администратора можно снять, так что от ребёнка, который сидит в этой учётной записи, она не защитит. Включай её в отдельной учётной записи ребёнка без прав администратора.', 'From this account the administrator protection can be removed, so it will not stop a child who uses this account. Turn it on in the child\'s own account without administrator rights.'],
