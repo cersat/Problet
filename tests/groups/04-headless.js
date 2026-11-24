@@ -72,10 +72,12 @@ module.exports = {
 		const r10 = await run(['--headless', '--user-data-dir=' + hideDir, '--fetch=' + base + '/headers', '--wait=500', '--eval=JSON.stringify({ h: JSON.parse(document.getElementById("h").textContent), ua: navigator.userAgent, platform: navigator.platform, vendor: navigator.vendor, cores: navigator.hardwareConcurrency, mem: String(navigator.deviceMemory), uad: navigator.userAgentData.platform, gl: (() => { const c = document.createElement("canvas").getContext("webgl"); return c ? c.getParameter(0x9246) : "нет webgl"; })() })'], t.env);
 		let h10 = null;
 		try { h10 = JSON.parse(json(r10.out).runs[0].eval); } catch (e) { /* разберём ниже */ }
-		const SYS = /Linux|Windows|Macintosh|X11|x86_64|Win64/;
-		t.check('скрыть систему: в заголовке User-Agent нет системы', h10 && !SYS.test(h10.h['user-agent']) && /Chrome\/\d+/.test(h10.h['user-agent']), h10 && h10.h['user-agent']);
-		t.check('скрыть систему: navigator без системы, производителя, памяти; ядер одинаково у всех', h10 && !SYS.test(h10.ua) && h10.platform === '' && h10.vendor === '' && h10.uad === '' && h10.cores === 4 && h10.mem === 'undefined', h10 && { ua: h10.ua, platform: h10.platform, vendor: h10.vendor, cores: h10.cores, mem: h10.mem, uad: h10.uad });
-		t.check('скрыть систему: WebGL не называет видеокарту', h10 && (h10.gl === '' || h10.gl === 'нет webgl'), h10 && h10.gl);
+		// Тесты идут на Linux/macOS/Windows; вместо настоящей системы у всех одна и та же: Windows 10 x64
+		const COMMON = 'Windows NT 10.0; Win64; x64';
+		const REAL = process.platform === 'win32' ? null : /Linux|X11|Macintosh/;
+		t.check('скрыть систему: в заголовке User-Agent одинаковая у всех система', h10 && h10.h['user-agent'].includes(COMMON) && !(REAL && REAL.test(h10.h['user-agent'])) && /Chrome\/\d+/.test(h10.h['user-agent']), h10 && h10.h['user-agent']);
+		t.check('скрыть систему: navigator — одинаковые у всех система, производитель и ядра, памяти нет', h10 && h10.ua.includes(COMMON) && h10.platform === 'Win32' && h10.vendor === 'Google Inc.' && h10.uad === 'Windows' && h10.cores === 4 && h10.mem === 'undefined', h10 && { ua: h10.ua, platform: h10.platform, vendor: h10.vendor, cores: h10.cores, mem: h10.mem, uad: h10.uad });
+		t.check('скрыть систему: WebGL не называет настоящую видеокарту', h10 && (h10.gl === 'Google Inc.' || h10.gl === 'нет webgl'), h10 && h10.gl);
 		const r9 = await run(['--headless', '--fetch=' + base + '/headers', '--wait=300', '--eval=navigator.userAgent'], t.env);
 		const ua9 = (json(r9.out) || { runs: [{}] }).runs[0].eval || '';
 		t.check('обычный сайт: как раньше — Chrome и Problet в User-Agent', /Chrome\/\d+/.test(ua9) && /Problet\//.test(ua9), ua9);

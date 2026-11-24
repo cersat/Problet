@@ -1,7 +1,7 @@
 {
   "name": "problet",
   "productName": "Problet",
-  "version": "9.3.4",
+  "version": "9.3.5",
   "description": "Problet — минимальный браузер на Electron",
   "main": "boot.js",
   "scripts": {

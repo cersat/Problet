@@ -110,12 +110,12 @@ module.exports = {
 		// «Скрывать метаданные системы»
 		for (const kind of ['chrome', 'problet', 'firefox']) {
 			const p = id1.build(kind, '9.3.0', false, true);
-			t.check('скрыть систему (' + kind + '): в User-Agent нет системы, platform пустой', !/Linux|Windows|Mac|X11|x86|Win64/.test(p.userAgent) && p.platform === '' && p.hide, p.userAgent);
+			t.check('скрыть систему (' + kind + '): вместо настоящей системы у всех Windows 10 x64', !/Linux|X11|Mac/.test(p.userAgent) && p.userAgent.includes('Windows NT 10.0; Win64; x64') && p.platform === 'Windows' && p.hide, p.userAgent);
 		}
 		const hp = id1.build('chrome', '9.3.0', false, true);
 		h = id1.applyHeaders({ 'User-Agent': 'x', 'sec-ch-ua': 'x', 'sec-ch-ua-platform': '"Linux"', 'sec-ch-ua-platform-version': '"6"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-arch': '"x86"', 'sec-ch-ua-bitness': '"64"', 'sec-ch-ua-model': '""', 'sec-ch-ua-full-version-list': 'x' }, hp, false);
-		t.check('скрыть систему: Sec-CH-UA-Platform, -Arch, -Bitness, -Model, -Mobile убраны, бренды остались', !Object.keys(h).some((k) => /platform|arch|bitness|model|mobile/.test(k)) && /Chromium/.test(h['sec-ch-ua']) && /Chromium/.test(h['sec-ch-ua-full-version-list']), h);
+		t.check('скрыть систему: Sec-CH-UA-* — одинаковые у всех значения, бренды на месте', h['sec-ch-ua-platform'] === '"Windows"' && h['sec-ch-ua-platform-version'] === '"10.0.0"' && h['sec-ch-ua-arch'] === '"x86"' && h['sec-ch-ua-bitness'] === '"64"' && h['sec-ch-ua-mobile'] === '?0' && /Chromium/.test(h['sec-ch-ua']) && /Chromium/.test(h['sec-ch-ua-full-version-list']), h);
 		const pp = id1.pagePayload(hp, false);
-		t.check('скрыть систему: странице передаётся признак скрытия', pp.hide === true && pp.platform === '' && pp.userAgent === hp.userAgent, pp);
+		t.check('скрыть систему: странице передаётся признак скрытия', pp.hide === true && pp.platform === 'Windows' && pp.userAgent === hp.userAgent, pp);
 	},
 };

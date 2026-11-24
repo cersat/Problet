@@ -22,18 +22,21 @@ const fmt = (list) => list.map((b) => '"' + b.brand + '";v="' + b.version + '"')
 
 // appVersion передаём снаружи, чтобы не тянуть electron в тесты
 // plain: для сайтов-определителей браузера — в строке только Problet (без Chrome и движка).
-// hide: «Скрывать метаданные системы» — ни системы, ни железа ни в строке, ни в заголовках, ни в navigator
+// hide: «Скрывать метаданные системы» — вместо настоящей системы и железа у всех одно и то же, самое частое: Windows 10, x64.
+// Совсем пустые значения не годятся: без системы в строке Google и другие сайты отдают упрощённую «старую» версию
+const COMMON = { ua: 'Windows NT 10.0; Win64; x64', name: 'Windows' };
 function build(kind, appVersion, plain, hide) {
 	const appMajor = String(appVersion || '0').split('.')[0];
-	const sys = hide ? '' : '(' + platform.ua + ') ';
-	const platformName = hide ? '' : platform.name;
+	const sysUa = hide ? COMMON.ua : platform.ua;
+	const sys = '(' + sysUa + ') ';
+	const platformName = hide ? COMMON.name : platform.name;
 	const chromeUa = 'Mozilla/5.0 ' + sys + 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/' + chromeMajor + '.0.0.0 Safari/537.36';
 	if (kind === 'firefox') {
 		const ff = FIREFOX;
-		const os = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10.15' : platform.ua;
+		const os = hide ? COMMON.ua : process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10.15' : platform.ua;
 		return {
 			kind,
-			userAgent: 'Mozilla/5.0 (' + (hide ? '' : os + '; ') + 'rv:' + ff + ') Gecko/20100101 Firefox/' + ff,
+			userAgent: 'Mozilla/5.0 (' + os + '; rv:' + ff + ') Gecko/20100101 Firefox/' + ff,
 			brands: null, // у Firefox нет Client Hints
 			fullBrands: null,
 			platform: platformName,
@@ -75,6 +78,9 @@ function build(kind, appVersion, plain, hide) {
 	};
 }
 
+// Client Hints при «Скрывать метаданные системы»: самые частые значения, а не настоящие
+const HIDDEN_CH = { 'sec-ch-ua-platform': '"Windows"', 'sec-ch-ua-platform-version': '"10.0.0"', 'sec-ch-ua-arch': '"x86"', 'sec-ch-ua-bitness': '"64"', 'sec-ch-ua-model': '""', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-wow64': '?0' };
+
 // Подменяет заголовки запроса (headers изменяется на месте)
 function applyHeaders(headers, profile, dnt) {
 	for (const key of Object.keys(headers)) {
@@ -83,7 +89,8 @@ function applyHeaders(headers, profile, dnt) {
 			headers[key] = profile.userAgent;
 		} else if (l.startsWith('sec-ch-ua')) {
 			if (!profile.brands) delete headers[key];
-			else if (profile.hide && !['sec-ch-ua', 'sec-ch-ua-full-version-list', 'sec-ch-ua-full-version'].includes(l)) delete headers[key]; // система, архитектура, модель, разрядность, «мобильный»
+			else if (profile.hide && HIDDEN_CH[l] !== undefined) headers[key] = HIDDEN_CH[l]; // система и железо — одинаковые у всех
+			else if (profile.hide && !['sec-ch-ua', 'sec-ch-ua-full-version-list', 'sec-ch-ua-full-version'].includes(l)) delete headers[key];
 			else if (l === 'sec-ch-ua') headers[key] = fmt(profile.brands);
 			else if (l === 'sec-ch-ua-full-version-list') headers[key] = fmt(profile.fullBrands);
 			else if (l === 'sec-ch-ua-full-version') headers[key] = '"' + profile.full + '"';

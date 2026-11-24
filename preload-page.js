@@ -443,11 +443,11 @@ if (location.protocol !== 'problet:' && window === window.top) {
 				def(nav, 'userAgent', () => id.userAgent);
 				def(nav, 'appVersion', () => id.userAgent.replace('Mozilla/', ''));
 			}
-			// «Скрывать метаданные системы»: ни системы, ни производителя, ни железа
+			// «Скрывать метаданные системы»: вместо настоящих системы и железа — одинаковые у всех значения (Windows 10, x64)
 			if (id.hide) {
-				def(nav, 'platform', () => '');
-				def(nav, 'vendor', () => '');
-				def(nav, 'oscpu', () => undefined);
+				def(nav, 'platform', () => 'Win32');
+				def(nav, 'vendor', () => (id.kind === 'firefox' ? '' : 'Google Inc.'));
+				def(nav, 'oscpu', () => (id.kind === 'firefox' ? 'Windows NT 10.0; Win64; x64' : undefined));
 				def(nav, 'hardwareConcurrency', () => 4); // число нужно сайтам для пулов воркеров, поэтому одинаковое у всех, а не настоящее
 				def(nav, 'deviceMemory', () => undefined);
 				def(nav, 'cpuClass', () => undefined);
@@ -456,7 +456,7 @@ if (location.protocol !== 'problet:' && window === window.top) {
 					if (!G) continue;
 					const orig = G.prototype.getParameter;
 					G.prototype.getParameter = function (p) {
-						if (p === 0x9245 || p === 0x9246) return ''; // UNMASKED_VENDOR_WEBGL, UNMASKED_RENDERER_WEBGL
+						if (p === 0x9245 || p === 0x9246) return 'Google Inc.'; // UNMASKED_VENDOR_WEBGL, UNMASKED_RENDERER_WEBGL: настоящую видеокарту не называем
 						return orig.call(this, p);
 					};
 				}
@@ -474,12 +474,12 @@ if (location.protocol !== 'problet:' && window === window.top) {
 				brands,
 				mobile: false,
 				platform: id.platform,
-				// С «Скрывать метаданные системы» архитектура, модель и версия системы пустые
+				// С «Скрывать метаданные системы» архитектура и версия системы — одинаковые у всех
 				getHighEntropyValues: (hints) => Promise.resolve({
 					brands,
 					mobile: false,
 					platform: id.platform,
-					...(id.hide ? { architecture: '', bitness: '', model: '', platformVersion: '', wow64: false, formFactors: [] } : {}),
+					...(id.hide ? { architecture: 'x86', bitness: '64', model: '', platformVersion: '10.0.0', wow64: false, formFactors: ['Desktop'] } : {}),
 					fullVersionList: id.fullBrands.map((b) => ({ brand: b.brand, version: b.version })),
 					uaFullVersion: id.full,
 				}),
