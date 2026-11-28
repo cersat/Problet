@@ -10,6 +10,7 @@ const { spawn } = require('child_process');
 const { app, net, shell } = require('electron');
 
 const REPO = 'cersat/Problet';
+const SITE_API = 'https://problet.dar-site.uk/api/changelog';
 const API = process.env.PROBLET_UPDATE_URL || 'https://api.github.com/repos/' + REPO + '/releases/tags/latest';
 
 const ARCH = { x64: ['x64', 'x86_64'], arm64: ['arm64', 'aarch64'] }[process.arch] || [process.arch];
@@ -157,6 +158,19 @@ async function headFromSite(tag = 'main') {
 	return m ? decodeHtml(m[1]).split('\n')[0].trim().slice(0, 300) : null;
 }
 
+// Запись списка изменений для версии: сервер сайта хранит их все (без коммитов [skip ci]) и отдаёт нужную
+async function changelogFor(version) {
+	if (!version || process.env.PROBLET_UPDATE_URL) return null;
+	try {
+		const res = await fresh(SITE_API + '?version=' + encodeURIComponent(version));
+		if (!res.ok) return null;
+		const j = await res.json();
+		return typeof j.title === 'string' && j.title ? j.title : null;
+	} catch (e) {
+		return null;
+	}
+}
+
 // Последний коммит ветки main: его название служит списком изменений, а версия в package.json показывает, что скоро выйдет
 async function headInfo(tag = 'main') {
 	if (process.env.PROBLET_UPDATE_URL) return null;
@@ -245,10 +259,11 @@ async function check(force) {
 		asset = pickAsset(target.assets || []);
 		// Название последнего коммита и версию из него показываем только в потоке beta: в stable это чужие, ещё не вышедшие изменения
 		const head = channel === 'beta' ? await headInfo() : null;
-		// В stable список изменений — название коммита выпущенной сборки: ещё не вышедших изменений там нет
-		const shown = head || (channel === 'stable' && target.tag_name ? await headInfo(target.tag_name) : null);
+		// Список изменений — запись сервера для той версии, до которой обновляемся; нет сервера или записи — название коммита (в beta — последнего, в stable — выпущенной сборки)
+		const ver = channel === 'beta' ? (head && head.version) || newest : (asset && asset.version) || state.stableVersion;
+		const shown = (await changelogFor(ver)) || (head && head.title) || (channel === 'stable' && target.tag_name ? ((await headInfo(target.tag_name)) || {}).title : null);
 		if (shown) {
-			set({ changelog: shown.title });
+			set({ changelog: shown });
 			saveCache();
 		}
 		const ready = asset && (force || isNewer(asset.version, app.getVersion()));
