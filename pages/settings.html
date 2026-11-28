@@ -65,6 +65,10 @@
 					<label class="switch"><input type="checkbox" data-setting="syncSpaces"><span></span></label>
 				</div>
 				<div class="setting">
+					<div class="what">Синхронизировать вкладки<small>Список открытых вкладок этого устройства (кроме инкогнито и локальных пространств) уходит в аккаунт, а вкладки других устройств показываются ниже и на сайте аккаунта. Сами вкладки на других устройствах не открываются</small></div>
+					<label class="switch"><input type="checkbox" data-setting="syncTabs"><span></span></label>
+				</div>
+				<div class="setting">
 					<div class="what">Синхронизировать настройки<small>Все настройки, кроме относящихся к этому устройству: папок, обновлений и самих переключателей синхронизации. На новом устройстве при первой синхронизации берутся настройки из аккаунта</small></div>
 					<label class="switch"><input type="checkbox" data-setting="syncSettings"><span></span></label>
 				</div>
@@ -72,6 +76,14 @@
 					<div class="what">Синхронизировать пароли<small>Пароли шифруются ещё раз ключом аккаунта. Синхронизация идёт, пока хранилище открыто (введён мастер-пароль): новые пароли добавляются, а более свежий пароль заменяет старый. Удалённые пароли не удаляются на других устройствах</small></div>
 					<label class="switch"><input type="checkbox" data-setting="syncPasswords"><span></span></label>
 				</div>
+				<div class="setting">
+					<div class="what">Устройства<small>Где выполнен вход в аккаунт. Вход через сайт аккаунта устройством не считается</small></div>
+				</div>
+				<ul id="sync-devices" class="sync-list"></ul>
+				<div class="setting">
+					<div class="what">Вкладки других устройств<small>Появляются, когда на другом устройстве включена синхронизация вкладок</small></div>
+				</div>
+				<div id="sync-tabs" class="sync-list"></div>
 			</div>
 		</section>
 
@@ -308,6 +320,10 @@
 				<div class="what">Пространства</div>
 				<button id="manage-spaces">Управлять пространствами</button>
 			</div>
+			<div class="setting">
+				<div class="what">Пространство инкогнито и локальное пространство<small>У каждого пространства, кроме основного, есть два переключателя. «Инкогнито»: новые вкладки в нём открываются как инкогнито. «Локальное»: пространство и его вкладки не синхронизируются с аккаунтом</small></div>
+			</div>
+			<div id="space-flags"></div>
 		</section>
 
 		<section>
@@ -432,6 +448,19 @@
 				<div class="what">Маскироваться под браузер<small>Меняет User-Agent и Sec-CH-UA. На открытых страницах подмена в JavaScript вступит после перезагрузки</small></div>
 				<select data-setting="maskAs"><option value="chrome">Chrome</option><option value="problet">Problet</option><option value="firefox">Firefox</option></select>
 			</div>
+		</section>
+
+		<section>
+			<h2>Разрешения сайтов</h2>
+			<div class="setting">
+				<div class="what">Значения по умолчанию<small>Что делать, когда сайт просит доступ: спрашивать, разрешать или блокировать. Для отдельного сайта можно запомнить своё решение: оно попадает в исключения ниже. Всё остальное, чего нет в списке (например, полный экран), разрешено, как раньше</small></div>
+			</div>
+			<div id="perm-defaults"></div>
+			<div class="setting">
+				<div class="what">Исключения<small>Решения, запомненные для отдельных сайтов. Сайт из исключений игнорирует значение по умолчанию</small></div>
+				<button id="perm-clear">Удалить все исключения</button>
+			</div>
+			<div id="perm-sites" class="sync-list"></div>
 		</section>
 
 		<section>
@@ -564,6 +593,12 @@
 			<div class="data-row">
 				<div class="what"><b>Стандартный проводник</b><span id="files-default-note">Папки из других программ и с рабочего стола будут открываться в проводнике Problet</span></div>
 				<button id="files-default">Сделать стандартным проводником</button>
+			</div>
+			<div class="data-row">
+				<div class="what"><b>Экспорт браузера</b><span>Всё в одном файле: настройки, закладки, история, пространства и вкладки, хранилище паролей (оно остаётся под мастер-паролем), аддоны, офлайн-страницы и вход в аккаунт. Вход попадает в файл только если задан пароль файла, и защищён им. Куки и кеш сайтов не входят. Импорт заменяет все данные и перезапускает браузер; такой файл можно открыть и на экране приветствия</span></div>
+				<input id="all-pass" type="password" placeholder="Пароль файла (необязательно)" autocomplete="off">
+				<button id="export-all">Экспорт браузера</button>
+				<button id="import-all">Импорт браузера</button>
 			</div>
 			<div class="data-row">
 				<div class="what"><b>Резервная копия</b><span>Настройки, закладки и история поиска в одном JSON-файле</span></div>

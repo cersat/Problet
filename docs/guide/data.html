@@ -11,13 +11,13 @@
 <div class="layout">
 <nav class="side">
 	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
-	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page on" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page on" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page" href="account.html">Сайт аккаунта</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
 	<a class="back" href="../">← На главную сайта</a>
 </nav>
 <main>
 <h1>Данные, перенос и резервные копии</h1>
 <p class="lead">Где Problet хранит настройки, закладки, пароли и всё остальное, как сделать резервную копию и как переехать на другой компьютер.</p>
-<div class="toc"><b>На этой странице</b><ul><li><a href="#папка-данных">Папка данных</a></li><li><a href="#резервная-копия">Резервная копия</a></li><li><a href="#переезд-на-другой-компьютер">Переезд на другой компьютер</a></li><li><a href="#перенос-из-другого-браузера">Перенос из другого браузера</a></li><li><a href="#очистка">Очистка</a></li></ul></div>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#папка-данных">Папка данных</a></li><li><a href="#экспорт-браузера">Экспорт браузера</a></li><li><a href="#резервная-копия">Резервная копия</a></li><li><a href="#переезд-на-другой-компьютер">Переезд на другой компьютер</a></li><li><a href="#перенос-из-другого-браузера">Перенос из другого браузера</a></li><li><a href="#очистка">Очистка</a></li></ul></div>
 
 <h2 id="папка-данных">Папка данных</h2>
 <p>Всё личное лежит в одной папке. Точный путь показан на странице <code>problet://version</code> («Папка с данными»), а в <a href="pages.html#о-браузере-и-меню-отладки">меню отладки</a> есть кнопка «Открыть». Обычно это:</p>
@@ -40,6 +40,17 @@
 	<tr><td><code>Cache/</code> и другие папки Chromium</td><td>Кеш, куки, локальные хранилища сайтов.</td></tr>
 </table>
 <p>Журнал работы браузера пишется в <code>/tmp/problet/log</code> на Linux и macOS и в <code>%TEMP%\problet\log</code> на Windows. Он пригодится, если что-то сломалось.</p>
+
+<h2 id="экспорт-браузера">Экспорт браузера</h2>
+<p><span class="path">Настройки → Данные → Экспорт браузера</span> сохраняет в один файл <code>.problet</code> (сжатый архив) всё, что Problet хранит в папке данных:</p>
+<ul>
+	<li>настройки, закладки и папки, историю, историю поиска, пространства и открытые вкладки, масштаб и разрешения сайтов, список загрузок;</li>
+	<li>хранилище паролей — оно остаётся зашифрованным мастер-паролем, как на диске;</li>
+	<li>блокнот, расширения Chrome, аддоны Problet и их данные, офлайн-страницы, копии закладок;</li>
+	<li>вход в аккаунт Problet — только если задан «Пароль файла»: ключ шифрования данных аккаунта и токен кладутся в файл зашифрованными этим паролем (scrypt и AES-256-GCM). Для файла создаётся отдельный токен входа, на сервере он виден в списке устройств как «Из файла экспорта», пока не будет использован.</li>
+</ul>
+<p>В файл не входят куки и кеш сайтов (ими владеет Chromium) и родительский контроль (он лежит отдельно и привязан к пользователю системы).</p>
+<p>Импорт: <span class="path">Настройки → Данные → Импорт браузера</span> или кнопка «Выбрать файл…» в разделе «Восстановить из файла» на <a href="pages.html">экране приветствия</a>. Он <b>заменяет все данные</b>, прежний <code>data.json</code> остаётся рядом как <code>data.json.before-import</code>, после чего Problet перезапускается. Если в файле есть вход в аккаунт, нужен пароль файла; с неверным паролем всё остальное восстанавливается, а в аккаунт нужно войти вручную. Импортированное устройство в списке устройств аккаунта получает своё имя и не заменяет исходное.</p>
 
 <h2 id="резервная-копия">Резервная копия</h2>
 <p><span class="path">Настройки → Данные → Резервная копия → «Экспорт»</span> сохраняет одним JSON-файлом настройки, закладки, папки и историю поиска. <b>Пароли в копию не входят</b> — их переносят отдельно (см. ниже).</p>
@@ -78,7 +89,7 @@
 	<tr><td>Сброс настроек</td><td>Меню отладки (закладки, история и пароли остаются)</td></tr>
 	<tr><td>Всё сразу</td><td>Закрой Problet и удали папку данных</td></tr>
 </table>
-<div class="pager"><a href="settings.html"><small>Назад</small>Все настройки</a><a href="headless.html" style="text-align:right"><small>Дальше</small>Режим без окна</a></div>
+<div class="pager"><a href="settings.html"><small>Назад</small>Все настройки</a><a href="account.html" style="text-align:right"><small>Дальше</small>Сайт аккаунта</a></div>
 </main>
 </div>
 </body>

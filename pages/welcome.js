@@ -25,4 +25,41 @@ async function save(patch) {
 	}
 })();
 
+const msg = (text, bad) => {
+	$('msg').textContent = text || '';
+	$('msg').style.color = bad ? 'var(--danger, #d44)' : '';
+};
+
+function showAccount(st) {
+	$('acc-out').classList.toggle('hidden', st.logged);
+	$('acc-in').classList.toggle('hidden', !st.logged);
+	$('acc-in').textContent = st.logged ? 'Вход выполнен: ' + st.nick : '';
+}
+
+async function account(kind) {
+	msg('');
+	try {
+		const nick = $('acc-nick').value.trim();
+		const st = kind === 'login' ? await problet.syncLogin(nick, $('acc-pass').value) : await problet.syncRegister(nick, $('acc-pass').value, $('acc-pass2').value);
+		if ($('acc-sync').checked) await problet.setSettings({ syncBookmarks: true, syncSpaces: true, syncSettings: true, syncTabs: true });
+		for (const id of ['acc-pass', 'acc-pass2']) $(id).value = '';
+		showAccount(st);
+	} catch (e) {
+		msg(e.message, true);
+	}
+}
+$('acc-login').addEventListener('click', () => account('login'));
+$('acc-register').addEventListener('click', () => account('register'));
+problet.syncStatus().then(showAccount).catch(() => {});
+
+$('restore').addEventListener('click', async () => {
+	msg('');
+	try {
+		const r = await problet.importAll($('file-pass').value);
+		if (!r.canceled) msg(r.message);
+	} catch (e) {
+		msg(e.message, true);
+	}
+});
+
 $('done').addEventListener('click', () => problet.welcomeDone());

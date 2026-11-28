@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сайт аккаунта — Problet</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+	<a class="brand" href="index.html"><img src="../icon.png" alt="">Problet</a>
+	<ol><li><a class="page" href="index.html">Документация</a></li><li><a class="page" href="install.html">Установка и обновления</a></li><li><a class="page" href="interface.html">Окно, панели и кнопки</a></li><li><a class="page" href="tabs.html">Вкладки и пространства</a></li><li><a class="page" href="address.html">Адресная строка и поиск</a></li><li><a class="page" href="bookmarks.html">Закладки и история</a></li><li><a class="page" href="passwords.html">Пароли</a></li><li><a class="page" href="pages.html">Встроенные страницы и инструменты</a></li><li><a class="page" href="privacy.html">Приватность и безопасность</a></li><li><a class="page" href="extensions.html">Расширения и аддоны</a></li><li><a class="page" href="appearance.html">Тема и язык</a></li><li><a class="page" href="hotkeys.html">Горячие клавиши</a></li><li><a class="page" href="settings.html">Все настройки</a></li><li><a class="page" href="data.html">Данные, перенос и резервные копии</a></li><li><a class="page on" href="account.html">Сайт аккаунта</a></li><li><a class="page" href="headless.html">Режим без окна</a></li><li><a class="page" href="developers.html">Для разработчиков</a></li><li><a class="page" href="faq.html">Вопросы и решения</a></li></ol>
+	<a class="back" href="../">← На главную сайта</a>
+</nav>
+<main>
+<h1>Сайт аккаунта</h1>
+<p class="lead">Закладки, пространства и вкладки аккаунта можно посмотреть и сменить пароль без браузера: <code>https://problet.dar-site.uk/account/</code>.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#как-это-работает">Как это работает</a></li><li><a href="#что-есть-на-странице">Что есть на странице</a></li><li><a href="#смена-пароля">Смена пароля</a></li></ul></div>
+
+<h2 id="как-это-работает">Как это работает</h2>
+<p>Данные аккаунта на сервере зашифрованы ключом из пароля, а сервер пароля не знает. Поэтому страница расшифровывает всё <b>у тебя в браузере</b>: после ввода никнейма и пароля она сама вычисляет ключ (тот же scrypt и AES-256-GCM, что и в Problet) и показывает данные. Ни пароль, ни ключ на сервер не отправляются, а после перезагрузки страницы нужно войти заново (ключ хранится только в памяти страницы).</p>
+
+<h2 id="что-есть-на-странице">Что есть на странице</h2>
+<table>
+	<tr><th>Вкладка</th><th>Что показывает</th></tr>
+	<tr><td>Закладки</td><td>Закладки по папкам со ссылками (нужна включённая синхронизация закладок в браузере).</td></tr>
+	<tr><td>Пространства</td><td>Список пространств; у инкогнито есть пометка. Локальные пространства сюда не попадают.</td></tr>
+	<tr><td>Вкладки устройств</td><td>Открытые вкладки каждого устройства с включённой синхронизацией вкладок.</td></tr>
+	<tr><td>Пароль</td><td>Смена пароля аккаунта.</td></tr>
+</table>
+<p>Пароли из хранилища на странице не показываются (хотя при смене пароля они перешифровываются вместе с остальным).</p>
+
+<h2 id="смена-пароля">Смена пароля</h2>
+<p>Страница расшифровывает все данные аккаунта старым ключом, шифрует их новым и отправляет серверу вместе со старым ключом входа (чтобы он убедился, что менять пароль может только владелец). Все остальные входы закрываются — в браузере и на других устройствах нужно войти с новым паролем. Забытый пароль восстановить нельзя, так как без него данные не расшифровать.</p>
+<p>Вход через сайт не считается устройством и не показывается в списке устройств браузера.</p>
+<div class="pager"><a href="data.html"><small>Назад</small>Данные, перенос и резервные копии</a><a href="headless.html" style="text-align:right"><small>Дальше</small>Режим без окна</a></div>
+</main>
+</div>
+</body>
+</html>

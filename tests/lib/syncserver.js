@@ -2,7 +2,7 @@
 const http = require('http');
 
 function start() {
-	const accounts = new Map(); // ник в нижнем регистре -> { nick, auth, tokens: Set }
+	const accounts = new Map(); // ник в нижнем регистре -> { nick, auth, tokens: Map токен -> { name, deviceId, site, last } }
 	const store = new Map(); // ник/вид -> { rev, time, data }
 	const calls = [];
 	const server = http.createServer((req, res) => {
@@ -19,12 +19,12 @@ function start() {
 			} catch (e) { /* пустое тело */ }
 			const url = new URL(req.url, 'http://x');
 			calls.push(req.method + ' ' + url.pathname);
-			const m = /^\/api\/account\/(register|login|logout)$/.exec(url.pathname);
+			const m = /^\/api\/account\/(register|login|logout|devices|device|device-remove|transfer)$/.exec(url.pathname);
 			if (m && m[1] === 'register') {
 				if (accounts.has(String(body.nick).toLowerCase())) return send(409, { error: 'Такой никнейм уже занят' });
-				const a = { nick: body.nick, auth: body.auth, tokens: new Set() };
+				const a = { nick: body.nick, auth: body.auth, tokens: new Map() };
 				const token = 'tok' + 'x'.repeat(20) + accounts.size;
-				a.tokens.add(token);
+				a.tokens.set(token, { name: body.device || '', deviceId: body.deviceId || '', site: body.site === true, last: Date.now() });
 				accounts.set(body.nick.toLowerCase(), a);
 				return send(201, { token, nick: a.nick });
 			}
@@ -32,7 +32,7 @@ function start() {
 				const a = accounts.get(String(body.nick).toLowerCase());
 				if (!a || a.auth !== body.auth) return send(401, { error: 'Неверный никнейм или пароль' });
 				const token = 'tok' + 'y'.repeat(20) + a.tokens.size;
-				a.tokens.add(token);
+				a.tokens.set(token, { name: body.device || '', deviceId: body.deviceId || '', site: body.site === true, last: Date.now() });
 				return send(200, { token, nick: a.nick });
 			}
 			const a = accounts.get(String(req.headers['x-nick'] || '').toLowerCase());
@@ -42,7 +42,23 @@ function start() {
 				a.tokens.delete(token);
 				return send(200, { ok: true });
 			}
-			const s = /^\/api\/sync\/(bookmarks|spaces|settings|passwords)$/.exec(url.pathname);
+			if (m && m[1] === 'devices') return send(200, { devices: [...a.tokens].filter(([, d]) => !d.site).map(([t, d]) => ({ id: t.slice(-12), deviceId: d.deviceId, name: d.name, created: d.last, last: d.last, current: t === token })) });
+			if (m && m[1] === 'device') {
+				Object.assign(a.tokens.get(token), { name: body.device, deviceId: body.deviceId });
+				return send(200, { ok: true });
+			}
+			if (m && m[1] === 'transfer') {
+				const t = 'tokz' + 'z'.repeat(18) + a.tokens.size;
+				a.tokens.set(t, { name: 'Из файла экспорта', deviceId: '', site: false, last: Date.now() });
+				return send(200, { token: t });
+			}
+			if (m && m[1] === 'device-remove') {
+				const t = [...a.tokens.keys()].find((k) => k.slice(-12) === body.id);
+				if (!t || t === token) return send(404, { error: 'Нет такого устройства' });
+				a.tokens.delete(t);
+				return send(200, { ok: true });
+			}
+			const s = /^\/api\/sync\/(bookmarks|spaces|tabs|settings|passwords)$/.exec(url.pathname);
 			if (!s) return send(404, { error: 'Нет такого адреса' });
 			const key = a.nick.toLowerCase() + '/' + s[1];
 			const cur = store.get(key) || { rev: 0 };

@@ -3,3 +3,9 @@
 .welcome h1 { margin: 0 0 8px; font-size: 28px; }
 .welcome .lead { margin: 0 0 24px; color: var(--muted); line-height: 1.5; }
 .welcome .buttons { margin-top: 28px; display: flex; justify-content: flex-end; }
+.welcome h2 { margin: 28px 0 6px; font-size: 18px; }
+.welcome .fields { display: grid; gap: 8px; margin-bottom: 8px; }
+.welcome input[type=text], .welcome input[type=password] { padding: 7px 10px; }
+.welcome .row { display: flex; gap: 8px; margin-top: 8px; }
+.welcome .row input { flex: 1; min-width: 0; }
+.welcome .hidden { display: none; }

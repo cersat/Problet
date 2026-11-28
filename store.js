@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { ACCENTS, HEX, TINTS, CONTRASTS, UI_SCALES, PRESETS } = require('./theme');
 const accel = require('./pages/accel');
+const permissions = require('./permissions');
 
 // Папка «Скрытые»: есть всегда, не удаляется, её закладок нет на панели закладок и новой вкладке
 const HIDDEN_FOLDER = 'hidden';
@@ -296,6 +297,7 @@ const SETTING_DEFAULTS = {
 	syncSettings: false, // синхронизировать настройки
 	syncPasswords: false, // синхронизировать пароли (в зашифрованном виде)
 	syncSpaces: false, // синхронизировать пространства (названия, без вкладок)
+	syncTabs: false, // синхронизировать открытые вкладки (список для просмотра на других устройствах)
 	notepadDefault: false, // текстовые файлы из проводника открываются в блокноте Problet
 	autoUpdate: true,
 	updateEvery: '360',
@@ -345,7 +347,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords', 'syncSpaces'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords', 'syncSpaces', 'syncTabs'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -387,6 +389,7 @@ function defaults() {
 		visits: [],
 		downloads: [],
 		zoom: {},
+		permissions: { defaults: {}, sites: {} },
 		blockedTotal: 0,
 	};
 }
@@ -609,7 +612,7 @@ function sanitizeSession(raw) {
 		if (!sp || typeof sp !== 'object') continue;
 		const id = str(sp.id, 40);
 		const name = str(sp.name, 40).trim();
-		if (id && name && !spaces.some((x) => x.id === id)) spaces.push({ id, name });
+		if (id && name && !spaces.some((x) => x.id === id)) spaces.push({ id, name, ...(id !== DEFAULT_SPACE && sp.incognito === true ? { incognito: true } : {}), ...(id !== DEFAULT_SPACE && sp.local === true ? { local: true } : {}) });
 	}
 	if (!spaces.some((x) => x.id === DEFAULT_SPACE)) spaces.unshift({ id: DEFAULT_SPACE, name: 'Основное' });
 	for (const t of tabs) if (!spaces.some((x) => x.id === t.space)) t.space = DEFAULT_SPACE;
@@ -693,6 +696,53 @@ function sanitizeZoom(raw) {
 	return out;
 }
 
+// Разрешения сайтов: значения по умолчанию и исключения { источник: { вид: 'allow' | 'block' } }; вид и значения — см. permissions.js
+const PERM_SITES_LIMIT = 500;
+
+function sanitizePermissions(raw) {
+	const out = { defaults: {}, sites: {} };
+	const r = raw && typeof raw === 'object' ? raw : {};
+	for (const type of permissions.TYPES) {
+		const v = r.defaults && r.defaults[type];
+		if (permissions.VALUES.includes(v) && v !== 'ask') out.defaults[type] = v;
+	}
+	for (const [origin, perms] of Object.entries(r.sites && typeof r.sites === 'object' ? r.sites : {}).slice(0, PERM_SITES_LIMIT)) {
+		if (!/^https?:\/\//.test(origin) || origin.length > 300 || !perms || typeof perms !== 'object') continue;
+		const own = {};
+		for (const type of permissions.TYPES) if (perms[type] === 'allow' || perms[type] === 'block') own[type] = perms[type];
+		if (Object.keys(own).length) out.sites[origin] = own;
+	}
+	return out;
+}
+
+const getPermissions = () => data.permissions;
+
+function setPermissionDefault(type, value) {
+	if (!permissions.TYPES.includes(type) || !permissions.VALUES.includes(value)) return;
+	if (value === 'ask') delete data.permissions.defaults[type];
+	else data.permissions.defaults[type] = value;
+	scheduleSave();
+}
+
+// value: 'allow' | 'block' | 'ask' (убрать исключение)
+function setSitePermission(origin, type, value) {
+	if (!/^https?:\/\//.test(origin) || origin.length > 300 || !permissions.TYPES.includes(type)) return;
+	const sites = data.permissions.sites;
+	if (value === 'allow' || value === 'block') {
+		if (!sites[origin] && Object.keys(sites).length >= PERM_SITES_LIMIT) return;
+		(sites[origin] || (sites[origin] = {}))[type] = value;
+	} else if (sites[origin]) {
+		delete sites[origin][type];
+		if (!Object.keys(sites[origin]).length) delete sites[origin];
+	}
+	scheduleSave();
+}
+
+function clearSitePermissions() {
+	data.permissions.sites = {};
+	scheduleSave();
+}
+
 // Сколько рекламных запросов заблокировано за всё время
 function addBlocked() {
 	data.blockedTotal++;
@@ -726,6 +776,7 @@ function sanitize(raw) {
 		visits: sanitizeVisits(r.visits),
 		downloads: sanitizeDownloads(r.downloads),
 		zoom: sanitizeZoom(r.zoom),
+		permissions: sanitizePermissions(r.permissions),
 		blockedTotal: Number.isSafeInteger(r.blockedTotal) && r.blockedTotal > 0 ? r.blockedTotal : 0,
 	};
 
@@ -1516,6 +1567,19 @@ function defaultFolder() {
 
 // ---------- Резервная копия ----------
 
+// После импорта браузера файл данных уже заменён: прежнее содержимое памяти на диск больше не пишется
+function stop() {
+	clearTimeout(timer);
+	timer = null;
+	file = null;
+}
+
+// Всё содержимое хранилища для полного экспорта браузера
+function exportAll() {
+	save();
+	return JSON.parse(JSON.stringify(data));
+}
+
 function exportData() {
 	return {
 		app: 'problet',
@@ -1567,6 +1631,7 @@ function importData(raw, mode) {
 			visits: data.visits,
 			downloads: data.downloads,
 			zoom: data.zoom,
+			permissions: data.permissions,
 			blockedTotal: data.blockedTotal,
 		};
 		trimHistory();
@@ -1621,6 +1686,9 @@ function importData(raw, mode) {
 }
 
 module.exports = {
+	stop,
+	exportAll,
+	getPermissions, setPermissionDefault, setSitePermission, clearSitePermissions,
 	TWO_ROWS_MIN, EXT_BTN,
 	init, flush,
 	getSettings, rawSettings, setSafe, isSafe, setSettings, resetSettings, engineList, searchUrl, ARROWS,

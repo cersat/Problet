@@ -7,24 +7,29 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
 const { app, net, safeStorage } = require('electron');
 
 const DEFAULT_URL = 'https://problet.dar-site.uk/';
 const EVERY = 5 * 60 * 1000;
 const NICK = /^[A-Za-z0-9_.-]{3,32}$/;
 const MIN_PASSWORD = 8;
-const KINDS = ['bookmarks', 'spaces', 'settings', 'passwords'];
-const FLAG = { bookmarks: 'syncBookmarks', spaces: 'syncSpaces', settings: 'syncSettings', passwords: 'syncPasswords' };
+const KINDS = ['bookmarks', 'spaces', 'tabs', 'settings', 'passwords'];
+const FLAG = { bookmarks: 'syncBookmarks', spaces: 'syncSpaces', tabs: 'syncTabs', settings: 'syncSettings', passwords: 'syncPasswords' };
 
 let deps = null; // { store, vault, settings, off }
-let acc = null; // { nick, token, encKey: Buffer, kinds: { вид: { rev, hash, at } } }
+let acc = null; // { nick, token, deviceId, encKey: Buffer, kinds: { вид: { rev, hash, at } } }
 let busy = null;
 let timer = null;
 let soonTimer = null;
-const info = { last: 0, error: '', passwords: '' };
+const info = { last: 0, error: '', passwords: '', remoteTabs: [] };
 
 const url = (p) => (process.env.PROBLET_SYNC_URL || DEFAULT_URL).replace(/\/?$/, '/') + p.replace(/^\//, '');
 const file = () => path.join(app.getPath('userData'), 'sync.json');
+
+const newDeviceId = () => crypto.randomBytes(8).toString('hex');
+// Имя устройства в списке устройств аккаунта: система и имя компьютера
+const deviceName = () => ({ win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[process.platform] || process.platform) + ' · ' + String(os.hostname()).slice(0, 40);
 
 // ---------- Хранение ----------
 
@@ -47,7 +52,7 @@ function load() {
 	try {
 		const raw = JSON.parse(fs.readFileSync(file(), 'utf8'));
 		const key = unwrapKey(raw.encKey);
-		if (raw && NICK.test(raw.nick || '') && raw.token && key) acc = { nick: raw.nick, token: raw.token, encKey: key, kinds: raw.kinds && typeof raw.kinds === 'object' ? raw.kinds : {} };
+		if (raw && NICK.test(raw.nick || '') && raw.token && key) acc = { nick: raw.nick, token: raw.token, deviceId: /^[a-f0-9]{16}$/.test(raw.deviceId || '') ? raw.deviceId : newDeviceId(), encKey: key, kinds: raw.kinds && typeof raw.kinds === 'object' ? raw.kinds : {}, claim: raw.claim === true };
 	} catch (e) { /* аккаунта на этом устройстве нет */ }
 }
 
@@ -58,7 +63,7 @@ function persist() {
 		} catch (e) { /* файла нет */ }
 		return;
 	}
-	const out = { nick: acc.nick, token: acc.token, encKey: wrapKey(acc.encKey), kinds: acc.kinds };
+	const out = { nick: acc.nick, token: acc.token, deviceId: acc.deviceId, encKey: wrapKey(acc.encKey), kinds: acc.kinds, claim: acc.claim === true };
 	const tmp = file() + '.tmp';
 	fs.writeFileSync(tmp, JSON.stringify(out), { mode: 0o600 });
 	fs.renameSync(tmp, file());
@@ -125,8 +130,9 @@ function checkCreds(nick, password) {
 
 async function enter(kind, nick, password) {
 	const { auth, encKey } = derive(nick, password);
-	const r = await request('POST', '/api/account/' + kind, { nick, auth });
-	acc = { nick: r.nick || nick, token: r.token, encKey, kinds: {} };
+	const deviceId = newDeviceId();
+	const r = await request('POST', '/api/account/' + kind, { nick, auth, device: deviceName(), deviceId });
+	acc = { nick: r.nick || nick, token: r.token, deviceId, encKey, kinds: {} };
 	persist();
 	info.error = '';
 	info.last = 0;
@@ -155,7 +161,36 @@ async function logout() {
 	persist();
 	info.error = '';
 	info.last = 0;
+	info.remoteTabs = [];
 	return status();
+}
+
+// Вход в аккаунт для файла экспорта: свежий токен и ключ шифрования данных (вместе их кладут в файл, защищённый паролем)
+async function exportAccount() {
+	if (!acc) return null;
+	const r = await request('POST', '/api/account/transfer', {}, acc.token);
+	return { nick: acc.nick, token: r.token, encKey: acc.encKey.toString('base64') };
+}
+
+// Записывает вход из файла экспорта (вызывается при импорте, до перезапуска браузера); имя устройства задаётся при первом обращении к серверу
+function writeImportedAccount(a) {
+	if (!a || !NICK.test(a.nick || '') || typeof a.token !== 'string' || typeof a.encKey !== 'string') return false;
+	acc = { nick: a.nick, token: a.token, deviceId: newDeviceId(), encKey: Buffer.from(a.encKey, 'base64'), kinds: {}, claim: true };
+	persist();
+	return true;
+}
+
+// Устройства аккаунта (входы через сайт не считаются)
+async function devices() {
+	if (!acc) throw new Error('Сначала войди в аккаунт');
+	return (await request('GET', '/api/account/devices', null, acc.token)).devices;
+}
+
+async function removeDevice(id) {
+	if (!acc) throw new Error('Сначала войди в аккаунт');
+	await request('POST', '/api/account/device-remove', { id: String(id) }, acc.token);
+	soon(1000); // запись этого устройства в списке вкладок уберётся при ближайшей синхронизации
+	return devices();
 }
 
 // ---------- Синхронизация ----------
@@ -205,6 +240,34 @@ async function syncSnapshot(kind) {
 	st.at = 0;
 }
 
+// Вкладки: у каждого устройства своя запись в общем списке; своя перезаписывается, чужие остаются как есть
+async function syncTabs() {
+	const mine = deps.tabs.get().slice(0, 200).map((t) => ({ url: String(t.url).slice(0, 2000), title: String(t.title || '').slice(0, 200), space: String(t.space || '').slice(0, 40) }));
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const remote = await request('GET', '/api/sync/tabs', null, acc.token);
+		const cur = remote.rev ? decrypt(remote.data) : null;
+		const list = cur && cur.devices && typeof cur.devices === 'object' && !Array.isArray(cur.devices) ? cur.devices : {};
+		const alive = new Set((await devices()).map((d) => d.deviceId).filter(Boolean));
+		let dropped = false;
+		for (const id of Object.keys(list)) {
+			if (id !== acc.deviceId && !alive.has(id)) {
+				delete list[id]; // устройство вышло из аккаунта
+				dropped = true;
+			}
+		}
+		info.remoteTabs = Object.entries(list).filter(([id]) => id !== acc.deviceId).map(([id, d]) => ({ id, name: String(d.name || ''), at: Number(d.at) || 0, tabs: Array.isArray(d.tabs) ? d.tabs : [] })).sort((a, b) => b.at - a.at);
+		const me = list[acc.deviceId];
+		if (!dropped && me && hashOf(me.tabs) === hashOf(mine)) return;
+		list[acc.deviceId] = { name: deviceName(), at: Date.now(), tabs: mine };
+		try {
+			await push('tabs', { devices: list }, remote.rev);
+			return;
+		} catch (e) {
+			if (e.status !== 409) throw e; // другое устройство записало раньше: читаем заново и повторяем
+		}
+	}
+}
+
 const canon = (list) => list.map((e) => ({ origin: e.origin, username: e.username, password: e.password, updated: e.updated })).sort((a, b) => (a.origin + '\n' + a.username).localeCompare(b.origin + '\n' + b.username));
 
 // Пароли: слияние. Пока хранилище закрыто, ничего не делаем
@@ -229,9 +292,15 @@ async function run() {
 	busy = (async () => {
 		await null; // busy должен успеть получить значение до того, как заработает finally
 		try {
+			if (acc.claim) {
+				await request('POST', '/api/account/device', { device: deviceName(), deviceId: acc.deviceId }, acc.token); // вход пришёл из файла экспорта: это устройство теперь отдельное
+				acc.claim = false;
+				persist();
+			}
 			for (const kind of KINDS) {
 				if (!deps.settings()[FLAG[kind]]) continue;
 				if (kind === 'passwords') await syncPasswords();
+				else if (kind === 'tabs') await syncTabs();
 				else await syncSnapshot(kind);
 			}
 			persist();
@@ -251,6 +320,13 @@ async function run() {
 	return busy;
 }
 
+// Вкладки меняются часто: записываем не чаще, чем раз в 20 секунд после последнего изменения
+function touchTabs() {
+	if (acc && deps && deps.settings().syncTabs) soon(20000);
+}
+
+const remoteTabs = () => info.remoteTabs;
+
 function soon(ms = 5000) {
 	if (!acc) return;
 	clearTimeout(soonTimer);
@@ -262,7 +338,7 @@ function status() {
 	return { logged: !!acc, nick: acc ? acc.nick : '', last: info.last, error: info.error, busy: !!busy, passwords: info.passwords };
 }
 
-// d: { store, vault, spaces: { get, apply }, settings: () => настройки, off: () => безопасный режим }
+// d: { store, vault, spaces: { get, apply }, tabs: { get }, settings: () => настройки, off: () => безопасный режим }
 function init(d) {
 	deps = d;
 	load();
@@ -274,4 +350,4 @@ function init(d) {
 	soon(15000);
 }
 
-module.exports = { init, status, register, login, logout, run, soon, derive, hashOf };
+module.exports = { exportAccount, writeImportedAccount, init, status, register, login, logout, run, soon, derive, hashOf, devices, removeDevice, touchTabs, remoteTabs };

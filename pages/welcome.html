@@ -34,6 +34,21 @@
 			<div class="what">Поисковик</div>
 			<select id="engine"></select>
 		</div>
+		<h2>Аккаунт Problet</h2>
+		<p class="lead">Закладки, пространства, настройки и вкладки можно синхронизировать между устройствами. Войди или создай аккаунт: можно и позже в настройках.</p>
+		<div id="acc-out">
+			<span class="fields"><input id="acc-nick" type="text" maxlength="32" placeholder="Никнейм" autocomplete="off" spellcheck="false"><input id="acc-pass" type="password" placeholder="Пароль" autocomplete="off"><input id="acc-pass2" type="password" placeholder="Повтор пароля (для создания)" autocomplete="off"></span>
+			<div class="setting">
+				<div class="what">Сразу включить синхронизацию<small>Закладки, пространства, настройки и вкладки. Настройки при этом берутся из аккаунта</small></div>
+				<label class="switch"><input type="checkbox" id="acc-sync" checked><span></span></label>
+			</div>
+			<div class="row"><button id="acc-login">Войти</button><button id="acc-register">Создать аккаунт</button></div>
+		</div>
+		<p id="acc-in" class="lead hidden"></p>
+		<h2>Восстановить из файла</h2>
+		<p class="lead">Файл экспорта Problet вернёт всё: настройки, закладки, вкладки, пароли и вход в аккаунт. Браузер перезапустится.</p>
+		<div class="row"><input id="file-pass" type="password" placeholder="Пароль файла (если вход в аккаунт защищён)" autocomplete="off"><button id="restore">Выбрать файл…</button></div>
+		<p id="msg" class="lead"></p>
 		<div class="buttons">
 			<button id="done" class="primary">Начать</button>
 		</div>

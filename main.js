@@ -123,6 +123,8 @@ function log(...parts) {
 // Неожиданная ошибка в главном процессе не должна ронять браузер: пишем её в журнал и работаем дальше (окно с ошибкой показывает boot.js)
 const errorwin = require('./errorwin');
 const sync = require('./sync');
+const permissions = require('./permissions');
+const backup = require('./backup');
 const uninstall = require('./uninstall');
 process.on('uncaughtException', (err) => log('uncaughtException', err));
 process.on('unhandledRejection', (err) => log('unhandledRejection', err instanceof Error ? err : String(err)));
@@ -1126,6 +1128,7 @@ function saveSession() {
 }
 
 function scheduleSession() {
+	sync.touchTabs();
 	clearTimeout(sessionTimer);
 	sessionTimer = setTimeout(saveSession, 1000);
 }
@@ -1330,6 +1333,9 @@ function visibleTabs() {
 	return tabs.filter((t) => (settings().spacesMerged || t.space === currentSpace) && !t.hidden);
 }
 
+// Свойства пространства: incognito — новые вкладки в нём открываются как инкогнито; local — оно не синхронизируется
+const spaceFlag = (id, flag) => !!(spaces.find((x) => x.id === id) || {})[flag];
+
 function spaceOf(opts) {
 	if (opts.space && spaces.some((x) => x.id === opts.space)) return opts.space;
 	const from = !settings().spacesMerged && opts.afterId && tabs.find((t) => t.id === opts.afterId);
@@ -1344,6 +1350,8 @@ function createTab(url, opts = {}) {
 		const from = tabs.find((t) => t.id === opts.afterId);
 		if (from && from.incognito) opts = { ...opts, incognito: true };
 	}
+	// В пространстве-инкогнито новые вкладки тоже инкогнито
+	if (opts.incognito === undefined && !opts.hidden && spaceFlag(spaceOf(opts), 'incognito')) opts = { ...opts, incognito: true };
 	// Свитч «Не открывать вторую идентичную вкладку»: вместо новой переходим в уже открытую с тем же адресом в текущем пространстве (при общем списке — среди всех)
 	if (settings().noDuplicateTabs && url && !opts.lazy && !opts.hidden && !opts.duplicate && !startingUp) {
 		const same = tabs.find((t) => !t.hidden && (settings().spacesMerged || t.space === currentSpace) && !!t.incognito === !!opts.incognito && sameUrl(t.pendingUrl || t.url, url));
@@ -2791,7 +2799,70 @@ function refreshIdentity() {
 	for (const t of tabs) if (t.view.webContents && !t.view.webContents.isDestroyed()) t.view.webContents.setUserAgent(profile.userAgent);
 }
 
+// ---------- Разрешения сайтов ----------
+
+const permTemp = {}; // решения «на время»: из окон инкогнито ничего на диск не пишется
+let permQueue = Promise.resolve();
+const permPending = new Map();
+
+function permState() {
+	return store.getPermissions();
+}
+
+// Вопрос о доступе: один диалог за раз, одинаковые запросы с одного сайта делят один ответ
+function askPermission(origin, kinds, ephemeral) {
+	const key = origin + '|' + kinds.join(',') + '|' + (ephemeral ? 'i' : '');
+	if (permPending.has(key)) return permPending.get(key);
+	const p = permQueue.then(async () => {
+		const names = kinds.map((k) => tr(permissions.NAMES[k])).join(tr(' и '));
+		const r = await dialog.showMessageBox(win && !win.isDestroyed() ? win : null, {
+			type: 'question',
+			title: tr('Разрешение'),
+			message: tr('Сайт {} запрашивает доступ к {}').replace('{}', origin.replace(/^https?:\/\//, '')).replace('{}', names),
+			detail: tr(ephemeral ? 'Решение действует, пока открыты окна инкогнито.' : 'Запомненное решение можно изменить в настройках, раздел «Разрешения сайтов».'),
+			buttons: [tr('Разрешить'), tr('Заблокировать')],
+			defaultId: 1,
+			cancelId: 1,
+			checkboxLabel: tr('Запомнить для этого сайта'),
+			checkboxChecked: false,
+		});
+		const allow = r.response === 0;
+		if (r.checkboxChecked) {
+			for (const k of kinds) {
+				if (ephemeral) (permTemp[origin] || (permTemp[origin] = {}))[k] = allow ? 'allow' : 'block';
+				else store.setSitePermission(origin, k, allow ? 'allow' : 'block');
+			}
+		}
+		return allow;
+	}).finally(() => permPending.delete(key));
+	permPending.set(key, p);
+	permQueue = p.catch(() => {});
+	return p;
+}
+
+function installPermissions(ses, ephemeral) {
+	const isOwn = (url) => /^(problet|chrome-extension|devtools):/i.test(String(url || ''));
+	ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+		const kinds = permissions.kindsOf(permission, details);
+		const url = (details && details.requestingUrl) || (wc && !wc.isDestroyed() ? wc.getURL() : '');
+		if (!kinds || isOwn(url)) return callback(true);
+		const origin = originOf(url);
+		if (!origin) return callback(false);
+		const d = permissions.decide(kinds, origin, permState(), ephemeral ? permTemp : null);
+		if (d !== 'ask') return callback(d === 'allow');
+		askPermission(origin, kinds, ephemeral).then(callback, () => callback(false));
+	});
+	// Синхронные проверки страницы (например, «уже можно ли показывать уведомления»): спрашивать нельзя, значит разрешено только явно
+	ses.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
+		const kinds = permissions.kindsOf(permission, details);
+		if (!kinds || isOwn(requestingOrigin)) return true;
+		const origin = originOf(requestingOrigin);
+		return !!origin && permissions.decide(kinds, origin, permState(), ephemeral ? permTemp : null) === 'allow';
+	});
+}
+
 function startIdentity(ses) {
+	installPermissions(ses, false);
 	loadPlainSites();
 	refreshIdentity();
 	attachIdentity(ses, true);
@@ -3338,9 +3409,14 @@ function switchSpace(id) {
 	store.notify('spaces');
 }
 
+// Синхронизация вкладок: обычные вкладки пространств, которые не инкогнито и не локальные
+function syncedTabsGet() {
+	return tabs.filter((t) => !t.hidden && !t.incognito && persistable(t.pendingUrl || t.url) && !spaceFlag(t.space, 'local') && !spaceFlag(t.space, 'incognito')).map((t) => ({ url: t.pendingUrl || t.url, title: tabTitle(t), space: (spaces.find((x) => x.id === t.space) || {}).name || '' }));
+}
+
 // Синхронизация пространств: уходят только id и названия, вкладки остаются на своих устройствах
 function syncedSpacesGet() {
-	return spaces.map((x) => ({ id: x.id, name: x.name }));
+	return spaces.filter((x) => !x.local).map((x) => ({ id: x.id, name: x.name, ...(x.incognito ? { incognito: true } : {}) }));
 }
 
 // mode: 'merge' — недостающие пространства добавляются; 'replace' — список становится таким же, как в аккаунте (вкладки удалённых уходят в основное)
@@ -3350,21 +3426,22 @@ function syncedSpacesApply(list, mode) {
 	for (const x of list) {
 		const id = x && typeof x.id === 'string' ? x.id.slice(0, 40) : '';
 		const name = cleanSpaceName(x && x.name);
-		if (id && name && !remote.some((r) => r.id === id)) remote.push({ id, name });
+		if (id && name && !remote.some((r) => r.id === id) && !spaceFlag(id, 'local')) remote.push({ id, name, ...(id !== store.DEFAULT_SPACE && x.incognito === true ? { incognito: true } : {}) });
 	}
 	let next;
 	if (mode === 'merge') {
 		next = spaces.map((x) => ({ ...x }));
+		for (const x of next) {
+			const r = remote.find((y) => y.id === x.id);
+			if (r && !x.local) x.name = r.name; // переименование на другом устройстве
+		}
 		for (const r of remote) if (!next.some((x) => x.id === r.id) && next.length < store.SPACES_LIMIT) next.push(r);
 	} else {
 		const main = spaces.find((x) => x.id === store.DEFAULT_SPACE) || { id: store.DEFAULT_SPACE, name: 'Основное' };
-		next = [main, ...remote.filter((r) => r.id !== store.DEFAULT_SPACE)].slice(0, store.SPACES_LIMIT);
-		for (const x of next) {
-			const r = remote.find((y) => y.id === x.id);
-			if (r && x.id !== store.DEFAULT_SPACE) x.name = r.name;
-		}
+		const fromAccount = remote.filter((r) => r.id !== store.DEFAULT_SPACE);
+		next = [main, ...fromAccount, ...spaces.filter((x) => x.local)].slice(0, store.SPACES_LIMIT); // локальные пространства остаются как есть
 	}
-	const same = next.length === spaces.length && next.every((x, i) => spaces[i].id === x.id && spaces[i].name === x.name);
+	const same = next.length === spaces.length && next.every((x, i) => spaces[i].id === x.id && spaces[i].name === x.name && !spaces[i].incognito === !x.incognito && !spaces[i].local === !x.local);
 	if (same) return;
 	const gone = spaces.filter((x) => !next.some((y) => y.id === x.id));
 	for (const t of tabs) if (gone.some((x) => x.id === t.space)) t.space = store.DEFAULT_SPACE;
@@ -3646,7 +3723,23 @@ handle('sync:status', () => sync.status());
 handle('sync:register', (nick, pass, repeat) => sync.register(String(nick), String(pass), String(repeat)));
 handle('sync:login', (nick, pass) => sync.login(String(nick), String(pass)));
 handle('sync:logout', () => sync.logout());
+handle('perms:get', () => ({ ...permState(), types: permissions.TYPES }));
+handle('perms:set-default', (type, value) => {
+	store.setPermissionDefault(String(type), String(value));
+	return permState();
+});
+handle('perms:set-site', (origin, type, value) => {
+	store.setSitePermission(String(origin), String(type), String(value));
+	return permState();
+});
+handle('perms:clear', () => {
+	store.clearSitePermissions();
+	return permState();
+});
 handle('sync:now', () => sync.run());
+handle('sync:devices', () => sync.devices());
+handle('sync:device-remove', (id) => sync.removeDevice(String(id)));
+handle('sync:remote-tabs', () => sync.remoteTabs());
 handle('update:apply', () => updater.apply());
 ipcMain.on('update-apply', (e) => fromToolbar(e) && updater.apply());
 ipcMain.on('update-get', (e) => {
@@ -3990,6 +4083,13 @@ handle('spaces:add', (name) => {
 	switchSpace(space.id);
 	spacesChanged();
 	return space.id;
+});
+handle('spaces:set-flag', (id, flag, on) => {
+	const space = spaces.find((x) => x.id === String(id));
+	if (!space || space.id === store.DEFAULT_SPACE || (flag !== 'incognito' && flag !== 'local')) return;
+	if (on) space[flag] = true;
+	else delete space[flag];
+	spacesChanged();
 });
 handle('spaces:rename', (id, name) => {
 	const space = spaces.find((x) => x.id === String(id));
@@ -4723,6 +4823,58 @@ handle('data:export', () => saveToFile(
 	JSON.stringify(store.exportData(), null, '\t'),
 ));
 
+// Экспорт и импорт браузера целиком: данные, пароли (в виде хранилища), аддоны, офлайн-страницы и, если задан пароль файла, вход в аккаунт
+handle('data:export-all', async (password) => {
+	password = String(password || '');
+	saveSession();
+	const loggedIn = sync.status().logged;
+	let account = null;
+	if (password && loggedIn) account = await sync.exportAccount();
+	const r = backup.create({ userData: app.getPath('userData'), data: store.exportAll(), account, password, version: app.getVersion() });
+	let target = process.env.PROBLET_TEST_BACKUP_FILE;
+	if (!target) {
+		const res = await dialog.showSaveDialog(win, { title: 'Экспорт браузера', defaultPath: 'problet-export-' + dateStamp() + '.problet', filters: [{ name: 'Экспорт Problet', extensions: ['problet'] }] });
+		if (res.canceled || !res.filePath) return { canceled: true };
+		target = res.filePath;
+	}
+	await fs.promises.writeFile(target, r.buffer);
+	const acc = !loggedIn ? '' : r.hasAccount ? ' Вход в аккаунт добавлен и защищён паролем файла.' : ' Вход в аккаунт не добавлен: задай пароль файла, чтобы он попал в экспорт.';
+	return { message: 'Сохранено: ' + target + (r.skipped ? '. Не поместилось файлов: ' + r.skipped : '') + acc };
+});
+
+handle('data:import-all', async (password) => {
+	password = String(password || '');
+	let source = process.env.PROBLET_TEST_BACKUP_FILE;
+	if (!source) {
+		const res = await dialog.showOpenDialog(win, { title: 'Импорт браузера', properties: ['openFile'], filters: [{ name: 'Экспорт Problet', extensions: ['problet'] }] });
+		if (res.canceled || !res.filePaths[0]) return { canceled: true };
+		source = res.filePaths[0];
+	}
+	const stat = await fs.promises.stat(source);
+	if (stat.size > backup.LIMIT) throw new Error('Файл слишком большой');
+	const buffer = await fs.promises.readFile(source);
+	const info = backup.inspect(buffer);
+	if (!process.env.PROBLET_TEST_BACKUP_FILE) {
+		const choice = await dialog.showMessageBox(win, {
+			type: 'warning',
+			title: 'Импорт браузера',
+			message: 'Заменить все данные браузера данными из файла?',
+			detail: 'Настройки, закладки, история, пространства, вкладки, пароли (хранилище), аддоны и офлайн-страницы будут заменены. Прежний файл данных останется рядом как data.json.before-import. После импорта Problet перезапустится.',
+			buttons: ['Заменить', 'Отмена'],
+			defaultId: 1,
+			cancelId: 1,
+		});
+		if (choice.response !== 0) return { canceled: true };
+	}
+	const r = backup.restore(buffer, app.getPath('userData'), password);
+	let account = '';
+	if (r.account) account = sync.writeImportedAccount(r.account) ? ' Вход в аккаунт восстановлен.' : '';
+	else if (r.hadAccount) account = ' Вход в аккаунт не восстановлен: нужен пароль файла. Войди в аккаунт в настройках.';
+	store.stop();
+	if (!process.env.PROBLET_TEST_BACKUP_FILE) setTimeout(restartApp, 1500);
+	return { message: 'Импортировано файлов: ' + r.files + '.' + account + (process.env.PROBLET_TEST_BACKUP_FILE ? '' : ' Перезапускаюсь…'), restart: true, version: info.appVersion };
+});
+
 handle('bookmarks:export-html', () => saveToFile(
 	'Экспорт закладок', 'bookmarks-' + dateStamp() + '.html', [{ name: 'HTML', extensions: ['html'] }],
 	store.exportBookmarksHtml(),
@@ -4845,6 +4997,7 @@ function incognitoSession() {
 	incSession.protocol.handle('problet', internalHandler);
 	adblock.start(incSession, store);
 	attachIdentity(incSession, false);
+	installPermissions(incSession, true);
 	setupDownloads(incSession, true);
 	if (profile) incSession.setUserAgent(profile.userAgent);
 	return incSession;
@@ -5153,7 +5306,7 @@ app.whenReady().then(() => {
 	setTimeout(backupIfDue, 30000);
 	setInterval(backupIfDue, 3600000);
 	updater.setChannel(settings().updateChannel);
-	if (!headless.enabled) sync.init({ store, vault, settings, off: () => safeMode, spaces: { get: syncedSpacesGet, apply: syncedSpacesApply } });
+	if (!headless.enabled) sync.init({ store, vault, settings, off: () => safeMode, spaces: { get: syncedSpacesGet, apply: syncedSpacesApply }, tabs: { get: syncedTabsGet } });
 	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster, off: safeMode }));
 });
 function startHeadless() {

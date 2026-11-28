@@ -11,3 +11,6 @@
 .spaces-page .row button { padding: 2px 8px; font-size: 12px; }
 .spaces-page .add { display: flex; gap: 8px; }
 .spaces-page .add input { flex: 1; min-width: 0; }
+.spaces-page .row .tag { padding: 0 6px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--muted); font-size: 11px; }
+.spaces-page .row.opts { display: block; margin-top: -4px; border-top-left-radius: 0; border-top-right-radius: 0; }
+.spaces-page .row.opts .setting { padding: 6px 0; border: 0; }

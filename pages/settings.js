@@ -1149,6 +1149,102 @@ $('hotkeys-reset').addEventListener('click', () => run(async () => {
 $('open-passwords').addEventListener('click', () => run(() => problet.openInNewTab('passwords')));
 
 
+// ---------- Пространства: инкогнито и локальное ----------
+
+async function renderSpaceFlags() {
+	const box = $('space-flags');
+	const { spaces } = await problet.spaces();
+	box.textContent = '';
+	for (const s of spaces.filter((x) => x.id !== 'main')) {
+		const row = document.createElement('div');
+		row.className = 'setting';
+		const what = document.createElement('div');
+		what.className = 'what';
+		what.textContent = s.name;
+		row.append(what);
+		for (const [flag, label] of [['incognito', 'Инкогнито'], ['local', 'Локальное']]) {
+			const l = document.createElement('label');
+			l.className = 'flag';
+			const input = document.createElement('input');
+			input.type = 'checkbox';
+			input.checked = !!s[flag];
+			input.addEventListener('change', () => run(() => problet.spacesSetFlag(s.id, flag, input.checked)));
+			l.append(input, document.createTextNode(' ' + label));
+			row.append(l);
+		}
+		box.append(row);
+	}
+	if (!box.children.length) {
+		const p = document.createElement('div');
+		p.className = 'setting';
+		p.textContent = 'Других пространств пока нет';
+		box.append(p);
+	}
+}
+renderSpaceFlags().catch(() => {});
+problet.onChange((kinds) => {
+	if (kinds.includes('spaces')) renderSpaceFlags().catch(() => {});
+});
+
+// ---------- Разрешения сайтов ----------
+
+const PERM_LABELS = { camera: 'Камера', microphone: 'Микрофон', geolocation: 'Местоположение', notifications: 'Уведомления', clipboard: 'Чтение буфера обмена', screen: 'Запись экрана', midi: 'MIDI-устройства' };
+const PERM_VALUES = [['ask', 'Спрашивать'], ['allow', 'Разрешать'], ['block', 'Блокировать']];
+
+function permSelect(value, onChange, withAsk) {
+	const sel = document.createElement('select');
+	for (const [v, text] of PERM_VALUES) {
+		if (v === 'ask' && !withAsk) continue;
+		sel.append(new Option(text, v));
+	}
+	sel.value = value;
+	sel.addEventListener('change', () => onChange(sel.value));
+	return sel;
+}
+
+function renderPerms(st) {
+	const defs = $('perm-defaults');
+	defs.textContent = '';
+	for (const type of st.types) {
+		const row = document.createElement('div');
+		row.className = 'setting';
+		const what = document.createElement('div');
+		what.className = 'what';
+		what.textContent = PERM_LABELS[type];
+		row.append(what, permSelect(st.defaults[type] || 'ask', (v) => run(async () => renderPerms(await problet.permsSetDefault(type, v))), true));
+		defs.append(row);
+	}
+	const box = $('perm-sites');
+	box.textContent = '';
+	const origins = Object.keys(st.sites).sort();
+	$('perm-clear').disabled = !origins.length;
+	if (!origins.length) {
+		const p = document.createElement('div');
+		p.className = 'empty';
+		p.textContent = 'Исключений нет';
+		return box.append(p);
+	}
+	for (const origin of origins) {
+		for (const [type, value] of Object.entries(st.sites[origin])) {
+			const li = document.createElement('li');
+			const name = document.createElement('span');
+			name.className = 'nm';
+			name.textContent = origin.replace(/^https?:\/\//, '') + ' · ' + PERM_LABELS[type];
+			name.title = origin;
+			const del = document.createElement('button');
+			del.textContent = 'Удалить';
+			del.addEventListener('click', () => run(async () => renderPerms(await problet.permsSetSite(origin, type, 'ask'))));
+			li.append(name, permSelect(value, (v) => run(async () => renderPerms(await problet.permsSetSite(origin, type, v))), false), del);
+			const ul = box.querySelector('ul') || box.appendChild(document.createElement('ul'));
+			ul.className = 'sync-list';
+			ul.append(li);
+		}
+	}
+}
+$('perm-clear').addEventListener('click', () => run(async () => renderPerms(await problet.permsClear())));
+problet.permsGet().then(renderPerms).catch(() => {});
+addEventListener('focus', () => problet.permsGet().then(renderPerms).catch(() => {}));
+
 // ---------- Синхронизация ----------
 
 function renderSync(st) {
@@ -1159,24 +1255,104 @@ function renderSync(st) {
 	$('sync-pw').textContent = st.passwords === 'locked' && !st.error ? 'Пароли ждут: хранилище закрыто' : '';
 	$('sync-state').textContent = text;
 	$('sync-now').disabled = !!st.busy;
+	syncExtra(st);
 }
 const syncAct = (fn) => run(async () => {
 	renderSync(await fn());
 	$('sync-pass').value = '';
 	$('sync-pass2').value = '';
 });
+// Устройства и вкладки других устройств
+const ago = (t) => (t ? new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '—');
+async function renderDevices() {
+	const list = $('sync-devices');
+	let devs = [];
+	try {
+		devs = await problet.syncDevices();
+	} catch (e) {
+		list.textContent = '';
+		const li = document.createElement('li');
+		li.className = 'empty';
+		li.textContent = e.message;
+		return list.append(li);
+	}
+	list.textContent = '';
+	for (const d of devs) {
+		const li = document.createElement('li');
+		const name = document.createElement('span');
+		name.className = 'nm';
+		name.textContent = d.name + (d.current ? ' (это устройство)' : '');
+		const when = document.createElement('small');
+		when.textContent = 'Был в сети: ' + ago(d.last);
+		li.append(name, when);
+		if (!d.current) {
+			const b = document.createElement('button');
+			b.textContent = 'Выйти на устройстве';
+			b.addEventListener('click', () => run(async () => {
+				await problet.syncRemoveDevice(d.id);
+				await renderDevices();
+				await renderRemoteTabs();
+			}));
+			li.append(b);
+		}
+		list.append(li);
+	}
+}
+async function renderRemoteTabs() {
+	const box = $('sync-tabs');
+	const devs = await problet.syncRemoteTabs();
+	box.textContent = '';
+	if (!devs.length) {
+		const p = document.createElement('div');
+		p.className = 'empty';
+		p.textContent = 'Пока ничего нет';
+		return box.append(p);
+	}
+	for (const d of devs) {
+		const h = document.createElement('div');
+		h.className = 'dev-name';
+		h.textContent = d.name + ' · ' + ago(d.at) + ' · ' + d.tabs.length;
+		box.append(h);
+		for (const t of d.tabs) {
+			if (!/^https?:\/\//i.test(t.url)) continue;
+			const a = document.createElement('a');
+			a.href = t.url;
+			a.target = '_blank';
+			a.rel = 'noopener';
+			a.textContent = t.title || t.url;
+			a.title = t.url;
+			box.append(a);
+		}
+	}
+}
+let syncExtraLogged = false;
+function syncExtra(st) {
+	if (st.logged && !syncExtraLogged) renderDevices().catch(() => {});
+	syncExtraLogged = st.logged;
+	if (st.logged) renderRemoteTabs().catch(() => {});
+}
+
 $('sync-login').addEventListener('click', () => syncAct(() => problet.syncLogin($('sync-nick').value.trim(), $('sync-pass').value)));
 $('sync-register').addEventListener('click', () => syncAct(() => problet.syncRegister($('sync-nick').value.trim(), $('sync-pass').value, $('sync-pass2').value)));
 $('sync-logout').addEventListener('click', () => syncAct(() => problet.syncLogout()));
 $('sync-now').addEventListener('click', () => run(async () => {
 	renderSync({ ...(await problet.syncStatus()), busy: true });
 	renderSync(await problet.syncNow());
+	await renderDevices();
 }));
 problet.syncStatus().then(renderSync).catch(() => {});
 addEventListener('focus', () => problet.syncStatus().then(renderSync).catch(() => {}));
 setInterval(() => problet.syncStatus().then(renderSync).catch(() => {}), 5000);
 
 // ---------- Пароли: выгрузка и загрузка ----------
+
+for (const [id, method] of [['export-all', 'exportAll'], ['import-all', 'importAll']]) {
+	$(id).addEventListener('click', () => run(async () => {
+		const r = await problet[method]($('all-pass').value);
+		$('all-pass').value = '';
+		if (!r.canceled) say(r.message);
+	}));
+}
 
 for (const [id, method] of [['pw-export', 'pwExport'], ['pw-import', 'pwImport']]) {
 	$(id).addEventListener('click', () => run(async () => {
