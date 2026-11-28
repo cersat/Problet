@@ -91,6 +91,18 @@ module.exports = {
 		await t.sleep(1200);
 		t.check('дата: при «открывать календарь» на кнопке подсказка и курсор-рука', await b.tb.ev(`document.getElementById('date').style.cursor === 'pointer' && /календар/.test(document.getElementById('date').title)`));
 
+		// Длинная дата на боковой панели переносится, а не уходит за края
+		const L3 = JSON.parse(JSON.stringify(L2));
+		L3.toolbar = L3.toolbar.filter((x) => x !== 'date');
+		L3.side = ['date'];
+		await b.fe(`w.problet.setSettings({ sidebar: 'left', btnLayout: ${JSON.stringify(L3)} })`);
+		await setOpt('date.format', 'long');
+		await t.sleep(1500);
+		const sideDate = await b.tb.ev(`(() => { const s = document.getElementById('sidebar').getBoundingClientRect(); const e = document.getElementById('date'); const r = e.getBoundingClientRect(); return { text: e.textContent, inside: r.left >= s.left - 0.5 && r.right <= s.right + 0.5, fits: e.scrollWidth <= e.clientWidth + 1 }; })()`);
+		t.check('длинная дата на боковой панели не вылезает за края', sideDate.inside && sideDate.fits, sideDate);
+		await b.fe(`w.problet.setSettings({ sidebar: 'off', btnLayout: ${JSON.stringify(L2)} })`);
+		await t.sleep(800);
+
 		// Загрузки: подсветка после завершения и число идущих загрузок
 		const dl = path.join(t.dir, 'dl');
 		fs.mkdirSync(dl, { recursive: true });
