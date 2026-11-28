@@ -66,6 +66,11 @@ function stableFor(latest, available) {
 	return below.length ? below[below.length - 1] : null;
 }
 
+// Релиз, из которого берётся stable: пока stable-серия совпадает с последней — постоянный релиз её первой версии (v9.4.0), иначе скользящий релиз серии (s9.4)
+function stableTag(stable, latestSeries) {
+	return cmpSeries(stable, latestSeries) === 0 ? 'v' + stable[0] + '.' + stable[1] + '.0' : 's' + stable[0] + '.' + stable[1];
+}
+
 // Версия сборки новее, чем stable: значит, это beta
 function isBeta() {
 	return cmpSeries(seriesOf(app.getVersion()), stableSeries) > 0;
@@ -223,12 +228,13 @@ async function check(force) {
 				saveCache();
 			}
 			// Последние версии потоков показываются в переключателе настроек
+			// Пока последняя серия — первая stable (9.4), stable — это сама версия 9.4.0: когда выйдет 9.5, stable перейдёт на 9.4.x, а не откатится
 			let stableRelease = null;
-			if (stable && cmpSeries(stable, latestSeries) < 0) stableRelease = await releaseByTag('s' + stable[0] + '.' + stable[1]);
+			if (stable) stableRelease = await releaseByTag(stableTag(stable, latestSeries));
 			state.betaVersion = newest;
-			state.stableVersion = stable ? (stableRelease ? pickAnyVersion(stableRelease.assets || []) || '' : cmpSeries(stable, latestSeries) === 0 ? newest : '') : '';
+			state.stableVersion = stable && stableRelease ? pickAnyVersion(stableRelease.assets || []) || '' : '';
 			saveCache();
-			if (channel === 'stable' && stable && cmpSeries(stable, latestSeries) < 0) {
+			if (channel === 'stable' && stable) {
 				target = stableRelease;
 				if (!target) throw new Error('Не удалось получить stable-версию');
 			} else if (channel === 'stable' && !stable) {
@@ -436,4 +442,4 @@ function schedule(opts) {
 
 const hooks = {}; // beforeRestart: главный процесс сохраняет окно и сессию перед перезапуском в новую версию
 
-module.exports = { hooks, setChannel, stableFor, isBeta, seriesOf, looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };
+module.exports = { hooks, setChannel, stableFor, stableTag, isBeta, seriesOf, looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };

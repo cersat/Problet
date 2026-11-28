@@ -100,6 +100,7 @@ module.exports = {
 
 		// Потоки stable и beta: stable — серия на одну ниже последней, но не ниже 9.4; сама 9.4 — первая stable
 		t.check('9.4 — первая stable: сама себе stable', JSON.stringify(upd.stableFor([9, 4], [[9, 4]])) === '[9,4]' && JSON.stringify(upd.stableFor([8, 2], [])) === '[8,2]');
+		t.check('пока последняя серия 9.4, stable — релиз v9.4.0, потом — скользящий s9.4', upd.stableTag([9, 4], [9, 4]) === 'v9.4.0' && upd.stableTag([9, 4], [9, 5]) === 's9.4' && upd.stableTag([9, 5], [9, 6]) === 's9.5');
 		t.check('stable — серия на одну ниже последней', JSON.stringify(upd.stableFor([9, 6], [[9, 4], [9, 5], [9, 6]])) === '[9,5]' && JSON.stringify(upd.stableFor([10, 0], [[9, 4], [9, 9], [10, 0]])) === '[9,9]');
 		t.check('если подходящей серии нет, stable не выбирается', upd.stableFor([9, 5], [[9, 5]]) === null && upd.stableFor([9, 5], [[9, 3], [9, 5]]) === null);
 
