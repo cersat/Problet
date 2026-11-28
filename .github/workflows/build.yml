@@ -91,18 +91,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # clean — какие файлы в релизе принадлежат этой сборке (старые версии их удаляются, чужие не трогаются)
           - name: Linux
             os: ubuntu-latest
             args: --linux
-            token: linux
+            clean: '-linux-(x64|x86_64)[.]'
+          - name: Linux arm64
+            os: ubuntu-24.04-arm
+            args: --linux --arm64
+            clean: '-linux-(arm64|aarch64)[.]'
           - name: Windows
             os: windows-latest
             args: --win
-            token: win
+            clean: '-win-|nsis[.]7z$'
           - name: macOS
             os: macos-latest
             args: --mac --x64 --arm64
-            token: mac
+            clean: '-mac-'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -147,7 +152,7 @@ jobs:
           for rel in latest "s${cur%.*}"; do
             gh release upload "$rel" $files --clobber
             # убрать старые версии файлов этой системы, чтобы обновление не нашло устаревший
-            gh release view "$rel" --json assets --jq '.assets[].name' | grep -E -- "-${{ matrix.token }}-|$([ '${{ matrix.token }}' = win ] && echo 'nsis\.7z$' || echo 'ничего-такого')" | while read -r name; do
+            gh release view "$rel" --json assets --jq '.assets[].name' | grep -E -- "${{ matrix.clean }}" | while read -r name; do
               echo "$keep" | grep -qxF "$name" || gh release delete-asset "$rel" "$name" --yes
             done
           done

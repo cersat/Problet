@@ -17,18 +17,23 @@ TARGET="$DIR/Problet.AppImage"
 TMP="$(mktemp "$DIR/.Problet-download.XXXXXX")"
 trap 'rm -f "$TMP"' EXIT
 
-if [ "$(uname -m)" != "x86_64" ]; then
-	echo "Сборка Problet для Linux пока есть только для x86_64" >&2
-	exit 1
-fi
+# Название архитектуры в имени файла: Problet-9.4.6-linux-x86_64.AppImage или ...-linux-arm64.AppImage
+case "$(uname -m)" in
+	x86_64) ARCH="x86_64" ;;
+	aarch64 | arm64) ARCH="arm64" ;;
+	*)
+		echo "Сборки Problet для Linux есть только для x86_64 и arm64, а здесь $(uname -m)" >&2
+		exit 1
+		;;
+esac
 command -v curl >/dev/null || { echo "Нужна программа curl" >&2; exit 1; }
 
 # Список файлов потока: {"version": "...", "files": [{"name": "..."}]}
-NAME="$(curl -fsSL "$SITE" 2>/dev/null | grep -o '"name": *"[^"]*linux-[a-z0-9_]*\.AppImage"' | head -n1 | sed 's/.*: *"\(.*\)"/\1/')"
+NAME="$(curl -fsSL "$SITE" 2>/dev/null | grep -o "\"name\": *\"[^\"]*linux-$ARCH\\.AppImage\"" | head -n1 | sed 's/.*: *"\(.*\)"/\1/')"
 if [ -n "$NAME" ]; then
 	URL="$SITE/$NAME"
 elif [ "$CHANNEL" = beta ]; then
-	URL="$(curl -fsSL https://api.github.com/repos/cersat/Problet/releases/tags/latest | grep -o 'https://[^"]*linux-[a-z0-9_]*\.AppImage' | head -n1)"
+	URL="$(curl -fsSL https://api.github.com/repos/cersat/Problet/releases/tags/latest | grep -o "https://[^\"]*linux-$ARCH\\.AppImage" | head -n1)"
 fi
 [ -n "$URL" ] || { echo "Не удалось найти файл Problet ($CHANNEL): сайт не отвечает" >&2; exit 1; }
 

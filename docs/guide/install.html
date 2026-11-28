@@ -28,7 +28,8 @@
 <p>Имена файлов устроены как <code>Problet-&lt;версия&gt;-&lt;система&gt;-&lt;процессор&gt;</code>:</p>
 <table>
 	<tr><th>Система</th><th>Файлы</th><th>Что выбрать</th></tr>
-	<tr><td>Linux</td><td><code>…-linux-x86_64.AppImage</code>, <code>…-linux-x64.tar.gz</code></td><td>AppImage: один файл, обновляется сам. tar.gz — архив для тех, кто хочет распаковать вручную.</td></tr>
+	<tr><td>Linux (x86_64)</td><td><code>…-linux-x86_64.AppImage</code>, <code>…-linux-x64.tar.gz</code></td><td>AppImage: один файл, обновляется сам. tar.gz — архив для тех, кто хочет распаковать вручную.</td></tr>
+	<tr><td>Linux (arm64)</td><td><code>…-linux-arm64.AppImage</code>, <code>…-linux-arm64.tar.gz</code></td><td>Для процессоров ARM: Raspberry Pi 4 и 5 с 64-разрядной системой, ноутбуки и серверы на ARM. Обновляется так же.</td></tr>
 	<tr><td>Windows</td><td><code>…-win-x64.exe</code>, <code>…-win-x64.zip</code></td><td>Установщик <code>.exe</code>. Zip — переносная версия без установки.</td></tr>
 	<tr><td>macOS</td><td><code>…-mac-arm64.dmg</code>, <code>…-mac-x64.dmg</code> (и такие же <code>.zip</code>)</td><td><code>arm64</code> — для Mac на Apple Silicon (M1 и новее), <code>x64</code> — для Mac на Intel.</td></tr>
 </table>
@@ -39,14 +40,14 @@
 	<li><b>stable</b> — серия (первые два числа версии) на одну ниже последней, например при последней 9.6.x это 9.5.x. Она проверена временем, до бета-версий не обновляется. Первой stable считается 9.4: пока последняя версия 9.4.x, stable и beta совпадают.</li>
 	<li><b>beta</b> — самая свежая сборка. Бета-сборки получают значок браузера с жёлто-оранжевой надписью «beta».</li>
 </ul>
-<p>Файл нужной системы лежит по адресу вида <code>/download/stable/windows-setup</code>, <code>/download/stable/linux-appimage</code>, <code>/download/beta/mac-dmg</code>; <code>/api/versions</code> показывает, какие версии сейчас лежат в потоках. С одного адреса можно скачивать не больше 120 раз в час.</p>
+<p>Файл нужной системы лежит по адресу вида <code>/download/stable/windows-setup</code>, <code>/download/stable/linux-appimage</code> (для ARM — <code>linux-arm64-appimage</code>), <code>/download/beta/mac-dmg</code>; <code>/api/versions</code> показывает, какие версии сейчас лежат в потоках. С одного адреса можно скачивать не больше 120 раз в час.</p>
 <p>Поток для самого браузера выбирается в <span class="path">Настройки → Обновления → Поток обновлений</span>. С stable на beta можно перейти в любой момент, с beta на stable браузер обновится, когда появится stable-версия не ниже той, что ты используешь.</p>
 
 <h2 id="установщики">Установщики</h2>
 <ul>
 	<li><b>Windows, <code>.exe</code></b> — при запуске спрашивает язык (русский или English), затем «Обычная установка» или <b>«Портативная»</b>. Портативная ставит программу и все её данные в одну выбранную папку: ярлыков, записей в системе и деинсталлятора нет, папку можно перенести или стереть (данные лежат в подпапке <code>data</code>). Рядом с программой при этом создаётся файл <code>portable.txt</code>.</li>
 	<li><b>Windows, веб-установщик</b> — файл <code>…-win-x64-web.exe</code> в несколько мегабайт: сам скачивает Problet с GitHub и ставит его так же, как обычный установщик.</li>
-	<li><b>Linux</b> — скрипт <code>Problet-web-linux.sh</code> (<code>stable</code> или <code>beta</code> параметром): скачивает настоящий AppImage с индикатором загрузки (окно zenity или kdialog, иначе полоса в терминале), сам становится файлом <code>Problet.AppImage</code>, делает его исполняемым и запускает.</li>
+	<li><b>Linux</b> — скрипт <code>Problet-web-linux.sh</code> (<code>stable</code> или <code>beta</code> параметром): скачивает настоящий AppImage для твоей архитектуры (x86_64 или arm64) с индикатором загрузки (окно zenity или kdialog, иначе полоса в терминале), сам становится файлом <code>Problet.AppImage</code>, делает его исполняемым и запускает.</li>
 	<li><b>macOS</b> — скрипт <code>Problet-web-mac.command</code>: скачивает архив под твой процессор, кладёт Problet.app в «Программы» и открывает.</li>
 </ul>
 
