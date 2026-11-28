@@ -49,7 +49,7 @@ module.exports = {
 
 		// Перезапуск: всё на месте
 		await b.quit();
-		fs.writeFileSync(path.join(b.dir, 'update-cache.json'), JSON.stringify({ changelog: '', stableSeries: [9, 4], stableVersion: '9.4.7', betaVersion: '9.5.2' }));
+		fs.writeFileSync(path.join(b.dir, 'update-cache.json'), JSON.stringify({ appVersion: require('../../package.json').version, changelog: '', stableSeries: [9, 4], stableVersion: '9.4.7', betaVersion: '9.5.2' }));
 		const data = JSON.parse(fs.readFileSync(path.join(b.dir, 'data.json'), 'utf8')).settings;
 		const lost = Object.entries(wanted).filter(([k, v]) => String(data[k]) !== String(v)).map(([k]) => k);
 		t.check('всё записано на диск при выходе', lost.length === 0, lost);
@@ -66,5 +66,13 @@ module.exports = {
 		// Язык на лету
 		const lang = await b2.fe(`(async () => { const e = d.querySelector('[data-setting="language"]'); e.value = 'en'; e.dispatchEvent(new w.Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 800)); const en = d.querySelector('h1').textContent; e.value = 'ru'; e.dispatchEvent(new w.Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 800)); return [en, d.querySelector('h1').textContent]; })()`);
 		t.check('язык интерфейса переключается на лету', lang[0] === 'Settings' && lang[1] === 'Настройки', lang);
+
+		// Список изменений из кеша другой версии не показывается
+		await b2.quit();
+		fs.writeFileSync(path.join(b2.dir, 'update-cache.json'), JSON.stringify({ appVersion: '0.0.1', changelog: 'старый список изменений', stableSeries: [9, 4], stableVersion: '0.0.1', betaVersion: '0.0.1' }));
+		const b3 = await t.browser({ keep: true });
+		await b3.go('problet://settings/', 600);
+		const old = await b3.fe(`w.problet.updateState()`);
+		t.check('кеш обновлений от другой версии браузера отбрасывается', old.changelog === '' && old.stableVersion === '' , old);
 	},
 };

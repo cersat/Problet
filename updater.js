@@ -184,6 +184,8 @@ function loadCache() {
 	try {
 		const c = JSON.parse(fs.readFileSync(cacheFile(), 'utf8'));
 		if (Array.isArray(c.stableSeries) && c.stableSeries.length === 2 && c.stableSeries.every(Number.isInteger)) stableSeries = c.stableSeries;
+		// Кеш, записанный другой версией браузера, устарел: список изменений и версии потоков узнаем заново при проверке
+		if (c.appVersion !== app.getVersion()) return set({});
 		if (typeof c.stableVersion === 'string') state.stableVersion = c.stableVersion;
 		if (typeof c.betaVersion === 'string') state.betaVersion = c.betaVersion;
 		if (typeof c.changelog === 'string') set({ changelog: c.changelog });
@@ -193,7 +195,7 @@ function loadCache() {
 
 function saveCache() {
 	try {
-		fs.writeFileSync(cacheFile(), JSON.stringify({ changelog: state.changelog, stableSeries, stableVersion: state.stableVersion, betaVersion: state.betaVersion }));
+		fs.writeFileSync(cacheFile(), JSON.stringify({ appVersion: app.getVersion(), changelog: state.changelog, stableSeries, stableVersion: state.stableVersion, betaVersion: state.betaVersion }));
 	} catch (e) { /* не страшно */ }
 }
 

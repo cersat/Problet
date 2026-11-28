@@ -1445,7 +1445,7 @@ const channelLabels = (st) => {
 		o.textContent = (o.value === 'stable' ? 'Stable' : 'Beta') + (v ? ' (' + v + ')' : '');
 	}
 };
-addEventListener('focus', () => problet.updateState().then(channelLabels).catch(() => {}));
+addEventListener('focus', () => problet.updateState().then((st) => { channelLabels(st); renderUpdate(st); }).catch(() => {}));
 problet.updateState().then((st) => {
 	channelLabels(st);
 	updaterBeta = !!st.beta;
