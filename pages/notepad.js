@@ -185,29 +185,44 @@ addEventListener('beforeunload', () => {
 });
 
 // Кнопки разметки: в листе pmd оформляют текст, в md вставляют знаки разметки, в остальных файлах их нет
+const pickImage = async (md) => {
+	try {
+		const r = await problet.notepadImage();
+		if (!r) return;
+		if (md) document.execCommand('insertText', false, '![' + r.name + '](' + r.url + ')');
+		else document.execCommand('insertImage', false, r.data);
+		ed.dispatchEvent(new Event('input'));
+	} catch (e) {
+		state(String((e && e.message) || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, ''), true);
+	}
+};
 const RICH = [
-	['B', 'Жирный', () => document.execCommand('bold')],
-	['I', 'Курсив', () => document.execCommand('italic')],
-	['U', 'Подчёркнутый', () => document.execCommand('underline')],
-	['H1', 'Крупный заголовок', () => document.execCommand('formatBlock', false, 'h1')],
-	['H2', 'Заголовок', () => document.execCommand('formatBlock', false, 'h2')],
-	['•', 'Список', () => document.execCommand('insertUnorderedList')],
-	['1.', 'Нумерованный список', () => document.execCommand('insertOrderedList')],
-	['</>', 'Код', () => document.execCommand('formatBlock', false, 'pre')],
-	['“”', 'Цитата', () => document.execCommand('formatBlock', false, 'blockquote')],
+	['Жирный', 'Жирный текст', () => document.execCommand('bold')],
+	['Курсив', 'Курсивный текст', () => document.execCommand('italic')],
+	['Подчёркнутый', 'Подчёркнутый текст', () => document.execCommand('underline')],
+	['Заголовок 1', 'Крупный заголовок', () => document.execCommand('formatBlock', false, 'h1')],
+	['Заголовок 2', 'Заголовок', () => document.execCommand('formatBlock', false, 'h2')],
+	['Заголовок 3', 'Малый заголовок', () => document.execCommand('formatBlock', false, 'h3')],
+	['Список', 'Маркированный список', () => document.execCommand('insertUnorderedList')],
+	['Нумерация', 'Нумерованный список', () => document.execCommand('insertOrderedList')],
+	['Код', 'Блок кода', () => document.execCommand('formatBlock', false, 'pre')],
+	['Цитата', 'Цитата', () => document.execCommand('formatBlock', false, 'blockquote')],
+	['Картинка', 'Вставить картинку: откроется выбор файла', () => pickImage(false)],
 ];
 const wrap = (a, b = a) => () => {
 	const s = getSelection().toString();
 	document.execCommand('insertText', false, a + (s || 'текст') + b);
 };
 const MD = [
-	['B', 'Жирный', wrap('**')],
-	['I', 'Курсив', wrap('*')],
-	['H1', 'Крупный заголовок', wrap('# ', '')],
-	['H2', 'Заголовок', wrap('## ', '')],
-	['•', 'Список', wrap('- ', '')],
-	['</>', 'Код', wrap('`')],
-	['“”', 'Цитата', wrap('> ', '')],
+	['Жирный', 'Жирный текст', wrap('**')],
+	['Курсив', 'Курсивный текст', wrap('*')],
+	['Заголовок 1', 'Крупный заголовок', wrap('# ', '')],
+	['Заголовок 2', 'Заголовок', wrap('## ', '')],
+	['Заголовок 3', 'Малый заголовок', wrap('### ', '')],
+	['Список', 'Маркированный список', wrap('- ', '')],
+	['Код', 'Код', wrap('`')],
+	['Цитата', 'Цитата', wrap('> ', '')],
+	['Картинка', 'Вставить картинку: откроется выбор файла', () => pickImage(true)],
 ];
 function buildMarks() {
 	const list = kind === 'pmd' ? RICH : kind === 'md' ? MD : [];

@@ -3739,6 +3739,17 @@ handle('notepad:write', (p, text) => {
 	return { ok: true };
 });
 
+handle('notepad:image', async (e) => {
+	const win = BrowserWindow.fromWebContents(e.sender) || undefined;
+	const r = await dialog.showOpenDialog(win, { title: 'Картинка', properties: ['openFile'], filters: [{ name: 'Картинки', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }] });
+	if (r.canceled || !r.filePaths[0]) return null;
+	const p = r.filePaths[0];
+	if (fs.statSync(p).size > 3 * 1024 * 1024) throw new Error('Картинка больше 3 МБ');
+	const ext = path.extname(p).slice(1).toLowerCase();
+	const mime = ext === 'svg' ? 'image/svg+xml' : 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
+	return { path: p, name: path.basename(p), url: require('url').pathToFileURL(p).href, data: 'data:' + mime + ';base64,' + fs.readFileSync(p).toString('base64') };
+});
+
 // Редактор svg: чтение и запись файла по полному пути
 const svgPath = (p) => {
 	p = path.resolve(String(p));

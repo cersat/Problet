@@ -29,6 +29,15 @@ module.exports = {
 		const saved = fs.readFileSync(own, 'utf8');
 		t.check('скрипты и обработчики из листа не сохраняются', !/script|onclick/.test(saved) && saved.includes('<i>b</i>'), saved);
 
+		// Кнопки разметки: слова вместо букв, третий заголовок и картинка
+		await b.go('problet://notepad/', 1200);
+		const marks = await b.fe(`[...d.querySelectorAll('#marks button')].map((x) => x.textContent)`);
+		t.check('кнопки листа подписаны словами, есть Заголовок 3 и Картинка', ['Жирный', 'Курсив', 'Подчёркнутый', 'Заголовок 1', 'Заголовок 2', 'Заголовок 3', 'Картинка'].every((x) => marks.includes(x)) && !marks.some((x) => x.length <= 2), marks);
+		await b.fe(`(async () => { const e = d.getElementById('editor'); e.focus(); e.innerHTML = '<div>абв</div>'; getSelection().selectAllChildren(e); [...d.querySelectorAll('#marks button')].find((x) => x.textContent === 'Заголовок 3').click(); })()`);
+		t.check('Заголовок 3 делает h3', await b.fe(`!!d.querySelector('#editor h3')`));
+		await b.fe(`(async () => { const e = d.getElementById('editor'); e.innerHTML = 'a<i>b</i>'; e.dispatchEvent(new w.Event('input')); })()`);
+		await t.sleep(1200);
+
 		// Markdown
 		await b.go('problet://notepad/?f=' + encodeURIComponent(md), 1200);
 		const mdv = await b.fe(`({ h1: d.querySelector('#view h1') && d.querySelector('#view h1').textContent, b: !!d.querySelector('#view b'), a: d.querySelector('#view a') && d.querySelector('#view a').getAttribute('href'), li: d.querySelectorAll('#view li').length, shown: !d.getElementById('view').classList.contains('hidden') })`);

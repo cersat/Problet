@@ -181,6 +181,7 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		recentVisits: () => call('visits:recent'),
 		downloads: () => call('downloads:list'),
 		notepadRead: (p) => call('notepad:read', p),
+		notepadImage: () => call('notepad:image'),
 		notepadWrite: (p, text) => call('notepad:write', p, text),
 		offlineList: () => call('offline:list'),
 		offlineOpen: (id) => call('offline:open', id),
