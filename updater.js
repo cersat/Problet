@@ -17,7 +17,7 @@ const OS = { linux: 'linux', win32: 'win', darwin: 'mac' }[process.platform];
 
 let setupInstall = null; // установлен ли Problet установщиком (Windows); объявлено до state: mode() читает его сразу
 // state: idle | checking | uptodate | available | downloading | ready | error
-let state = { status: 'idle', version: '', progress: 0, message: '', changelog: '', mode: mode(), beta: false, channel: 'stable' };
+let state = { status: 'idle', version: '', progress: 0, message: '', changelog: '', mode: mode(), beta: false, channel: 'stable', stableVersion: '', betaVersion: '' };
 let listeners = [];
 let asset = null;
 let page = '';
@@ -184,6 +184,8 @@ function loadCache() {
 	try {
 		const c = JSON.parse(fs.readFileSync(cacheFile(), 'utf8'));
 		if (Array.isArray(c.stableSeries) && c.stableSeries.length === 2 && c.stableSeries.every(Number.isInteger)) stableSeries = c.stableSeries;
+		if (typeof c.stableVersion === 'string') state.stableVersion = c.stableVersion;
+		if (typeof c.betaVersion === 'string') state.betaVersion = c.betaVersion;
 		if (typeof c.changelog === 'string') set({ changelog: c.changelog });
 		else set({});
 	} catch (e) { /* кеша ещё нет */ }
@@ -191,7 +193,7 @@ function loadCache() {
 
 function saveCache() {
 	try {
-		fs.writeFileSync(cacheFile(), JSON.stringify({ changelog: state.changelog, stableSeries }));
+		fs.writeFileSync(cacheFile(), JSON.stringify({ changelog: state.changelog, stableSeries, stableVersion: state.stableVersion, betaVersion: state.betaVersion }));
 	} catch (e) { /* не страшно */ }
 }
 
@@ -215,8 +217,14 @@ async function check(force) {
 				stableSeries = stable;
 				saveCache();
 			}
+			// Последние версии потоков показываются в переключателе настроек
+			let stableRelease = null;
+			if (stable && cmpSeries(stable, latestSeries) < 0) stableRelease = await releaseByTag('s' + stable[0] + '.' + stable[1]);
+			state.betaVersion = newest;
+			state.stableVersion = stable ? (stableRelease ? pickAnyVersion(stableRelease.assets || []) || '' : cmpSeries(stable, latestSeries) === 0 ? newest : '') : '';
+			saveCache();
 			if (channel === 'stable' && stable && cmpSeries(stable, latestSeries) < 0) {
-				target = await releaseByTag('s' + stable[0] + '.' + stable[1]);
+				target = stableRelease;
 				if (!target) throw new Error('Не удалось получить stable-версию');
 			} else if (channel === 'stable' && !stable) {
 				target = { html_url: release.html_url, assets: [] }; // stable-серии ещё нет: обновляться некуда

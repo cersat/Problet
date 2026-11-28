@@ -95,7 +95,14 @@ if (location.protocol === 'problet:' && location.host === 'ui' && window !== win
 if (location.protocol === 'problet:' && !isToolbar) {
 	watchTheme();
 	const call = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
+	// Необработанные ошибки скриптов страницы показываются окном ошибки: слушатели ставятся в мире страницы, а сообщают через problet.reportError
+	webFrame.executeJavaScript(`(() => {
+		const rep = (t) => { try { problet.reportError(location.href + '\\n' + t); } catch (e) { /* API ещё не выдан */ } };
+		addEventListener('error', (ev) => rep(ev.error && ev.error.stack ? ev.error.stack : ev.message));
+		addEventListener('unhandledrejection', (ev) => rep(ev.reason && ev.reason.stack ? ev.reason.stack : String(ev.reason)));
+	})()`).catch(() => {});
 	contextBridge.exposeInMainWorld('problet', {
+		reportError: (text) => ipcRenderer.send('page:error', String(text)),
 		getSettings: () => call('settings:get'),
 		setSettings: (patch) => call('settings:set', patch),
 		setSafeMode: (on) => call('safe:set', !!on),

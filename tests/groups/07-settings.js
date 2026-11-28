@@ -49,6 +49,7 @@ module.exports = {
 
 		// Перезапуск: всё на месте
 		await b.quit();
+		fs.writeFileSync(path.join(b.dir, 'update-cache.json'), JSON.stringify({ changelog: '', stableSeries: [9, 4], stableVersion: '9.4.7', betaVersion: '9.5.2' }));
 		const data = JSON.parse(fs.readFileSync(path.join(b.dir, 'data.json'), 'utf8')).settings;
 		const lost = Object.entries(wanted).filter(([k, v]) => String(data[k]) !== String(v)).map(([k]) => k);
 		t.check('всё записано на диск при выходе', lost.length === 0, lost);
@@ -57,6 +58,10 @@ module.exports = {
 		const s2 = await b2.fe(`w.problet.getSettings().then(r => r.settings)`);
 		const lost2 = Object.entries(wanted).filter(([k, v]) => String(s2[k]) !== String(v)).map(([k]) => k);
 		t.check('после перезапуска настройки те же', lost2.length === 0, lost2);
+
+		// В переключателе потока обновлений показаны последние версии stable и beta
+		const chan = await b2.fe(`(async () => { await new Promise(r => setTimeout(r, 500)); return [...d.querySelector('[data-setting="updateChannel"]').options].map(o => o.textContent); })()`);
+		t.check('переключатель stable/beta показывает последние версии', chan[0] === 'Stable (9.4.7)' && chan[1] === 'Beta (9.5.2)', chan);
 
 		// Язык на лету
 		const lang = await b2.fe(`(async () => { const e = d.querySelector('[data-setting="language"]'); e.value = 'en'; e.dispatchEvent(new w.Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 800)); const en = d.querySelector('h1').textContent; e.value = 'ru'; e.dispatchEvent(new w.Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 800)); return [en, d.querySelector('h1').textContent]; })()`);

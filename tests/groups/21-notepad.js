@@ -38,6 +38,16 @@ module.exports = {
 		await b.fe(`(async () => { const e = d.getElementById('editor'); e.innerHTML = 'a<i>b</i>'; e.dispatchEvent(new w.Event('input')); })()`);
 		await t.sleep(1200);
 
+		// Ошибка в скрипте встроенной страницы показывается окном ошибки
+		await b.fe(`(() => { w.dispatchEvent(new w.ErrorEvent('error', { message: 'проверочная ошибка страницы', error: new w.TypeError('проверочная ошибка страницы') })); })()`);
+		await t.sleep(2500);
+		b.errors.splice(0); // ошибка выше нарочная
+		const errWin = (await b.targets()).find((x) => /error\.html/.test(x.url || ''));
+		t.check('необработанная ошибка встроенной страницы открывает окно ошибки', !!errWin, (await b.targets()).map((x) => x.url));
+		// Кнопка «Картинка» не падает: диалог открывается (в тесте его нет, поэтому ошибка не должна быть программной)
+		const img = await b.fe(`(async () => { try { return typeof w.problet.notepadImage; } catch (e) { return String(e); } })()`);
+		t.check('у страницы есть problet.notepadImage', img === 'function', img);
+
 		// Markdown
 		await b.go('problet://notepad/?f=' + encodeURIComponent(md), 1200);
 		const mdv = await b.fe(`({ h1: d.querySelector('#view h1') && d.querySelector('#view h1').textContent, b: !!d.querySelector('#view b'), a: d.querySelector('#view a') && d.querySelector('#view a').getAttribute('href'), li: d.querySelectorAll('#view li').length, shown: !d.getElementById('view').classList.contains('hidden') })`);

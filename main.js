@@ -3350,11 +3350,24 @@ function guard(e) {
 }
 
 function handle(channel, fn) {
-	ipcMain.handle(channel, (e, ...args) => {
+	ipcMain.handle(channel, async (e, ...args) => {
 		guard(e);
-		return fn(...args);
+		try {
+			return await fn(...args);
+		} catch (err) {
+			// Ошибки в самом коде (а не понятные сообщения вроде «файл слишком большой») показываются окном ошибки
+			if (err instanceof TypeError || err instanceof ReferenceError || err instanceof RangeError || err instanceof SyntaxError) showError('Ошибка', channel + '\n' + (err.stack || err));
+			throw err;
+		}
 	});
 }
+// Необработанные ошибки скриптов встроенных страниц: страница присылает их сюда
+ipcMain.on('page:error', (e, text) => {
+	try {
+		if (!/^problet:/.test(e.sender.getURL())) return;
+	} catch (err) { return; }
+	showError('Ошибка страницы', String(text).slice(0, 4000));
+});
 
 function dateStamp() {
 	const d = new Date();
@@ -3739,8 +3752,7 @@ handle('notepad:write', (p, text) => {
 	return { ok: true };
 });
 
-handle('notepad:image', async (e) => {
-	const win = BrowserWindow.fromWebContents(e.sender) || undefined;
+handle('notepad:image', async () => {
 	const r = await dialog.showOpenDialog(win, { title: 'Картинка', properties: ['openFile'], filters: [{ name: 'Картинки', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }] });
 	if (r.canceled || !r.filePaths[0]) return null;
 	const p = r.filePaths[0];

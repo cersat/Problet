@@ -1437,7 +1437,17 @@ $('safe-exit').addEventListener('click', async () => {
 // ---------- Главная ----------
 
 let updaterBeta = false;
+const channelLabels = (st) => {
+	const sel = document.querySelector('[data-setting="updateChannel"]');
+	if (!sel) return;
+	for (const o of sel.options) {
+		const v = o.value === 'stable' ? st.stableVersion : st.betaVersion;
+		o.textContent = (o.value === 'stable' ? 'Stable' : 'Beta') + (v ? ' (' + v + ')' : '');
+	}
+};
+addEventListener('focus', () => problet.updateState().then(channelLabels).catch(() => {}));
 problet.updateState().then((st) => {
+	channelLabels(st);
 	updaterBeta = !!st.beta;
 	loaded.then(() => { $('home-version').textContent = $('app-version').textContent + (updaterBeta ? ' beta' : ''); });
 }).catch(() => {});
