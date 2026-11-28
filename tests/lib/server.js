@@ -5,6 +5,11 @@ const page = (title, body) => '<!doctype html><html><head><meta charset="utf-8">
 const ROUTES = {
 	'/': () => page('Сайт', '<h1 id="h">сайт</h1><a id="link" href="/b">дальше</a><script src="/ads/banner.js"></script><script src="/ok.js"></script>'),
 	'/a': () => page('A', '<p id="p">страница A</p>'),
+	'/cached': () => page('Кеш', '<img src="/pic.svg">'),
+	'/pic.svg': (res) => {
+		res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'max-age=3600' });
+		res.end('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>');
+	},
 	'/b': () => page('B', '<p id="p">страница B</p>'),
 	'/long': () => page('Длинная', '<div style="height:5000px">' + 'слово '.repeat(2000) + '</div><p id="needle">иголка</p>'),
 	'/find': () => page('Поиск', '<p>кот и ещё один кот, и третий кот</p>'),
@@ -25,8 +30,23 @@ const ROUTES = {
 
 function start() {
 	const hits = [];
+	const heads = []; // запросы с заголовками: { url, headers }
 	const server = http.createServer((req, res) => {
 		hits.push(req.url);
+		heads.push({ url: req.url, headers: req.headers });
+		if (req.url.split('?')[0] === '/slow.bin') {
+			// медленное скачивание: 6 кусков по полсекунды
+			res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': 6 * 65536, 'content-disposition': 'attachment; filename="slow.bin"' });
+			let n = 0;
+			const t = setInterval(() => {
+				res.write(Buffer.alloc(65536, 1));
+				if (++n === 6) {
+					clearInterval(t);
+					res.end();
+				}
+			}, 500);
+			return;
+		}
 		const path = req.url.split('?')[0];
 		const r = ROUTES[path];
 		if (!r) {
@@ -45,7 +65,7 @@ function start() {
 	});
 	return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
 		const base = 'http://127.0.0.1:' + server.address().port;
-		resolve({ base, hits, close: () => server.close() });
+		resolve({ base, hits, heads, close: () => server.close() });
 	}));
 }
 

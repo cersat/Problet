@@ -1043,6 +1043,13 @@ body.version .actions {
 .prow.muted { color: var(--faint); background: var(--hover); }
 .prow .pname { flex: 1; min-width: 0; }
 .prow select { width: 200px; }
+/* Настройки кнопки под её карточкой */
+.popts { padding: 2px 12px 6px 28px; border-top: 1px dashed var(--border); background: var(--hover); }
+.popts .setting { padding: 8px 0; }
+.popts .setting + .setting { border-top: 1px solid var(--border); }
+.popts input[type=text] { width: 200px; }
+.popts + .prow { border-top: 1px solid var(--border); }
+button.move.on { color: var(--accent); }
 
 button.move {
 	display: inline-grid;

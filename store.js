@@ -44,14 +44,14 @@ const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmba
 const SPACERS = ['sp1', 'sp2', 'sp3', 'sp4'];
 // x:<id расширения> — кнопка расширения, у каждого своя
 const EXT_BTN = /^x:([a-p]{32}|@[a-z0-9][a-z0-9-]{0,39})$/; // расширение Chrome или @аддон Problet
-const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'clock', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
+const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'clock', 'date', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {
 		tabs: ['spaces', 'm:tabs', 'newtab', 'sp1', 'winctl'],
 		toolbar: ['back', 'forward', 'reload', 'm:address', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'],
 		bmbar: ['m:bookmarks', 'sp3'],
 		extra: [],
-		hidden: ['sp2', 'sp4', 'darkpage', 'translate', 'clock'],
+		hidden: ['sp2', 'sp4', 'darkpage', 'translate', 'clock', 'date'],
 	};
 }
 
@@ -131,6 +131,58 @@ function cleanOrder(raw) {
 	}
 	if (Array.isArray(raw) && raw.length === DEFAULT_ORDER.length && DEFAULT_ORDER.every((k) => raw.includes(k))) return [...raw];
 	return [...DEFAULT_ORDER];
+}
+
+// Настройки отдельных кнопок (карточки кнопок в «Панелях»): для каждой кнопки — свои ключи с проверкой и значением по умолчанию
+const DATE_FORMATS = ['short', 'day', 'long', 'full'];
+// Часовой пояс для часов: пусто (местное время) или смещение от UTC: +4, -3:30, UTC+5:45
+function cleanTz(v) {
+	const s = String(v == null ? '' : v).trim().replace(/^(utc|gmt)\s*/i, '').replace('−', '-');
+	if (!s) return '';
+	const m = /^([+-]?)(\d{1,2})(?::(\d{2}))?$/.exec(s);
+	if (!m) return null;
+	const h = Number(m[2]);
+	const min = m[3] ? Number(m[3]) : 0;
+	const total = (m[1] === '-' ? -1 : 1) * (h * 60 + min);
+	if (min >= 60 || total < -12 * 60 || total > 14 * 60) return null;
+	return (total < 0 ? '-' : '+') + Math.floor(Math.abs(total) / 60) + (min ? ':' + String(min).padStart(2, '0') : '');
+}
+const BTN_OPTIONS = {
+	darkpage: { remember: [false, 'bool'] },
+	clock: { ampm: [false, 'bool'], seconds: [false, 'bool'], tz: ['', cleanTz] },
+	date: { calendar: [false, 'bool'], format: ['short', DATE_FORMATS] },
+	downloads: { highlight: [false, 'bool'], count: [false, 'bool'] },
+	reload: { hard: [false, 'bool'] },
+	newtab: { incognito: [false, 'bool'] },
+};
+// strict: при сохранении из настроек кривое значение — ошибка, при чтении файла — значение по умолчанию
+function cleanBtnOptions(raw, strict) {
+	const r = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+	const out = {};
+	for (const [id, keys] of Object.entries(BTN_OPTIONS)) {
+		const src = r[id] && typeof r[id] === 'object' ? r[id] : {};
+		out[id] = {};
+		for (const [k, [def, rule]] of Object.entries(keys)) {
+			let v = def;
+			if (src[k] !== undefined) {
+				const ok = rule === 'bool' ? typeof src[k] === 'boolean' : Array.isArray(rule) ? rule.includes(src[k]) : rule(src[k]) !== null;
+				if (ok) v = typeof rule === 'function' ? rule(src[k]) : src[k];
+				else if (strict) throw new Error(id === 'clock' && k === 'tz' ? 'Часовой пояс пишется как смещение от UTC: +4, -3:30, UTC+5:45' : 'Некорректная настройка кнопки');
+			}
+			out[id][k] = v;
+		}
+	}
+	return out;
+}
+// Сайты, где пользователь включил тёмную тему страницы (для «запоминать между перезагрузками»)
+function cleanHosts(raw) {
+	const out = [];
+	for (const h of Array.isArray(raw) ? raw : []) {
+		const s = String(h || '').toLowerCase().trim();
+		if (/^[a-z0-9.-]{1,253}$/.test(s) && !out.includes(s)) out.push(s);
+		if (out.length >= 2000) break;
+	}
+	return out;
 }
 
 // Расположение кнопок: каждая кнопка ровно в одной панели (или в hidden), главные элементы на своих панелях
@@ -246,6 +298,8 @@ const SETTING_DEFAULTS = {
 	panelOrder: [...DEFAULT_ORDER],
 	btnLayout: defaultButtons(),
 	btnMemory: { tabs: [], toolbar: [], bmbar: [], extra: [] }, // где кнопка стояла на каждой панели, даже когда её там нет
+	btnOptions: null, // заполняется cleanBtnOptions
+	darkSites: [],
 	customButtons: [],
 	arrows: 'tri',
 	bmOnlyIcons: false,
@@ -457,6 +511,8 @@ function sanitizeSettings(raw) {
 	}
 	out.loginTemplates = cleanLogins(r.loginTemplates);
 	out.btnMemory = cleanMemory(r.btnMemory);
+	out.btnOptions = cleanBtnOptions(r.btnOptions, false);
+	out.darkSites = cleanHosts(r.darkSites);
 	out.customButtons = cleanCustom(r.customButtons);
 	const customIds = out.customButtons.map((c) => c.id);
 	// Файлы старых версий: положение вкладок и закладок и переключатели кнопок
@@ -979,6 +1035,20 @@ function setSettings(patch) {
 	if (p.loginTemplates !== undefined) {
 		if (!Array.isArray(p.loginTemplates)) throw new Error('Некорректные шаблонные логины');
 		next.loginTemplates = cleanLogins(p.loginTemplates);
+	}
+	if (p.btnOptions !== undefined) {
+		// Можно прислать только часть: остальные кнопки и ключи остаются как есть
+		const merged = JSON.parse(JSON.stringify(next.btnOptions || {}));
+		if (!p.btnOptions || typeof p.btnOptions !== 'object') throw new Error('Некорректная настройка кнопки');
+		for (const [id, v] of Object.entries(p.btnOptions)) {
+			if (!Object.hasOwn(BTN_OPTIONS, id) || !v || typeof v !== 'object') throw new Error('Некорректная настройка кнопки');
+			merged[id] = { ...(merged[id] || {}), ...v };
+		}
+		next.btnOptions = cleanBtnOptions(merged, true);
+	}
+	if (p.darkSites !== undefined) {
+		if (!Array.isArray(p.darkSites)) throw new Error('Некорректный список сайтов');
+		next.darkSites = cleanHosts(p.darkSites);
 	}
 	if (p.customButtons !== undefined) {
 		if (!Array.isArray(p.customButtons)) throw new Error('Некорректные свои кнопки');

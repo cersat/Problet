@@ -205,8 +205,91 @@ let defaultKeywords = [];
 // ---------- Панели и кнопки ----------
 
 const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', extra: 'Четвёртая панель', page: 'Окно вкладки' };
-const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', sp4: 'Переменный промежуток 4', clock: 'Часы', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
+const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', sp4: 'Переменный промежуток 4', clock: 'Часы', date: 'Дата', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
 const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
+// Настройки отдельных кнопок: открываются шестерёнкой на карточке кнопки. Ключи и проверка — в store.js (BTN_OPTIONS)
+const BTN_OPTIONS = {
+	darkpage: [
+		{ key: 'remember', type: 'switch', label: 'Сохранять состояние между перезагрузками сайта', note: 'Если на сайте включить тёмную тему, после перезагрузки она включится снова' },
+	],
+	clock: [
+		{ key: 'ampm', type: 'switch', label: 'Показывать время в AM/PM' },
+		{ key: 'seconds', type: 'switch', label: 'Показывать секунды' },
+		{ key: 'tz', type: 'text', label: 'Другой часовой пояс', note: 'Смещение от UTC: +4, -3:30, UTC+5:45. Пусто — местное время', placeholder: 'местное время' },
+	],
+	date: [
+		{ key: 'calendar', type: 'switch', label: 'Открывать системный календарь при нажатии' },
+		// образцы — сегодняшняя дата на языке интерфейса
+		{ key: 'format', type: 'select', label: 'Вид даты', options: () => [['short', { day: '2-digit', month: '2-digit' }], ['day', { weekday: 'short', day: 'numeric', month: 'short' }], ['long', { day: 'numeric', month: 'long' }], ['full', { day: '2-digit', month: '2-digit', year: 'numeric' }]].map(([v, f]) => [v, new Date().toLocaleDateString(probletLocale(), f)]) },
+	],
+	downloads: [
+		{ key: 'highlight', type: 'switch', label: 'Подсвечивать кнопку, когда файл скачан', note: 'Значок станет цвета акцента и останется таким, пока на него не нажмёшь' },
+		{ key: 'count', type: 'switch', label: 'Показывать число идущих загрузок' },
+	],
+	reload: [
+		{ key: 'hard', type: 'switch', label: 'Обновлять страницу без кеша', note: 'Страница заново скачивает картинки, стили и скрипты' },
+	],
+	newtab: [
+		{ key: 'incognito', type: 'switch', label: 'Открывать вкладку инкогнито' },
+	],
+};
+const optsOpen = new Set(); // у каких кнопок раскрыты настройки (переживает перерисовку)
+
+function buttonOptions(id) {
+	const box = document.createElement('div');
+	box.className = 'popts';
+	const cur = (current.btnOptions || {})[id] || {};
+	const save = (key, value, el) => run(async () => {
+		try {
+			current = await problet.setSettings({ btnOptions: { [id]: { [key]: value } } });
+		} catch (e) {
+			if (el.type === 'checkbox') el.checked = !!cur[key];
+			else el.value = cur[key];
+			throw e;
+		}
+		if (el.type === 'text') el.value = current.btnOptions[id][key];
+		say('Сохранено');
+	});
+	for (const o of BTN_OPTIONS[id]) {
+		const row = document.createElement('div');
+		row.className = 'setting';
+		const what = document.createElement('div');
+		what.className = 'what';
+		what.textContent = o.label;
+		if (o.note) {
+			const small = document.createElement('small');
+			small.textContent = o.note;
+			what.append(small);
+		}
+		row.append(what);
+		let el;
+		if (o.type === 'switch') {
+			const label = document.createElement('label');
+			label.className = 'switch';
+			el = document.createElement('input');
+			el.type = 'checkbox';
+			el.checked = !!cur[o.key];
+			label.append(el, document.createElement('span'));
+			row.append(label);
+		} else if (o.type === 'select') {
+			el = document.createElement('select');
+			for (const [v, t] of o.options()) el.append(new Option(t, v));
+			el.value = cur[o.key];
+			el.translate = false; // образцы дат — данные
+			row.append(el);
+		} else {
+			el = document.createElement('input');
+			el.type = 'text';
+			el.value = cur[o.key] || '';
+			el.placeholder = o.placeholder || '';
+			row.append(el);
+		}
+		el.dataset.opt = id + '.' + o.key;
+		el.addEventListener('change', () => save(o.key, el.type === 'checkbox' ? el.checked : el.value, el));
+		box.append(row);
+	}
+	return box;
+}
 
 const ico = (name) => PROBLET_ICONS.icon(name, { size: 16 });
 function moveButton(text, title, disabled, onClick) {
@@ -400,12 +483,25 @@ function renderPanels() {
 				const alone = L[key].filter((x) => !MAIN_NAMES[x]).length < 2;
 				row.append(moveButton(glyphs[0], 'Назад по панели', alone, () => swap(-1)), moveButton(glyphs[1], 'Вперёд по панели', alone, () => swap(1)));
 			}
+			let opts = null;
+			if (BTN_OPTIONS[id]) {
+				const gear = moveButton(ico('settings'), 'Настройки кнопки', false, () => {
+					if (optsOpen.has(id)) optsOpen.delete(id);
+					else optsOpen.add(id);
+					renderPanels();
+				});
+				gear.dataset.opts = id;
+				gear.classList.toggle('on', optsOpen.has(id));
+				row.append(gear);
+				if (optsOpen.has(id)) opts = buttonOptions(id);
+			}
 			if (custom) {
 				const edit = moveButton(ico('edit'), 'Изменить кнопку', false, () => openCustom(custom));
 				const del = moveButton(ico('trash'), 'Удалить кнопку', false, () => saveLayout({ customButtons: current.customButtons.filter((c) => c.id !== id) }));
 				row.append(edit, del);
 			}
 			group.append(row);
+			if (opts) group.append(opts);
 		});
 		lists.append(group);
 	}

@@ -53,6 +53,8 @@ if (isToolbar) {
 		extClick: (id, rect) => ipcRenderer.send('bar:ext', id, rect),
 		onUpdate: (cb) => ipcRenderer.on('update-state', (_e, st) => cb(st)),
 		onDownloadsBusy: (cb) => ipcRenderer.on('downloads-busy', (_e, n) => cb(n)),
+		onDownloadDone: (cb) => ipcRenderer.on('download-done', () => cb()),
+		openCalendar: () => ipcRenderer.send('open-calendar'),
 		onTabs: (cb) => ipcRenderer.on('tabs', (_e, data) => cb(data)),
 		onFocusAddress: (cb) => ipcRenderer.on('focus-address', () => cb()),
 		onSetAddress: (cb) => ipcRenderer.on('set-address', (_e, msg) => cb(msg)),

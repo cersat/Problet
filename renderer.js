@@ -315,9 +315,16 @@ function showUpdate(st) {
 problet.onUpdate(showUpdate);
 showUpdate(problet.updateState());
 
+// Кнопка «Загрузки»: идёт загрузка — мигает; настройки кнопки — число активных загрузок и подсветка после завершения
+const dlBtn = document.getElementById('downloads');
 problet.onDownloadsBusy((n) => {
-	document.getElementById('downloads').classList.toggle('busy', n > 0);
+	dlBtn.classList.toggle('busy', n > 0);
+	dlBtn.dataset.count = opt('downloads').count && n > 0 ? String(n) : '';
 });
+problet.onDownloadDone(() => {
+	if (opt('downloads').highlight) dlBtn.classList.add('fresh');
+});
+dlBtn.addEventListener('click', () => dlBtn.classList.remove('fresh'));
 
 // Действия по mousedown, чтобы они срабатывали, даже если список перерисовался между нажатием и отпусканием
 tabsEl.addEventListener('mousedown', (e) => {
@@ -603,17 +610,49 @@ function applyLayout(l) {
 	if (lastUpdate) showUpdate(lastUpdate);
 }
 
-// Часы: 24-часовой формат, дата во всплывающей подсказке
+// Часы и дата. Настройки кнопок (в «Панелях»): 12-часовой формат, секунды, другой часовой пояс; формат даты
 const clockEl = $id('clock');
+const dateEl = $id('date');
+const opt = (id) => ((layoutState && layoutState.btnOptions) || {})[id] || {};
+// Время в часовом поясе «UTC±чч:мм» или местное, если пояс не задан
+function zoned(tz) {
+	const m = /^([+-])(\d{1,2})(?::(\d{2}))?$/.exec(tz || '');
+	if (!m) return { d: new Date(), utc: false };
+	const off = (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] || 0));
+	return { d: new Date(Date.now() + off * 60000), utc: true };
+}
+const DATE_FORMATS = {
+	short: { day: '2-digit', month: '2-digit' },
+	day: { weekday: 'short', day: 'numeric', month: 'short' },
+	long: { day: 'numeric', month: 'long' },
+	full: { day: '2-digit', month: '2-digit', year: 'numeric' },
+};
 function tickClock() {
-	const now = new Date();
-	const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+	const c = opt('clock');
+	const { d, utc } = zoned(c.tz);
+	const H = utc ? d.getUTCHours() : d.getHours();
+	const M = utc ? d.getUTCMinutes() : d.getMinutes();
+	const S = utc ? d.getUTCSeconds() : d.getSeconds();
+	let time = c.ampm ? String(H % 12 || 12) : String(H).padStart(2, '0');
+	time += ':' + String(M).padStart(2, '0') + (c.seconds ? ':' + String(S).padStart(2, '0') : '');
+	if (c.ampm) time += H < 12 ? ' AM' : ' PM';
+	if (c.tz) time += ' UTC' + c.tz;
 	if (clockEl.textContent !== time) clockEl.textContent = time;
-	const date = now.toLocaleDateString(probletLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-	if (clockEl.title !== date) clockEl.title = date;
+	const loc = { timeZone: utc ? 'UTC' : undefined };
+	const full = d.toLocaleDateString(probletLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...loc });
+	if (clockEl.title !== full) clockEl.title = full;
+	const o = opt('date');
+	const text = new Date().toLocaleDateString(probletLocale(), DATE_FORMATS[o.format] || DATE_FORMATS.short);
+	if (dateEl.textContent !== text) dateEl.textContent = text;
+	const dateTitle = new Date().toLocaleDateString(probletLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (o.calendar ? '\n' + probletTr('Щёлкни, чтобы открыть календарь') : '');
+	if (dateEl.title !== dateTitle) dateEl.title = dateTitle;
+	dateEl.style.cursor = o.calendar ? 'pointer' : '';
 }
 tickClock();
-setInterval(tickClock, 5000);
+setInterval(tickClock, 1000);
+dateEl.addEventListener('click', () => {
+	if (opt('date').calendar) problet.openCalendar();
+});
 
 function renderBar() {
 	bmlist.textContent = '';

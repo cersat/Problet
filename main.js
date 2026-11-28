@@ -492,7 +492,7 @@ function toolbarTop() {
 	return (p.strip ? uiPx(TITLEBAR_HEIGHT) : 0) + panelsHeight(p.before.slice(0, at));
 }
 
-const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'tabsScale', 'tabsTwoRows', 'tabsAlign'];
+const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'btnOptions', 'tabsScale', 'tabsTwoRows', 'tabsAlign'];
 
 function layoutPayload() {
 	const s = settings();
@@ -670,10 +670,12 @@ function focusAddress() {
 	win.webContents.send('focus-address');
 }
 
+const btnOpt = (id) => (settings().btnOptions || {})[id] || {};
 function toggleReload() {
 	const wc = activeContents();
 	if (!wc) return;
 	if (wc.isLoading()) wc.stop();
+	else if (btnOpt('reload').hard) wc.reloadIgnoringCache(); // настройка кнопки: обновлять без кеша
 	else wc.reload();
 }
 
@@ -1145,6 +1147,7 @@ function wireTab(tab) {
 	});
 	wc.on('dom-ready', () => syncPageBg(tab));
 	wc.on('did-finish-load', () => syncPageBg(tab));
+	wc.on('dom-ready', () => reapplyDark(tab));
 	// Включённый блокировщик прячет остатки рекламы на самой странице
 	wc.on('dom-ready', () => {
 		if (!/^(https?|file):/i.test(wc.getURL())) return;
@@ -1909,11 +1912,52 @@ function syncPageBg(tab) {
 	}).catch(() => {});
 }
 
-const DARK_PAGE_JS = "document.documentElement.style.filter = document.documentElement.style.filter ? '' : 'invert(1) hue-rotate(180deg)'";
+// Возвращает true, если тёмная тема страницы теперь включена
+const DARK_PAGE_JS = "(document.documentElement.style.filter = document.documentElement.style.filter ? '' : 'invert(1) hue-rotate(180deg)') !== ''";
+const DARK_PAGE_ON_JS = "document.documentElement.style.filter = 'invert(1) hue-rotate(180deg)'";
+const hostOf = (url) => {
+	try {
+		return /^https?:$/.test(new URL(url).protocol) ? new URL(url).hostname.toLowerCase() : '';
+	} catch (e) {
+		return '';
+	}
+};
+// Настройка кнопки «Тёмная тема страницы»: сайт, где её включили, получает её снова после перезагрузки
+function rememberDark(url, on) {
+	const host = hostOf(url);
+	if (!host || !btnOpt('darkpage').remember) return;
+	const list = (settings().darkSites || []).filter((h) => h !== host);
+	if (on) list.push(host);
+	store.setSettings({ darkSites: list });
+}
+function reapplyDark(tab) {
+	const wc = tab.view.webContents;
+	const host = hostOf(wc.getURL());
+	if (host && btnOpt('darkpage').remember && (settings().darkSites || []).includes(host)) wc.executeJavaScript(DARK_PAGE_ON_JS, true).then(() => syncPageBg(tab)).catch(() => {});
+}
+// Системный календарь (настройка кнопки «Дата»)
+function openSystemCalendar() {
+	const { spawn } = require('child_process');
+	const fail = () => {
+		if (Notification.isSupported()) new Notification({ title: tr('Не нашёл приложение календаря'), silent: true }).show();
+	};
+	const tryRun = (list) => {
+		const [cmd, ...args] = list.shift();
+		const p = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+		p.on('error', () => (list.length ? tryRun(list) : fail()));
+		p.unref();
+	};
+	if (process.platform === 'win32') shell.openExternal('outlookcal:').catch(fail);
+	else if (process.platform === 'darwin') tryRun([['open', '-a', 'Calendar']]);
+	else tryRun([['gnome-calendar'], ['merkuro-calendar'], ['kalendar'], ['korganizer'], ['evolution', '-c', 'calendar'], ['thunderbird', '-calendar']]);
+}
 const ACTION_RUN = {
 	darkPage: () => {
 		const wc = activeContents();
-		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(DARK_PAGE_JS, true).then(() => syncPageBg(activeTab())).catch(() => {});
+		if (wc && !wc.getURL().startsWith('problet://')) wc.executeJavaScript(DARK_PAGE_JS, true).then((on) => {
+			syncPageBg(activeTab());
+			rememberDark(wc.getURL(), !!on);
+		}).catch(() => {});
 	},
 	translate: () => {
 		const tab = activeTab();
@@ -2524,6 +2568,7 @@ function setupDownloads(ses, incognito) {
 			d.item = null;
 			persistDownloads();
 			notifyDownloads();
+			if (d.state === 'done' && win && !win.isDestroyed()) win.webContents.send('download-done'); // кнопка «Загрузки» может подсветиться
 		});
 	});
 }
@@ -2838,7 +2883,8 @@ ipcMain.on('forward', (e) => fromToolbar(e) && goForward());
 ipcMain.on('reload', (e) => fromToolbar(e) && toggleReload());
 ipcMain.on('toggle-bookmark', (e) => fromToolbar(e) && toggleBookmark().catch((err) => log('закладка', err)));
 ipcMain.on('open-internal', (e, name) => fromToolbar(e) && openInternal(name));
-ipcMain.on('tab-new', (e) => fromToolbar(e) && createTab(NEWTAB));
+ipcMain.on('tab-new', (e) => fromToolbar(e) && (btnOpt('newtab').incognito ? openIncognito() : createTab(NEWTAB)));
+ipcMain.on('open-calendar', (e) => fromToolbar(e) && openSystemCalendar());
 ipcMain.on('tab-activate', (e, id) => fromToolbar(e) && activateTab(id));
 ipcMain.on('tab-close', (e, id) => fromToolbar(e) && closeTab(id));
 ipcMain.on('tab-menu', (e, id) => fromToolbar(e) && showTabMenu(id));
