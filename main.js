@@ -1844,32 +1844,72 @@ handle('pw:offer-current', () => {
 // Человек нажал на поле входа: показываем окно подстановки (с вводом мастер-пароля, если хранилище закрыто), раз на страницу
 const fillAsked = new Set();
 let fillCtx = null; // { tabId, origin }: для какой страницы открыто окно подстановки
-ipcMain.on('pw:need-fill', (e, hasPass, signup) => {
+// Шаблонные логины делятся сами: со знаком @ — адреса почты, остальные — юзернеймы. Номер в списке сохраняется: по нему подставляют
+const isEmailLogin = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const templateItems = (kind) => settings().loginTemplates.map((username, i) => ({ i, username })).filter((x) => (kind === 'email') === isEmailLogin(x.username));
+
+// Надёжный пароль: 20 знаков, буквы обоих регистров и цифры (без символов: их не принимают некоторые сайты)
+function generatePassword() {
+	const sets = ['abcdefghijkmnopqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789'];
+	const all = sets.join('');
+	const pick = (s) => s[require('crypto').randomInt(s.length)];
+	const chars = sets.map(pick);
+	while (chars.length < 20) chars.push(pick(all));
+	for (let i = chars.length - 1; i > 0; i--) {
+		const j = require('crypto').randomInt(i + 1);
+		[chars[i], chars[j]] = [chars[j], chars[i]];
+	}
+	return chars.join('');
+}
+
+ipcMain.on('pw:need-fill', (e, hasPass, signup, kind, gen) => {
 	const tab = tabOfSender(e);
 	const origin = frameOrigin(e);
 	if (!tab || !origin || tab.id !== activeId || panelOpen) return;
+	kind = kind === 'email' ? 'email' : 'user';
+	// Поле нового пароля на форме создания аккаунта: предлагаем придумать пароль
+	if (gen) {
+		if (!settings().pwGenerate) return;
+		const gkey = tab.id + '|' + e.senderFrame.url + '|generate';
+		if (fillAsked.has(gkey)) return;
+		fillAsked.add(gkey);
+		fillCtx = { tabId: tab.id, origin, gen: true, password: generatePassword(), key: gkey };
+		openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8) });
+		return;
+	}
 	// При создании аккаунта предлагаем заготовленные логины (хранилище не нужно), а старые пароли не подставляем
-	const templates = !!signup && settings().loginTemplates.length > 0;
+	const templates = !!signup && templateItems(kind).length > 0;
 	if (!templates) {
 		if (!settings().pwFill || !vault.exists()) return;
 		if (vault.isUnlocked() && !vault.forOrigin(origin).length) return;
 	}
-	const key = tab.id + '|' + e.senderFrame.url + '|' + !!hasPass + '|' + templates; // на странице входа в два шага спросим ещё раз, когда появится пароль
+	const key = tab.id + '|' + e.senderFrame.url + '|' + !!hasPass + '|' + templates + '|' + kind; // на странице входа в два шага спросим ещё раз, когда появится пароль
 	if (fillAsked.has(key)) return;
 	if (fillAsked.size > 2000) fillAsked.clear();
 	fillAsked.add(key);
-	fillCtx = { tabId: tab.id, origin, templates, key };
+	fillCtx = { tabId: tab.id, origin, templates, kind, key };
 	openPanel('pwfill', { x: contentSize()[0] - 12, y: toolbarY() + 4, width: 0, height: panelHeight('toolbar') - uiPx(8) });
 });
 handle('pw:fill-options', () => {
 	if (!fillCtx) return null;
+	if (fillCtx.gen) return { host: new URL(fillCtx.origin).hostname, gen: true, unlocked: true, password: fillCtx.password, items: [] };
 	// Сохранённых записей для сайта нет, а шаблонные логины есть — предлагаем их (скорее всего, это новый аккаунт)
-	if (!fillCtx.templates && vault.isUnlocked() && !vault.forOrigin(fillCtx.origin).length && settings().loginTemplates.length) fillCtx.templates = true;
-	if (fillCtx.templates) return { host: new URL(fillCtx.origin).hostname, templates: true, unlocked: true, items: settings().loginTemplates.map((username, i) => ({ i, username })) };
+	if (!fillCtx.templates && vault.isUnlocked() && !vault.forOrigin(fillCtx.origin).length && templateItems(fillCtx.kind).length) fillCtx.templates = true;
+	if (fillCtx.templates) return { host: new URL(fillCtx.origin).hostname, templates: true, unlocked: true, items: templateItems(fillCtx.kind) };
 	const items = vault.isUnlocked() ? vault.forOrigin(fillCtx.origin).map((x, i) => ({ i, username: x.username })) : [];
 	// Окно закроется пустым: не считаем, что мы уже спрашивали, иначе на следующем поле (например, почте) ничего не предложим
 	if (vault.isUnlocked() && !items.length) fillAsked.delete(fillCtx.key);
 	return { host: new URL(fillCtx.origin).hostname, unlocked: vault.isUnlocked(), items };
+});
+handle('pw:fill-regen', () => {
+	if (!fillCtx || !fillCtx.gen) return '';
+	fillCtx.password = generatePassword();
+	return fillCtx.password;
+});
+handle('pw:fill-generated', () => {
+	const tab = fillCtx && fillCtx.gen && tabs.find((t) => t.id === fillCtx.tabId);
+	if (!tab || tab.view.webContents.isDestroyed() || frameOriginOfUrl(tab.view.webContents.getURL()) !== fillCtx.origin) throw new Error('Страница уже другая');
+	tab.view.webContents.send('pw:fill', { username: '', password: fillCtx.password, generated: true });
 });
 handle('pw:fill-pick', (i) => {
 	const tab = fillCtx && tabs.find((t) => t.id === fillCtx.tabId);
@@ -2502,10 +2542,12 @@ function fillMenuItems(wc, params) {
 		const entries = values.map((v) => ({ label: v.label, click: () => wc.insertText(v.text) }));
 		return entries.length === 1 ? { label, click: entries[0].click } : { label, submenu: entries };
 	};
-	const logins = settings().loginTemplates.map((l) => ({ label: l, text: l }));
+	const logins = settings().loginTemplates.filter((l) => !isEmailLogin(l)).map((l) => ({ label: l, text: l }));
+	const emails = settings().loginTemplates.filter(isEmailLogin).map((l) => ({ label: l, text: l }));
 	const saved = origin && vault.isUnlocked() ? vault.forOrigin(origin).map((x) => ({ label: x.username || '—', text: x.password })) : [];
 	return [
 		make('Подставить шаблонный юзернейм', logins, 'Шаблонные логины задаются в настройках, раздел «Пароли»'),
+		make('Подставить шаблонный емейл', emails, 'Шаблонные логины задаются в настройках, раздел «Пароли»; адрес почты — с @'),
 		make('Подставить пароль', saved, vault.isUnlocked() ? 'Для этого сайта нет сохранённых паролей' : 'Хранилище паролей закрыто'),
 	];
 }

@@ -511,7 +511,11 @@
 				<label class="switch"><input type="checkbox" data-setting="pwFill"><span></span></label>
 			</div>
 			<div class="setting">
-				<div class="what">Шаблонные логины<small>По одному в строке. Когда ты нажимаешь на поле логина в форме создания аккаунта, они предлагаются для подстановки</small></div>
+				<div class="what">Предлагать придумать пароль<small>На форме создания аккаунта, когда нажимаешь на поле пароля, предлагается готовый надёжный пароль (20 знаков). Он подставляется во все поля пароля, а сохранить его предложат после отправки формы</small></div>
+				<label class="switch"><input type="checkbox" data-setting="pwGenerate"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Шаблонные логины<small>По одному в строке. Когда ты нажимаешь на поле логина в форме создания аккаунта, они предлагаются для подстановки. Адреса почты (со знаком @) и юзернеймы разделяются сами: в поле почты предлагаются адреса, в остальных полях логина — юзернеймы</small></div>
 				<textarea id="login-templates" rows="3" spellcheck="false" placeholder="mylogin&#10;name@example.com"></textarea>
 			</div>
 			<div class="setting">

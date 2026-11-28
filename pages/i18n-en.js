@@ -1487,6 +1487,14 @@
 		['Шаблонные логины задаются в настройках, раздел «Пароли»', 'Template usernames are set in Settings, Passwords'],
 		['Для этого сайта нет сохранённых паролей', 'There are no saved passwords for this site'],
 		['Хранилище паролей закрыто', 'The password vault is locked'],
+		['Подставить шаблонный емейл', 'Insert template email'],
+		['Шаблонные логины задаются в настройках, раздел «Пароли»; адрес почты — с @', 'Template usernames are set in Settings, Passwords; an email address contains @'],
+		['Предлагать придумать пароль', 'Offer to generate a password'],
+		['На форме создания аккаунта, когда нажимаешь на поле пароля, предлагается готовый надёжный пароль (20 знаков). Он подставляется во все поля пароля, а сохранить его предложат после отправки формы', 'On a sign-up form, when you click the password field, a ready strong password (20 characters) is offered. It is put into all password fields, and saving it is offered after the form is submitted'],
+		['По одному в строке. Когда ты нажимаешь на поле логина в форме создания аккаунта, они предлагаются для подстановки. Адреса почты (со знаком @) и юзернеймы разделяются сами: в поле почты предлагаются адреса, в остальных полях логина — юзернеймы', 'One per line. When you click the login field of a sign-up form, they are offered for filling. Email addresses (with @) and usernames are told apart automatically: addresses are offered in email fields, usernames in other login fields'],
+		['Придумать пароль?', 'Generate a password?'],
+		['Создание аккаунта на {}. Пароль подставится во все поля пароля, а сохранить его предложим после отправки формы', 'Creating an account on {}. The password will be put into all password fields, and we will offer to save it after the form is submitted'],
+		['Другой пароль', 'Another password'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;

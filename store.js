@@ -306,6 +306,7 @@ const SETTING_DEFAULTS = {
 	autoRestart: false,
 	pwOffer: true,
 	pwFill: true,
+	pwGenerate: true, // на форме создания аккаунта предлагать сгенерированный пароль
 	loginTemplates: [],
 	pwLock: '15',
 	maskAs: 'problet',
@@ -347,7 +348,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords', 'syncSpaces', 'syncTabs'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'pwGenerate', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords', 'syncSpaces', 'syncTabs'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],

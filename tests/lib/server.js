@@ -16,6 +16,8 @@ const ROUTES = {
 	'/login': () => page('Вход', '<form id="f"><input name="login" id="l"><input type="password" id="pw"><button>Войти</button></form>'),
 	'/signup': () => page('Регистрация', '<form><input id="fn" name="firstName"><input id="em" type="email" name="email"><input id="pw" type="password" name="password"><button>OK</button></form>'),
 	'/signup2': () => page('Регистрация 2', '<form><input id="em" type="email" name="email"><input id="fn" name="name"><input id="pw" type="password" name="password"><button>OK</button></form>'),
+	'/signup3': () => page('Регистрация 3', '<form id="f"><input id="un" name="username"><input id="em" type="email" name="email"><input id="pw" type="password" name="password" autocomplete="new-password"><input id="pw2" type="password" name="confirm"><button>OK</button></form>'),
+	'/loose': () => page('Без формы', '<input id="l" name="login"><input id="pw" type="password" name="password"><button id="go" onclick="document.title=\'нажато\'">Войти</button>'),
 	'/dark': () => page('Тёмная', '<style>html,body{background:#111;color:#eee}</style><p>тёмный сайт</p>'),
 	'/light': () => page('Светлая', '<style>html,body{background:#fff;color:#111}</style><p>светлый сайт</p>'),
 	'/sound': () => page('Звук', '<p>тишина</p>'),

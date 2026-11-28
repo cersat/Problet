@@ -136,6 +136,8 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		pwChangeMaster: (oldMaster, newMaster) => call('pw:change-master', oldMaster, newMaster),
 		pwFillOptions: () => call('pw:fill-options'),
 		pwFillPick: (i) => call('pw:fill-pick', i),
+		pwFillRegen: () => call('pw:fill-regen'),
+		pwFillGenerated: () => call('pw:fill-generated'),
 		pwOfferCurrent: () => call('pw:offer-current'),
 		pwPendingSave: (tabId) => call('pw:pending-save', tabId),
 		pwPendingDrop: (tabId) => call('pw:pending-drop', tabId),
@@ -665,6 +667,23 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		} catch (err) { /* сайт всё равно должен работать */ }
 	}, true);
 
+	// Сайты без <form> (поля и кнопка на скриптах): отправкой считаем Enter в поле пароля или нажатие кнопки при заполненном поле
+	function reportLoose(pass) {
+		try {
+			if (!pass || pass.form || !pass.value || (filled && pass.value === filled)) return;
+			const login = loginFieldFor(pass);
+			ipcRenderer.send('pw:submit', { username: login ? login.value : '', password: pass.value });
+		} catch (err) { /* сайт всё равно должен работать */ }
+	}
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter' && e.isTrusted && e.target instanceof HTMLInputElement && e.target.type === 'password') reportLoose(e.target);
+	}, true);
+	document.addEventListener('click', (e) => {
+		if (!e.isTrusted || !(e.target instanceof Element) || !e.target.closest('button, input[type=submit], input[type=button], [role=button]')) return;
+		const loose = [...document.querySelectorAll('input[type=password]')].filter((p) => !p.form && p.value && visible(p));
+		if (loose.length) reportLoose(loose[loose.length - 1]);
+	}, true);
+
 	const setValue = (el, value) => {
 		const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
 		setter.call(el, value);
@@ -686,7 +705,10 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		if (!TEXT_TYPES.includes(el.type) || !visible(el) || el.disabled) return null;
 		if (pass) {
 			const login = loginFieldFor(pass);
-			return el === login ? { pass, login } : null;
+			if (el === login) return { pass, login };
+			// В форме создания аккаунта почта и юзернейм — два разных поля: шаблонные логины предлагаются в любом из них
+			const hint2 = el.type + ' ' + el.autocomplete + ' ' + el.name + ' ' + el.id;
+			return !isPersonName(el) && (el.type === 'email' || el.type === 'tel' || LOGINISH.test(hint2)) && isSignup({ login: el }) ? { pass, login: el } : null;
 		}
 		// Вход в два шага: пароля на странице ещё нет, но поле похоже на логин
 		const hint = el.type + ' ' + el.autocomplete + ' ' + el.name + ' ' + el.id;
@@ -706,6 +728,12 @@ if (location.protocol !== 'problet:' && window === window.top) {
 	ipcRenderer.on('pw:fill', (_e, entry) => {
 		const f = lastField && document.contains(lastField) && fieldsFor(lastField);
 		if (!f) return;
+		if (entry.generated) {
+			// Придуманный пароль идёт во все поля пароля формы (новый и повтор); сохранить его предложим после отправки, поэтому filled не ставим
+			const scope = (f.pass && f.pass.form) || document;
+			for (const p of scope.querySelectorAll('input[type=password]')) if (visible(p) && !p.disabled) setValue(p, entry.password);
+			return;
+		}
 		if (f.login && entry.username) setValue(f.login, entry.username);
 		if (f.pass && entry.password) {
 			setValue(f.pass, entry.password);
@@ -719,7 +747,9 @@ if (location.protocol !== 'problet:' && window === window.top) {
 		if (!f) return;
 		lastField = el;
 		// Подсказка с шаблонными логинами нужна только на поле логина, а не пароля
-		ipcRenderer.send('pw:need-fill', !!f.pass, el !== f.pass && isSignup(f));
+		const signup = isSignup(f);
+		const email = el.type === 'email' || /e-?mail|почт/i.test(el.autocomplete + ' ' + el.name + ' ' + el.id);
+		ipcRenderer.send('pw:need-fill', !!f.pass, el !== f.pass && signup, email ? 'email' : 'user', el === f.pass && signup);
 	};
 	// click нужен для поля, которое уже в фокусе (например, autofocus): новое focusin тогда не придёт
 	document.addEventListener('focusin', onUserFocus, true);

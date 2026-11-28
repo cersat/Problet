@@ -87,5 +87,68 @@ module.exports = {
 			const v = await pg.ev(`[document.getElementById('em').value, document.getElementById('fn').value]`);
 			t.check(form + ': шаблон подставлен в почту, имя не тронуто', v[0] === 'tmpl@example.com' && v[1] === '', v);
 		}
+
+		// Шаблоны делятся на юзернеймы и адреса почты: в поле почты — адреса, в поле логина — юзернеймы
+		await b.go('problet://passwords/', 800);
+		await b.fe(`w.problet.pwLock()`);
+		await b.go(base + '/signup3', 1500);
+		pg = await b.page((u) => u === base + '/signup3');
+		await click(pg, '#un');
+		p = await panel('pwfill');
+		t.check('/signup3: в поле юзернейма окно есть', !!p);
+		if (p) {
+			if (await p.ev(`!document.getElementById('lock').hidden`)) {
+				await p.ev(`document.getElementById('master').value = 'master12345'; document.getElementById('lock').requestSubmit()`);
+				await t.sleep(1000);
+			}
+			const names = await p.ev(`[...document.querySelectorAll('#items button')].map(b => b.textContent)`).catch(() => []);
+			t.check('в поле юзернейма только юзернеймы', names.includes('кот-шаблон') && !names.some((x) => x.includes('@')), names);
+			await p.ev(`document.querySelector('.cancel').click()`).catch(() => {});
+			await t.sleep(500);
+		}
+		await click(pg, '#em');
+		p = await panel('pwfill');
+		if (p) {
+			const mails = await p.ev(`[...document.querySelectorAll('#items button')].map(b => b.textContent)`).catch(() => []);
+			t.check('в поле почты только адреса', mails.includes('tmpl@example.com') && !mails.includes('кот-шаблон'), mails);
+			await p.ev(`document.querySelector('.cancel').click()`).catch(() => {});
+			await t.sleep(500);
+		}
+		t.check('/signup3: окно в поле почты есть', !!p);
+
+		// Придуманный пароль: предлагается на поле нового пароля, подставляется в оба поля, потом предлагается сохранить
+		await click(pg, '#pw');
+		p = await panel('pwfill');
+		t.check('на поле нового пароля предлагается придумать пароль', !!p && (await p.ev(`document.getElementById('title').textContent`)) === 'Придумать пароль?');
+		if (p) {
+			const first = await p.ev(`document.querySelector('#items button.primary').textContent`);
+			t.check('пароль на 20 знаков из букв и цифр', /^[A-Za-z0-9]{20}$/.test(first) && /[a-z]/.test(first) && /[A-Z]/.test(first) && /[0-9]/.test(first), first);
+			await p.ev(`document.querySelector('#items button:not(.primary)').click()`);
+			await t.sleep(500);
+			const second = await p.ev(`document.querySelector('#items button.primary').textContent`);
+			t.check('«Другой пароль» даёт новый', second !== first && /^[A-Za-z0-9]{20}$/.test(second), [first, second]);
+			await p.ev(`document.querySelector('#items button.primary').click()`);
+			await t.sleep(800);
+			const vals = await pg.ev(`[document.getElementById('pw').value, document.getElementById('pw2').value]`);
+			t.check('пароль подставлен в оба поля', vals[0] === second && vals[1] === second, vals);
+			await pg.ev(`document.getElementById('un').value = 'новый-юзер'; document.getElementById('f').requestSubmit()`);
+			await t.sleep(2000);
+			t.check('придуманный пароль после отправки предлагается сохранить', !!(await panel('pwsave')));
+		}
+
+		const old = await panel('pwsave');
+		if (old) { await old.ev(`document.getElementById('later').click()`).catch(() => {}); await t.sleep(800); }
+
+		// Сайт без <form>: Enter в поле пароля или кнопка — это отправка, предлагаем сохранить
+		await b.go(base + '/loose', 1500);
+		pg = await b.page((u) => u === base + '/loose');
+		await pg.ev(`document.getElementById('l').value = 'лоуз'; document.getElementById('pw').value = 'лоуз-пароль'`);
+		await click(pg, '#go');
+		p = await panel('pwsave');
+		t.check('без <form> нажатие кнопки тоже предлагает сохранить пароль', !!p);
+		if (p) {
+			const who = await p.ev(`document.body.textContent`);
+			t.check('в предложении логин со страницы', who.includes('лоуз'), who);
+		}
 	},
 };
