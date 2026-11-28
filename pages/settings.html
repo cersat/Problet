@@ -455,6 +455,39 @@
 		</section>
 
 		<section>
+			<h2>Синхронизация</h2>
+			<div id="sync-out">
+				<div class="setting">
+					<div class="what">Аккаунт Problet<small>Никнейм и пароль. Данные хранятся на сервере Problet в зашифрованном виде: ключ получается из пароля аккаунта прямо в браузере, сервер пароль не получает и прочитать данные не может. Забытый пароль восстановить нельзя</small></div>
+				</div>
+				<div class="setting">
+					<span class="inline-form"><input id="sync-nick" type="text" maxlength="32" placeholder="Никнейм" autocomplete="off" spellcheck="false"><input id="sync-pass" type="password" placeholder="Пароль" autocomplete="off"><input id="sync-pass2" type="password" placeholder="Повтор пароля (для создания)" autocomplete="off"></span>
+				</div>
+				<div class="setting">
+					<span class="inline-form"><button id="sync-login">Войти в аккаунт</button><button id="sync-register">Создать аккаунт</button></span>
+				</div>
+			</div>
+			<div id="sync-in" class="hidden">
+				<div class="setting">
+					<div class="what">Аккаунт: <b id="sync-name"></b><small id="sync-state"></small><small id="sync-pw"></small></div>
+					<span class="inline-form"><button id="sync-now">Синхронизировать сейчас</button><button id="sync-logout">Выйти из аккаунта</button></span>
+				</div>
+				<div class="setting">
+					<div class="what">Синхронизировать закладки<small>Закладки и папки. Удаление и переименование тоже переносятся: при расхождении побеждает более свежее изменение. При первой синхронизации закладки с обоих устройств объединяются</small></div>
+					<label class="switch"><input type="checkbox" data-setting="syncBookmarks"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Синхронизировать настройки<small>Все настройки, кроме относящихся к этому устройству: папок, обновлений и самих переключателей синхронизации. На новом устройстве при первой синхронизации берутся настройки из аккаунта</small></div>
+					<label class="switch"><input type="checkbox" data-setting="syncSettings"><span></span></label>
+				</div>
+				<div class="setting">
+					<div class="what">Синхронизировать пароли<small>Пароли шифруются ещё раз ключом аккаунта. Синхронизация идёт, пока хранилище открыто (введён мастер-пароль): новые пароли добавляются, а более свежий пароль заменяет старый. Удалённые пароли не удаляются на других устройствах</small></div>
+					<label class="switch"><input type="checkbox" data-setting="syncPasswords"><span></span></label>
+				</div>
+			</div>
+		</section>
+
+		<section>
 			<h2>История</h2>
 			<div class="setting">
 				<div class="what">Сохранять историю посещений<small>Она нужна для страницы «История» и подсказок в адресной строке</small></div>

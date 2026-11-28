@@ -1149,6 +1149,33 @@ $('hotkeys-reset').addEventListener('click', () => run(async () => {
 $('open-passwords').addEventListener('click', () => run(() => problet.openInNewTab('passwords')));
 
 
+// ---------- Синхронизация ----------
+
+function renderSync(st) {
+	$('sync-out').classList.toggle('hidden', st.logged);
+	$('sync-in').classList.toggle('hidden', !st.logged);
+	$('sync-name').textContent = st.nick;
+	let text = st.busy ? 'Синхронизирую…' : st.error ? 'Ошибка: ' + st.error : st.last ? 'Последняя синхронизация: ' + new Date(st.last).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Ещё не синхронизировалось';
+	$('sync-pw').textContent = st.passwords === 'locked' && !st.error ? 'Пароли ждут: хранилище закрыто' : '';
+	$('sync-state').textContent = text;
+	$('sync-now').disabled = !!st.busy;
+}
+const syncAct = (fn) => run(async () => {
+	renderSync(await fn());
+	$('sync-pass').value = '';
+	$('sync-pass2').value = '';
+});
+$('sync-login').addEventListener('click', () => syncAct(() => problet.syncLogin($('sync-nick').value.trim(), $('sync-pass').value)));
+$('sync-register').addEventListener('click', () => syncAct(() => problet.syncRegister($('sync-nick').value.trim(), $('sync-pass').value, $('sync-pass2').value)));
+$('sync-logout').addEventListener('click', () => syncAct(() => problet.syncLogout()));
+$('sync-now').addEventListener('click', () => run(async () => {
+	renderSync({ ...(await problet.syncStatus()), busy: true });
+	renderSync(await problet.syncNow());
+}));
+problet.syncStatus().then(renderSync).catch(() => {});
+addEventListener('focus', () => problet.syncStatus().then(renderSync).catch(() => {}));
+setInterval(() => problet.syncStatus().then(renderSync).catch(() => {}), 5000);
+
 // ---------- Пароли: выгрузка и загрузка ----------
 
 for (const [id, method] of [['pw-export', 'pwExport'], ['pw-import', 'pwImport']]) {

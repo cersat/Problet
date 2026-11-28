@@ -132,9 +132,10 @@ function all() {
 	return items.map((e) => ({ ...e }));
 }
 
-function need() {
+// noTouch — фоновое чтение (синхронизация): автоблокировка от него не откладывается
+function need(noTouch) {
 	if (!key) throw new Error('Хранилище закрыто');
-	touch();
+	if (!noTouch) touch();
 }
 
 function changeMaster(oldMaster, newMaster) {
@@ -230,4 +231,38 @@ function hasLogin(origin, username) {
 	return items.some((e) => e.origin === origin && e.username === username);
 }
 
-module.exports = { verify, all, init, exists, isUnlocked, create, unlock, lock, setAutoLock, changeMaster, list, add, update, remove, reveal, forOrigin, has, hasLogin, MIN_MASTER };
+// Слияние с записями из аккаунта: новые добавляются, у совпавших по сайту и логину побеждает более свежая. Удалённое не возвращается и не удаляется:
+// пароль никогда не пропадает из-за синхронизации. Возвращает true, если хранилище изменилось
+function merge(incoming) {
+	need(true);
+	let changed = false;
+	for (const raw of Array.isArray(incoming) ? incoming : []) {
+		if (!raw || typeof raw !== 'object') continue;
+		const origin = str(raw.origin, 300);
+		const username = str(raw.username, 300);
+		const password = str(raw.password, 1000);
+		if (!origin || !password) continue;
+		const updated = Number.isFinite(raw.updated) ? raw.updated : Date.now();
+		const same = items.find((e) => e.origin === origin && e.username === username);
+		if (same) {
+			if (updated > same.updated && same.password !== password) {
+				same.password = password;
+				same.updated = updated;
+				changed = true;
+			}
+		} else if (items.length < LIMIT) {
+			items.push({ id: crypto.randomUUID(), origin, username, password, created: Number.isFinite(raw.created) ? raw.created : updated, updated });
+			changed = true;
+		}
+	}
+	if (changed) save();
+	return changed;
+}
+
+// Записи с паролями для синхронизации (не продлевает время до автоблокировки)
+function snapshot() {
+	need(true);
+	return items.map((e) => ({ ...e }));
+}
+
+module.exports = { snapshot, merge, verify, all, init, exists, isUnlocked, create, unlock, lock, setAutoLock, changeMaster, list, add, update, remove, reveal, forOrigin, has, hasLogin, MIN_MASTER };

@@ -122,6 +122,7 @@ function log(...parts) {
 
 // Неожиданная ошибка в главном процессе не должна ронять браузер: пишем её в журнал и работаем дальше (окно с ошибкой показывает boot.js)
 const errorwin = require('./errorwin');
+const sync = require('./sync');
 const uninstall = require('./uninstall');
 process.on('uncaughtException', (err) => log('uncaughtException', err));
 process.on('unhandledRejection', (err) => log('unhandledRejection', err instanceof Error ? err : String(err)));
@@ -1910,6 +1911,7 @@ handle('pw:unlock', (master) => {
 	vault.unlock(checkMasterArg(master));
 	vault.setAutoLock(settings().pwLock);
 	sendState();
+	sync.soon(1000); // пароли синхронизируются, пока хранилище открыто
 });
 handle('pw:lock', () => {
 	vault.lock();
@@ -3598,6 +3600,13 @@ handle('version:info', () => ({
 handle('adblock:stats', () => ({ session: adblock.blockedCount(), total: store.blockedTotal() }));
 handle('update:state', () => updater.getState());
 handle('update:check', () => updater.check());
+
+// Аккаунт Problet и синхронизация
+handle('sync:status', () => sync.status());
+handle('sync:register', (nick, pass, repeat) => sync.register(String(nick), String(pass), String(repeat)));
+handle('sync:login', (nick, pass) => sync.login(String(nick), String(pass)));
+handle('sync:logout', () => sync.logout());
+handle('sync:now', () => sync.run());
 handle('update:apply', () => updater.apply());
 ipcMain.on('update-apply', (e) => fromToolbar(e) && updater.apply());
 ipcMain.on('update-get', (e) => {
@@ -5104,6 +5113,7 @@ app.whenReady().then(() => {
 	setTimeout(backupIfDue, 30000);
 	setInterval(backupIfDue, 3600000);
 	updater.setChannel(settings().updateChannel);
+	if (!headless.enabled) sync.init({ store, vault, settings, off: () => safeMode });
 	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster, off: safeMode }));
 });
 function startHeadless() {

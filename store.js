@@ -292,6 +292,9 @@ const SETTING_DEFAULTS = {
 	ntRecentCount: 8,
 	dnt: false,
 	hideSystem: false,
+	syncBookmarks: false, // синхронизировать закладки с аккаунтом Problet
+	syncSettings: false, // синхронизировать настройки
+	syncPasswords: false, // синхронизировать пароли (в зашифрованном виде)
 	notepadDefault: false, // текстовые файлы из проводника открываются в блокноте Problet
 	autoUpdate: true,
 	updateEvery: '360',
@@ -341,7 +344,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -1524,6 +1527,27 @@ function exportData() {
 	};
 }
 
+// Синхронизация: закладки и настройки уходят снимком. В настройки не входят то, что относится к этому устройству: папки, обновления, сами переключатели синхронизации
+const SYNC_SKIP = /Dir$|^sync|^update|^autoUpdate$|^autoRestart$|^welcomeDone$/;
+function syncSettingsGet() {
+	return Object.fromEntries(Object.entries(data.settings).filter(([k]) => !SYNC_SKIP.test(k)));
+}
+function syncSettingsApply(remote) {
+	if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return;
+	const own = Object.fromEntries(Object.entries(remote).filter(([k]) => !SYNC_SKIP.test(k)));
+	data.settings = sanitizeSettings({ ...data.settings, ...own });
+	scheduleSave();
+	changed('settings');
+}
+function syncBookmarksGet() {
+	return { folders: data.folders, bookmarks: data.bookmarks };
+}
+// mode: 'replace' — закладки и папки становятся такими же, как в аккаунте; 'merge' — добавляются к текущим
+function syncBookmarksApply(remote, mode) {
+	if (!remote || typeof remote !== 'object') return;
+	return importData({ app: 'problet', folders: remote.folders, bookmarks: remote.bookmarks, searchHistory: data.searchHistory }, mode);
+}
+
 function looksLikeBackup(raw) {
 	return !!raw && typeof raw === 'object' && !Array.isArray(raw)
 		&& (raw.app === 'problet' || Array.isArray(raw.bookmarks) || Array.isArray(raw.searchHistory));
@@ -1602,7 +1626,7 @@ module.exports = {
 	addSearch, removeSearch, clearSearches, searchCount, searchSuggestions,
 	bookmarksState, findBookmarkByUrl, addBookmark, updateBookmark, removeBookmark, restoreBookmark,
 	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, setBookmarkTones, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
-	exportData, looksLikeBackup, importData,
+	exportData, looksLikeBackup, importData, syncSettingsGet, syncSettingsApply, syncBookmarksGet, syncBookmarksApply,
 	getSession, setSession, getWindow, setWindow, getCacheClearedAt, setCacheClearedAt,
 	onChange, notify: changed, DEFAULT_SPACE,
 	addBlocked, blockedTotal,
