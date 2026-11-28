@@ -80,6 +80,25 @@ module.exports = {
 		await b.go('http://127.0.0.1:1/');
 		s = await b.st();
 		t.check('недоступный сайт — страница ошибки', /Ошибка|Error/.test(s.active), s);
+		t.check('адрес остаётся в строке после ошибки загрузки', (await b.st()).addr.includes('127.0.0.1:1'), await b.st());
+		const errT = (await b.targets()).find((x) => x.type === 'page' && x.url.startsWith('data:text/html'));
+		const errC = errT && (await require('../lib/browser').connect(errT));
+		const errMaze = errC ? await errC.ev(`!!document.querySelector('canvas, .mz-canvas')`) : false;
+		if (errC) errC.close();
+		t.check('на странице ошибки есть лабиринт', errMaze === true, errMaze);
+
+		// Новая вкладка: блоки включаются и выключаются настройками
+		await b.fe(`w.problet.setSettings({ ntTitle: false, ntSearch: false })`).catch(() => {});
+		await b.go('problet://settings/', 600);
+		await b.fe(`w.problet.setSettings({ ntTitle: false, ntSearch: false })`);
+		await b.go('problet://newtab/', 800);
+		const nt = await b.fe(`({ title: !d.getElementById('title').offsetHeight, form: !d.getElementById('search-form').offsetHeight })`);
+		t.check('новая вкладка без названия и без поля поиска', nt.title && nt.form, nt);
+		await b.go('problet://settings/', 600);
+		await b.fe(`w.problet.setSettings({ ntTitle: true, ntSearch: true })`);
+		await b.go('problet://newtab/', 800);
+		const nt2 = await b.fe(`({ title: !!d.getElementById('title').offsetHeight, form: !!d.getElementById('search-form').offsetHeight })`);
+		t.check('и снова показывает их по включению', nt2.title && nt2.form, nt2);
 		t.check('во внутренних страницах нет ошибок в консоли', b.errors.length === 0, b.errors.slice(0, 5));
 	},
 };

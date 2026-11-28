@@ -98,6 +98,26 @@ module.exports = {
 		const upd = stub.fresh('updater.js');
 		t.check('сравнение версий', upd.isNewer('9.3.10', '9.3.9') && !upd.isNewer('9.3.0', '9.3.0') && !upd.isNewer('9.2.9', '9.3.0') && upd.isNewer('10.0.0', '9.99.99'));
 
+		// Потоки stable и beta: stable — серия на одну ниже последней, но не ниже 9.4; сама 9.4 — первая stable
+		t.check('9.4 — первая stable: сама себе stable', JSON.stringify(upd.stableFor([9, 4], [[9, 4]])) === '[9,4]' && JSON.stringify(upd.stableFor([8, 2], [])) === '[8,2]');
+		t.check('stable — серия на одну ниже последней', JSON.stringify(upd.stableFor([9, 6], [[9, 4], [9, 5], [9, 6]])) === '[9,5]' && JSON.stringify(upd.stableFor([10, 0], [[9, 4], [9, 9], [10, 0]])) === '[9,9]');
+		t.check('если подходящей серии нет, stable не выбирается', upd.stableFor([9, 5], [[9, 5]]) === null && upd.stableFor([9, 5], [[9, 3], [9, 5]]) === null);
+
+		// ---------- Папка «Скрытые» ----------
+		const hs = stub.fresh('store.js');
+		const hdir = path.join(t.dir, 'hidden');
+		fs.mkdirSync(hdir, { recursive: true });
+		hs.init(hdir);
+		const fld = hs.addFolder('Работа');
+		const hb = hs.addBookmark({ url: 'https://hid.test/', title: 'Скрываемая', folder: fld.id || fld });
+		const fid = hb.folder;
+		hs.hideBookmark(hb.id);
+		const afterHide = hs.bookmarksState().bookmarks.find((b) => b.id === hb.id);
+		t.check('«Скрыть» кладёт закладку в системную папку', afterHide.folder === 'hidden' && hs.bookmarksState().folders.some((f) => f.id === 'hidden' && f.system), afterHide);
+		t.check('системную папку нельзя удалить', refuse(() => hs.removeFolder('hidden')) || hs.bookmarksState().folders.some((f) => f.id === 'hidden'));
+		hs.unhideBookmark(hb.id);
+		t.check('«Показать» возвращает закладку в прежнюю папку', hs.bookmarksState().bookmarks.find((b) => b.id === hb.id).folder === fid, hs.bookmarksState().bookmarks.find((b) => b.id === hb.id));
+
 		// ---------- Подпись браузера ----------
 		const id1 = stub.fresh('identity.js');
 		const chrome = id1.build('chrome', '9.3.0');

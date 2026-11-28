@@ -159,7 +159,7 @@ async function first(base) {
 	// --- закладки
 	const bm = await c.open('problet://bookmarks/');
 	const fileUrl = require('url').pathToFileURL(path.join(files, 'страница.html')).href;
-	const st1 = await c.ev(bm.id, `(async () => { await problet.addFolder('Папка'); let st = await problet.bookmarks(); const f = st.folders[0]; await problet.setFolderColor(f.id, st.colors[2].hex); await problet.addBookmark({ title: 'Сайт', url: ${JSON.stringify(base + '/')}, folder: f.id }); await problet.addBookmark({ title: 'Файл', url: ${JSON.stringify(fileUrl)} }); st = await problet.bookmarks(); return { n: st.bookmarks.length, color: st.folders[0].color, folder: st.bookmarks[0].folder === f.id }; })()`);
+	const st1 = await c.ev(bm.id, `(async () => { await problet.addFolder('Папка'); let st = await problet.bookmarks(); const f = st.folders.find((x) => !x.system); await problet.setFolderColor(f.id, st.colors[2].hex); await problet.addBookmark({ title: 'Сайт', url: ${JSON.stringify(base + '/')}, folder: f.id }); await problet.addBookmark({ title: 'Файл', url: ${JSON.stringify(fileUrl)} }); st = await problet.bookmarks(); return { n: st.bookmarks.length, color: st.folders.find((x) => !x.system).color, folder: st.bookmarks[0].folder === f.id }; })()`);
 	check('закладки, папка и её цвет', st1.n === 2 && /^#/.test(st1.color) && st1.folder, st1);
 	const badBm = await c.ev(bm.id, `problet.addBookmark({ title: 'x', url: 'javascript:alert(1)' }).then(() => 'принято', () => 'отказ')`);
 	check('закладка с javascript: отклоняется', badBm === 'отказ', badBm);

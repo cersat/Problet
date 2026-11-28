@@ -69,8 +69,11 @@ async function act(fn) {
 
 // ---------- Отрисовка ----------
 
+const HIDDEN = 'hidden'; // системная папка «Скрытые»
+
 function visibleBookmarks() {
 	let list = state.bookmarks;
+	if (current === 'all') list = list.filter((b) => b.folder !== HIDDEN); // скрытые видны только в своей папке
 	if (current === 'none') list = list.filter((b) => !b.folder);
 	else if (current !== 'all') list = list.filter((b) => b.folder === current);
 	const q = query.trim().toLowerCase();
@@ -84,7 +87,10 @@ function visibleBookmarks() {
 
 function navItem(id, label, count, folder) {
 	const item = el('div', 'nav-item' + (current === id ? ' active' : ''));
-	if (folder) {
+	if (folder && folder.id === HIDDEN) {
+		const ic = el('span', 'nav-ico', 'icon:eyeOff'); // у системной папки свой значок вместо цветной точки
+		item.append(ic);
+	} else if (folder) {
 		const dot = el('span', 'nav-dot');
 		if (folder.color) dot.style.background = folder.color;
 		item.append(dot);
@@ -110,7 +116,7 @@ function navItem(id, label, count, folder) {
 		});
 	}
 
-	if (folder) {
+	if (folder && folder.id !== HIDDEN) {
 		const rename = el('button', 'mini', 'icon:edit');
 		rename.title = 'Переименовать';
 		rename.addEventListener('click', (e) => {
@@ -131,11 +137,17 @@ function navItem(id, label, count, folder) {
 function renderNav() {
 	const nav = $('nav');
 	nav.textContent = '';
-	nav.append(navItem('all', 'Все закладки', state.bookmarks.length));
+	nav.append(navItem('all', 'Все закладки', state.bookmarks.filter((b) => b.folder !== HIDDEN).length));
 	nav.append(navItem('none', 'Без папки', state.bookmarks.filter((b) => !b.folder).length));
-	if (state.folders.length) nav.append(el('div', 'nav-sep', 'Папки'));
-	for (const f of state.folders) {
+	const own = state.folders.filter((f) => f.id !== HIDDEN);
+	if (own.length) nav.append(el('div', 'nav-sep', 'Папки'));
+	for (const f of own) {
 		nav.append(navItem(f.id, f.name, state.bookmarks.filter((b) => b.folder === f.id).length, f));
+	}
+	const hidden = state.folders.find((f) => f.id === HIDDEN);
+	if (hidden) {
+		nav.append(el('div', 'nav-sep', ''));
+		nav.append(navItem(HIDDEN, hidden.name, state.bookmarks.filter((b) => b.folder === HIDDEN).length, hidden));
 	}
 }
 
@@ -170,7 +182,8 @@ function renderRow(b) {
 	link.append(el('span', 'title', b.title), el('span', 'url', b.url));
 	row.append(favicon(b), link);
 
-	if (b.folder && current === 'all') row.append(el('span', 'chip', folderName(b.folder)));
+	if (b.folder && b.folder !== HIDDEN && current === 'all') row.append(el('span', 'chip', folderName(b.folder)));
+	if (b.folder === HIDDEN && b.prevFolder && folderName(b.prevFolder)) row.append(el('span', 'chip', folderName(b.prevFolder)));
 
 	const edit = el('button', 'icon-btn', 'icon:edit');
 	edit.title = 'Изменить';
@@ -178,6 +191,18 @@ function renderRow(b) {
 	const remove = el('button', 'icon-btn', 'icon:trash');
 	remove.title = 'Удалить';
 	remove.addEventListener('click', () => removeBookmark(b));
+	if (b.folder === HIDDEN) {
+		// Из «Скрытых» закладка возвращается в ту папку, откуда её скрыли
+		const show = el('button', 'icon-btn', 'icon:eye');
+		show.title = 'Показать';
+		show.addEventListener('click', () => act(() => problet.unhideBookmark(b.id)));
+		row.append(show);
+	} else {
+		const hide = el('button', 'icon-btn', 'icon:eyeOff');
+		hide.title = 'Скрыть';
+		hide.addEventListener('click', () => act(() => problet.hideBookmark(b.id)));
+		row.append(hide);
+	}
 	row.append(edit, remove);
 	return row;
 }

@@ -203,6 +203,8 @@ function localRedirect(details) {
 // Проверка главного документа до всего остального (родительский контроль): вернёт адрес, куда отправить вместо него
 let gate = null;
 const setGate = (fn) => { gate = fn; };
+let addonRules = null;
+const setAddonRules = (fn) => { addonRules = fn; }; // правила сетевых запросов аддонов идут раньше блокировщика
 
 let observer = null;
 const observe = (fn) => { observer = fn; }; // сообщает о каждом запросе и о том, заблокирован ли он (режим без окна)
@@ -210,6 +212,13 @@ const observe = (fn) => { observer = fn; }; // сообщает о каждом 
 function start(session, store) {
 	if (!domains.size) load();
 	session.webRequest.onBeforeRequest({ urls: URLS }, (details, callback) => {
+		if (addonRules) {
+			const r = addonRules(details);
+			if (r) {
+				callback(r);
+				return;
+			}
+		}
 		const s = store.getSettings();
 		if (details.resourceType === 'mainFrame' && gate) {
 			const to = gate(details.url);
@@ -280,4 +289,4 @@ const COOKIE_CSS = [
 
 const blockedCount = () => blocked;
 
-module.exports = { setGate, localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, COOKIE_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };
+module.exports = { setAddonRules, setGate, localRedirect, allowInsecure, isCustomBlocked, insecureRedirect, observe, isYoutubeHost, COSMETIC_CSS, COOKIE_CSS, blockedResponse, start, load, isBlocked, isBlockedHost, blockedCount };

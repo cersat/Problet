@@ -1,7 +1,7 @@
 {
   "name": "problet",
   "productName": "Problet",
-  "version": "9.3.6",
+  "version": "9.4.0",
   "description": "Problet — минимальный браузер на Electron",
   "main": "boot.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "dist": "electron-builder --publish never"
   },
   "devDependencies": {
-    "electron": "^45.2.3",
+    "electron": "^45.5.0",
     "electron-builder": "^26.18.0"
   },
   "author": "cersat",
@@ -33,6 +33,7 @@
       "*.css",
       "blocklist.txt",
       "icon.png",
+      "icon-beta.png",
       "blocklist-paths.txt",
       "allowlist.txt",
       "plain-ua-sites.txt",
@@ -59,13 +60,24 @@
     "win": {
       "target": [
         "nsis",
+        "nsis-web",
         "zip"
       ],
       "icon": "icon.png"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "ru_RU",
+        "en_US"
+      ],
+      "include": "build/installer.nsh"
+    },
+    "nsisWeb": {
+      "appPackageUrl": "https://github.com/cersat/Problet/releases/download/latest",
+      "artifactName": "Problet-${version}-win-${arch}-web.${ext}"
     },
     "mac": {
       "target": [

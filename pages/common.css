@@ -1171,3 +1171,18 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .pc-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 13px; }
 .pc-table td { padding: 5px 8px 5px 0; border-top: 1px solid var(--border); word-break: break-all; }
 .pc-table td:first-child { color: var(--text-strong); }
+.nav-ico { flex: none; display: inline-flex; color: var(--faint); }
+button.danger.solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+button.danger.solid:hover { filter: brightness(1.12); background: var(--danger); border-color: var(--danger); }
+.setting .value { color: var(--muted); }
+.setting input.num { width: 90px; }
+.setting[data-dep].dep-off { display: none; }
+/* Назад / Вперёд внизу раздела настроек */
+.sec-pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.sec-pager button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 14px; height: auto; }
+.sec-pager button.next { align-items: flex-end; margin-left: auto; }
+.sec-pager small { color: var(--muted); font-size: 11px; }
+.bm-list[hidden], .setting[hidden] { display: none; }
+
+/* hidden должен скрывать и блоки с собственным display (поле поиска на новой вкладке) */
+.newtab [hidden] { display: none !important; }

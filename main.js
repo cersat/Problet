@@ -52,6 +52,15 @@ if (parental.isOn()) {
 	}
 }
 
+// Портативная установка: данные лежат рядом с программой
+if (app.isPackaged) {
+	const portableData = require('./portable').dataDir(process.execPath, process.argv);
+	if (portableData) {
+		fs.mkdirSync(portableData, { recursive: true });
+		app.setPath('userData', portableData);
+	}
+}
+
 // Режим без окна: одноразовый профиль, если папка профиля не задана явно
 if (headless.enabled && !process.argv.some((a) => a.startsWith('--user-data-dir='))) {
 	const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'problet-headless-'));
@@ -113,12 +122,15 @@ function log(...parts) {
 
 // Неожиданная ошибка в главном процессе не должна ронять браузер: пишем её в журнал и работаем дальше (окно с ошибкой показывает boot.js)
 const errorwin = require('./errorwin');
+const uninstall = require('./uninstall');
 process.on('uncaughtException', (err) => log('uncaughtException', err));
 process.on('unhandledRejection', (err) => log('unhandledRejection', err instanceof Error ? err : String(err)));
 // На Linux каждое новое окно (инструменты разработчика, окно ошибки) без своей иконки получает шестерёнку — задаём всем нашу
+// В бета-версии иконка с оранжевой надписью beta
+const appIcon = () => path.join(__dirname, updater.isBeta() ? 'icon-beta.png' : 'icon.png');
 app.on('browser-window-created', (_e, w) => {
 	try {
-		w.setIcon(path.join(__dirname, 'icon.png'));
+		w.setIcon(appIcon());
 	} catch (e) { /* иконка не критична */ }
 });
 
@@ -135,10 +147,11 @@ const TOOLBAR_HEIGHT = 44;
 const BMBAR_HEIGHT = 32;
 const XBAR_HEIGHT = 32;
 const SIDE_WIDTH = 220; // ширина вертикальной панели вкладок
+const SIDEBAR_WIDTH = 44; // ширина боковой панели с кнопками
 const ROW_HEIGHT = 34;
 const POPUP_PADDING = 4;
 const MAX_SUGGESTIONS = 7;
-const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline', 'game', 'parental']);
+const INTERNAL_PAGES = new Set(['settings', 'bookmarks', 'newtab', 'history', 'downloads', 'passwords', 'version', 'spaces', 'chars', 'insecure', 'blocklist', 'pwsave', 'pwfill', 'files', 'svgedit', 'folder', 'bmstar', 'offline', 'game', 'parental', 'notepad', 'welcome']);
 const FIND_WIDTH = 390;
 const FIND_HEIGHT = 46;
 const NEWTAB = 'problet://newtab/';
@@ -191,7 +204,7 @@ const isNewTab = (url) => String(url).startsWith('problet://newtab');
 // ---------- Что ввели в адресной строке ----------
 
 // allowRelativeFile — для аргумента командной строки: там `page.html` это файл, а не поиск
-function resolveInput(raw, allowRelativeFile) {
+function resolveInput(raw, allowRelativeFile, engine) {
 	const text = String(raw || '').trim();
 	if (!text) return null;
 	if (text.startsWith('<')) {
@@ -210,7 +223,7 @@ function resolveInput(raw, allowRelativeFile) {
 	if (/^[^\s/]+\.[a-z]{2,}(:\d+)?([/?#].*)?$/i.test(text)) {
 		return { url: 'https://' + text };
 	}
-	return { url: store.searchUrl(text), search: text };
+	return { url: store.searchUrl(text, engine), search: text };
 }
 
 function loadInActive(url) {
@@ -325,7 +338,8 @@ function raiseLayers() {
 function swapView(tab, view) {
 	const old = tab.view;
 	tab.view = view;
-	view.setBounds(pageBounds());
+	if (view.virtual && split && (tab.id === split.a || tab.id === split.b)) clearSplit(); // внутренняя страница в разделённый экран не встаёт
+	view.setBounds(boundsFor(tab));
 	if (!old.virtual) win.contentView.removeChildView(old);
 	if (!view.virtual) {
 		win.contentView.addChildView(view);
@@ -442,7 +456,7 @@ function tabTitle(t) {
 const ICONS = require('./pages/icons');
 const fm = require('./filemanager');
 const INTERNAL_ICONS = {};
-for (const name of ['settings', 'bookmarks', 'history', 'version', 'passwords', 'downloads', 'offline', 'svgedit', 'spaces', 'game', 'blocklist']) INTERNAL_ICONS[name] = ICONS.dataUrl(name);
+for (const name of ['settings', 'bookmarks', 'history', 'version', 'passwords', 'downloads', 'offline', 'svgedit', 'spaces', 'game', 'blocklist', 'notepad']) INTERNAL_ICONS[name] = ICONS.dataUrl(name);
 INTERNAL_ICONS.parental = ICONS.dataUrl('lock');
 INTERNAL_ICONS.files = ICONS.dataUrl('folder');
 let browserIcon = '';
@@ -462,6 +476,8 @@ function panelHeight(k) {
 	return uiPx(k === 'tabs' ? Math.round(TABBAR_HEIGHT * settings().tabsScale) : k === 'toolbar' ? TOOLBAR_HEIGHT : k === 'extra' ? XBAR_HEIGHT : BMBAR_HEIGHT);
 }
 
+const sidebarWidth = () => uiPx(SIDEBAR_WIDTH);
+
 function sideWidth() {
 	return uiPx(Math.round(SIDE_WIDTH * settings().tabsScale));
 }
@@ -477,7 +493,8 @@ function panelPlan() {
 	const after = order.slice(at + 1);
 	// Кнопки окна на панели вкладок живут в самой верхней полосе: если панель вкладок не первая сверху или стоит сбоку, для них есть отдельная узкая полоса
 	const strip = s.btnLayout.tabs.includes('winctl') && (!!side || before[0] !== 'tabs');
-	return { side, before, after, strip };
+	const sidebar = s.sidebar === 'left' || s.sidebar === 'right' ? s.sidebar : '';
+	return { side, sidebar, before, after, strip };
 }
 
 function panelsHeight(list) {
@@ -492,7 +509,7 @@ function toolbarTop() {
 	return (p.strip ? uiPx(TITLEBAR_HEIGHT) : 0) + panelsHeight(p.before.slice(0, at));
 }
 
-const LAYOUT_KEYS = ['tabsPos', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'btnOptions', 'tabsScale', 'tabsTwoRows', 'tabsAlign'];
+const LAYOUT_KEYS = ['tabsPos', 'sidebar', 'bmOnlyIcons', 'bookmarksBar', 'btnLayout', 'btnOptions', 'tabsScale', 'tabsTwoRows', 'tabsAlign'];
 
 function layoutPayload() {
 	const s = settings();
@@ -536,7 +553,8 @@ ipcMain.on('win:close', (e) => fromToolbar0(e) && win.close());
 // Панель закладок: папки и закладки целиком, рисует их окно тулбара
 function barPayload() {
 	const st = store.bookmarksState();
-	return { folders: st.folders.map((f) => ({ id: f.id, name: f.name, color: f.color })), bookmarks: st.bookmarks.map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, iconTone: b.iconTone, customIcon: b.customIcon, folder: b.folder })) };
+	// Папка «Скрытые» и её закладки на панель не попадают
+	return { folders: st.folders.filter((f) => f.id !== store.HIDDEN_FOLDER).map((f) => ({ id: f.id, name: f.name, color: f.color })), bookmarks: st.bookmarks.filter((b) => b.folder !== store.HIDDEN_FOLDER).map((b) => ({ id: b.id, title: b.title, url: b.url, icon: b.icon, iconTone: b.iconTone, customIcon: b.customIcon, folder: b.folder })) };
 }
 
 function sendBar() {
@@ -577,6 +595,8 @@ ipcMain.on('bar:menu', (e, id) => {
 	popupMenu([
 		{ label: 'Изменить закладку', click: () => createTab('problet://bookmarks/?edit=' + encodeURIComponent(b.id), { activate: true }) },
 		{ label: 'Добавить кастомную иконку', click: () => createTab('problet://svgedit/?bm=' + encodeURIComponent(b.id), { activate: true }) },
+		{ label: 'Скрыть', click: () => store.hideBookmark(b.id) },
+		...addons.menuItems('bookmark', { url: b.url, title: b.title, bookmarkId: b.id }),
 		{ type: 'separator' },
 		{ label: 'Удалить закладку', click: () => store.removeBookmark(b.id) },
 	]);
@@ -648,8 +668,9 @@ function sendState(navigated, reset) {
 	const wc = tab.view.webContents;
 	const url = tab.pendingUrl || wc.getURL() || tab.url;
 	const bookmarkable = isBookmarkable(url);
+	const failed = tab.failedUrl && url.startsWith('data:text/html') ? tab.failedUrl : '';
 	win.webContents.send('state', {
-		url: url.startsWith('data:text/html') || isNewTab(url) ? '' : url,
+		url: failed || (url.startsWith('data:text/html') || isNewTab(url) ? '' : url),
 		canGoBack: canBack(tab),
 		canGoForward: canForward(tab),
 		loading: tab.loading,
@@ -674,7 +695,9 @@ const btnOpt = (id) => (settings().btnOptions || {})[id] || {};
 function toggleReload() {
 	const wc = activeContents();
 	if (!wc) return;
+	const t = activeTab();
 	if (wc.isLoading()) wc.stop();
+	else if (t && t.failedUrl && wc.getURL().startsWith('data:text/html')) wc.loadURL(t.failedUrl).catch(() => {}); // обновление страницы с ошибкой повторяет открытие исходного адреса
 	else if (btnOpt('reload').hard) wc.reloadIgnoringCache(); // настройка кнопки: обновлять без кеша
 	else wc.reload();
 }
@@ -911,8 +934,8 @@ function insets() {
 	return {
 		top: (p.strip ? uiPx(TITLEBAR_HEIGHT) : 0) + panelsHeight(p.before),
 		bottom: panelsHeight(p.after),
-		left: p.side === 'left' ? sideWidth() : 0,
-		right: p.side === 'right' ? sideWidth() : 0,
+		left: (p.side === 'left' ? sideWidth() : 0) + (p.sidebar === 'left' ? sidebarWidth() : 0),
+		right: (p.side === 'right' ? sideWidth() : 0) + (p.sidebar === 'right' ? sidebarWidth() : 0),
 	};
 }
 
@@ -963,7 +986,7 @@ function toggleSidePanel(id) {
 		closeSidePanel();
 		return true;
 	}
-	const base = extensions.sidePanelUrl(id);
+	const base = id.startsWith('@') ? addons.sidebarUrl(id.slice(1)) : extensions.sidePanelUrl(id);
 	if (!base || !win || !at) return false;
 	const url = base + (base.includes('?') ? '&' : '?') + 'tabId=' + at.view.webContents.id; // расширение берёт номер вкладки из адреса панели
 	closeSidePanel();
@@ -997,8 +1020,80 @@ function pageBounds() {
 	return { x: i.left, y: i.top, width: Math.max(0, w - i.left - i.right - sidePanelWidth()), height: Math.max(0, h - i.top - i.bottom) };
 }
 
+// Разделённый экран: две обычные страницы рядом, a слева, b справа; ratio — доля левой
+let split = null;
+let splitView = null;
+const SPLIT_GAP = 8;
+function splitRects() {
+	const p = pageBounds();
+	const wa = Math.round((p.width - SPLIT_GAP) * split.ratio);
+	return {
+		a: { x: p.x, y: p.y, width: wa, height: p.height },
+		gap: { x: p.x + wa, y: p.y, width: SPLIT_GAP, height: p.height },
+		b: { x: p.x + wa + SPLIT_GAP, y: p.y, width: Math.max(0, p.width - wa - SPLIT_GAP), height: p.height },
+	};
+}
+function boundsFor(tab) {
+	if (split && (tab.id === split.a || tab.id === split.b)) return splitRects()[tab.id === split.a ? 'a' : 'b'];
+	return pageBounds();
+}
+const splitPartner = (t) => (split && t ? tabs.find((x) => x.id === (t.id === split.a ? split.b : t.id === split.b ? split.a : -1)) || null : null);
+function layoutSplit() {
+	const on = split && activeTab() && (activeId === split.a || activeId === split.b);
+	if (!on) {
+		if (splitView) splitView.setVisible(false);
+		return;
+	}
+	if (!splitView) splitView = createLayer('preload-split.js', 'split.html');
+	splitView.setBounds(splitRects().gap);
+	splitView.setVisible(true);
+	win.contentView.addChildView(splitView); // поверх страниц
+}
+function clearSplit() {
+	if (!split) return;
+	const old = split;
+	split = null;
+	for (const id of [old.a, old.b]) {
+		const t = tabs.find((x) => x.id === id);
+		if (t && t.id !== activeId) t.view.setVisible(false);
+	}
+	layout();
+}
+function startSplit(otherId) {
+	const a = activeTab();
+	const b = tabs.find((t) => t.id === otherId);
+	if (!a || !b || a === b || a.view.virtual || b.view.virtual || a.hidden || b.hidden) return false;
+	clearSplit();
+	split = { a: a.id, b: b.id, ratio: 0.5 };
+	for (const t of [a, b]) {
+		if (t.splitFocus || !t.view.webContents) continue;
+		t.splitFocus = true;
+		t.view.webContents.on('focus', () => {
+			if (split && (t.id === split.a || t.id === split.b) && t.id !== activeId) activateTab(t.id); // адресная строка следует за страницей, на которой фокус
+		});
+	}
+	activateTab(b.id); // выгруженная страница подгружается
+	activateTab(a.id);
+	layout();
+	return true;
+}
+ipcMain.on('split:move', (e, x) => {
+	if (!split || !splitView || e.sender !== splitView.webContents) return;
+	if (x === null) split.ratio = 0.5;
+	else {
+		const p = pageBounds();
+		split.ratio = Math.min(0.85, Math.max(0.15, (x - win.getContentBounds().x - p.x - SPLIT_GAP / 2) / Math.max(1, p.width - SPLIT_GAP)));
+	}
+	layout();
+});
+
+ipcMain.on('split:end', (e) => {
+	if (splitView && e.sender === splitView.webContents && activeTab()) focusWc(activeTab().view.webContents); // разделитель забрал фокус, возвращаем странице
+});
+
 function layout() {
-	for (const t of tabs) t.view.setBounds(pageBounds());
+	for (const t of tabs) t.view.setBounds(boundsFor(t));
+	layoutSplit();
 	layoutSide();
 	layoutFind();
 	hideSuggest();
@@ -1095,6 +1190,7 @@ function wireTab(tab) {
 	wc.on('did-navigate-in-page', () => onNavigated(tab));
 	wc.on('did-start-navigation', (details) => {
 		if (!details.isMainFrame || details.isSameDocument) return;
+		if (!details.url.startsWith('data:text/html')) tab.failedUrl = '';
 		// Если иконка этого сайта уже известна (и кеш иконок включён), показываем её сразу
 		tab.icon = (!tab.incognito && settings().cacheIcons && iconByOrigin.get(originOf(details.url))) || '';
 		translator.reset(tab);
@@ -1222,7 +1318,8 @@ function wireTab(tab) {
 	wc.on('will-navigate', (e, url) => { if (handOver(url)) e.preventDefault(); });
 	wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
 		if (!isMainFrame || code === -3) return;
-		if (handOver(url)) return; 
+		if (handOver(url)) return;
+		tab.failedUrl = url; // в адресной строке остаётся адрес, который не открылся: опечатку можно сразу поправить
 		wc.loadURL(errorPage(code, description, url)).catch(() => {});
 	});
 }
@@ -1269,7 +1366,7 @@ function createTab(url, opts = {}) {
 		win.contentView.addChildView(view);
 		raiseLayers();
 	}
-	view.setBounds(pageBounds());
+	view.setBounds(boundsFor(tab));
 	wireTab(tab);
 
 	if (!tab.incognito && tab.icon && originOf(tab.url)) iconByOrigin.set(originOf(tab.url), tab.icon);
@@ -1304,7 +1401,11 @@ function activateTab(id) {
 	if (!tab.hidden) spaceActive[tab.space] = tab.id;
 	const prev = activeTab();
 	if (prev && prev !== tab) {
-		prev.view.setVisible(false);
+		if (splitPartner(prev) !== tab) {
+			prev.view.setVisible(false);
+			const pp = splitPartner(prev);
+			if (pp) pp.view.setVisible(false);
+		}
 		prev.lastActive = Date.now();
 	}
 	tab.lastActive = Date.now();
@@ -1313,6 +1414,9 @@ function activateTab(id) {
 	activeId = tab.id;
 	for (const h of tabs.filter((t) => t.hidden && t !== tab)) closeTab(h.id); // страница без вкладки живёт, пока на неё смотрят
 	tab.view.setVisible(true);
+	const partner = splitPartner(tab);
+	if (partner) partner.view.setVisible(true);
+	layoutSplit();
 	if (sideView) layout(); // боковая панель расширения видна только на своей вкладке
 	if (tab.pendingUrl) {
 		const url = tab.pendingUrl;
@@ -1449,8 +1553,18 @@ function setPinned(id, pinned) {
 	const i = tabs.findIndex((t) => t.id === id);
 	if (i < 0 || tabs[i].pinned === pinned) return;
 	const [tab] = tabs.splice(i, 1);
-	tab.pinned = pinned;
-	tabs.splice(pinnedCount(), 0, tab); // конец блока закреплённых или начало обычных
+	if (pinned) {
+		// Запоминаем место среди обычных вкладок, чтобы при откреплении вернуть вкладку туда же
+		tab.restIndex = tabs.slice(pinnedCount()).filter((t) => t.pinned === false).length ? i - pinnedCount() : 0;
+		tab.pinned = true;
+		tabs.splice(pinnedCount(), 0, tab); // конец блока закреплённых
+	} else {
+		tab.pinned = false;
+		const start = pinnedCount();
+		const rest = tabs.length - start;
+		tabs.splice(start + Math.min(Math.max(0, tab.restIndex || 0), rest), 0, tab);
+		delete tab.restIndex;
+	}
 	sendTabs();
 	scheduleSession();
 }
@@ -1496,6 +1610,7 @@ function closeTab(id) {
 	if (tabs.length > 1 && !tabs[index].incognito && !tabs[index].hidden && tabs[index].view.webContents && !tabs[index].view.webContents.isDestroyed()) rememberClosed(tabs[index]); // адреса из инкогнито не запоминаем
 	const vIndex = tabs.filter((t) => (settings().spacesMerged || t.space === tabs[index].space) && !t.hidden).indexOf(tabs[index]);
 	const [tab] = tabs.splice(index, 1);
+	if (split && (tab.id === split.a || tab.id === split.b)) clearSplit();
 	if (!tab.incognito) addons.emit('tabClosed', { id: tab.id });
 	dropFrozenFile(tab);
 	pwOffers.delete(tab.id);
@@ -1573,6 +1688,11 @@ function openStartupTabs() {
 			active = list.length - 1;
 		}
 	}
+	// Первый запуск на чистом профиле: страница с выбором языка и главных настроек
+	if (!s.welcomeDone && !headless.enabled) {
+		list.push({ url: 'problet://welcome/' });
+		active = list.length - 1;
+	}
 	if (active >= list.length) list.push({ url: NEWTAB });
 	active = Math.min(Math.max(0, active), list.length - 1);
 
@@ -1594,8 +1714,18 @@ function openStartupTabs() {
 const changedKinds = new Set();
 let changeTimer = null;
 
+let lastChannel = null;
 store.onChange((kind) => {
 	if (kind === 'bookmarks' || kind === 'all') sendBar();
+	if (kind === 'settings' || kind === 'all') {
+		// Смена потока обновлений: сразу проверяем заново, чтобы статус соответствовал выбранному потоку
+		const c = settings().updateChannel;
+		if (lastChannel !== null && c !== lastChannel) {
+			updater.setChannel(c);
+			updater.check();
+		}
+		lastChannel = c;
+	}
 	changedKinds.add(kind);
 	if (changeTimer) return;
 	changeTimer = setTimeout(() => {
@@ -1991,6 +2121,13 @@ const ACTION_RUN = {
 		const tab = activeTab();
 		if (tab) saveOfflineNotify(tab);
 	},
+	notepad: () => openInternal('notepad'),
+	split: () => {
+		if (split) return clearSplit();
+		const cur = activeTab();
+		const next = visibleTabs().find((t) => t !== cur && !t.view.virtual);
+		if (next) startSplit(next.id);
+	},
 	passwords: () => openInternal('passwords'),
 	settings: () => openInternal('settings'),
 	zoomIn: () => zoomBy(1),
@@ -2031,6 +2168,8 @@ function hotkeys(event, input) {
 	if (id) {
 		if (id.startsWith('cb:')) runCustom(id);
 		else ACTION_RUN[id]();
+	} else if (addons.hotkey(combo)) {
+		// горячая клавиша аддона
 	} else if (ctrl && !input.alt && !input.shift && /^[1-9]$/.test(input.key)) {
 		// Ctrl+1…9 — переход к вкладке по номеру, не настраивается
 		const vis = visibleTabs();
@@ -2197,14 +2336,21 @@ function toggleDevTools() {
 	else wc.openDevTools({ mode: 'detach' });
 }
 
+// Страница ошибки соединения: с лабиринтом, как у 404. Адрес и описание подставляются в шаблон pages/neterror.html
 function errorPage(code, description, url) {
-	const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-	const html = '<!doctype html><meta charset="utf-8"><title>' + tr('Ошибка') + '</title><style>'
-		+ ':root{color-scheme:dark light}'
-		+ 'body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font:16px system-ui,sans-serif;background:#1e1e20;color:#e4e4e8}'
-		+ '@media (prefers-color-scheme:light){body{background:#fbfbfd;color:#2c2c30}}'
-		+ 'div{max-width:560px;padding:24px}h2{margin:0 0 12px}p{margin:0 0 8px;word-break:break-all}.u{color:#999}.e{color:#e57373}'
-		+ '</style><div><h2>' + tr('Не удалось открыть страницу') + '</h2><p class="u">' + esc(url) + '</p><p class="e">' + esc(description) + ' (' + code + ')</p></div>';
+	const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+	const read = (...p) => {
+		try {
+			return fs.readFileSync(path.join(...p), 'utf8');
+		} catch (e) {
+			return '';
+		}
+	};
+	let html = read(__dirname, 'pages', 'neterror.html').replace('/*THEME*/', () => read(__dirname, 'theme.css') + read(__dirname, 'pages', 'common.css'));
+	if (curLang() === 'en') html = html.replace(/>([^<>]*[А-Яа-яЁё][^<>]*)</g, (_m, t) => '>' + tr(t) + '<').replace('<html lang="ru">', '<html lang="en">');
+	const href = /^(https?|file|ftp):/i.test(url) ? url : '';
+	html = html.replace('{{url}}', () => esc(url)).replace('{{desc}}', () => esc(description)).replace('{{code}}', () => esc(code)).replace('{{href}}', () => esc(href || 'problet://newtab'));
+	html = html.replace('/*MAZE_CSS*/', () => read(__dirname, 'pages', 'maze.css')).replace('/*MAZE_JS*/', () => read(__dirname, 'pages', 'maze.js').replace(/<\/script/gi, '<\\/script'));
 	return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
 }
 
@@ -2390,6 +2536,18 @@ function showPageMenu(tab, params) {
 		sep();
 		item('Найти на странице', () => openFind());
 	}
+	const pageUrl = wc.getURL();
+	const here = { url: pageUrl, title: tab.title, tabId: tab.id };
+	const extra = [
+		...(web(params.linkURL) ? addons.menuItems('link', { ...here, linkUrl: params.linkURL, text: params.linkText || '' }) : []),
+		...(params.mediaType === 'image' && web(params.srcURL) ? addons.menuItems('image', { ...here, srcUrl: params.srcURL }) : []),
+		...(params.selectionText ? addons.menuItems('selection', { ...here, text: params.selectionText.slice(0, 5000) }) : []),
+		...(params.isEditable ? [] : addons.menuItems('page', here)),
+	];
+	if (!tab.incognito && extra.length) {
+		sep();
+		t.push(...extra);
+	}
 	sep();
 	item('Скриншот страницы', () => screenshotPage());
 	item('Печать…', () => printPage());
@@ -2417,6 +2575,12 @@ function showTabsMenu() {
 	popupMenu(items);
 }
 
+function splitMenuItem(tab) {
+	const cur = activeTab();
+	if (split && (tab.id === split.a || tab.id === split.b)) return [{ label: 'Убрать разделение экрана', click: () => clearSplit() }];
+	if (!cur || tab.id === cur.id) return [];
+	return [{ label: 'Показать рядом с текущей вкладкой', enabled: !tab.view.virtual && !cur.view.virtual && !tab.hidden, click: () => startSplit(tab.id) }];
+}
 function showTabMenu(id) {
 	const tab = tabs.find((x) => x.id === id);
 	if (!tab) return;
@@ -2425,6 +2589,8 @@ function showTabMenu(id) {
 	popupMenu([
 		{ label: tab.pinned ? 'Открепить вкладку' : 'Закрепить вкладку', click: () => setPinned(tab.id, !tab.pinned) },
 		{ label: 'Открыть закрытую вкладку', enabled: closedTabs.length > 0, click: () => reopenTab() },
+		...splitMenuItem(tab),
+		...(tab.incognito ? [] : addons.menuItems('tab', { url: tab.pendingUrl || tab.url, title: tab.title, tabId: tab.id })),
 		{ label: 'Дублировать', click: () => createTab(tab.pendingUrl || tab.view.webContents.getURL() || tab.url, { duplicate: true, afterId: tab.id, title: tab.title, icon: tab.icon }) },
 		{ label: 'Обновить', click: () => tab.view.webContents.reload() },
 		{ label: 'Переименовать вкладку', click: () => win.webContents.send('tab-rename', tab.id) },
@@ -2635,6 +2801,7 @@ function attachIdentity(ses, withCache) {
 		const headers = { ...details.requestHeaders };
 		if (withCache) cache.tweakRequest(details, headers);
 		identity.applyHeaders(headers, profileFor(details.url), settings().dnt);
+		addons.requestHeaders(details, headers);
 		callback({ requestHeaders: headers });
 	});
 }
@@ -3077,8 +3244,16 @@ function openPanel(kind, rect, arg = '') {
 		const [cw, ch] = contentSize();
 		const r = rect && Number.isFinite(rect.x) ? rect : { x: cw / 2 - pw / 2, y: insets().top - 4, width: 0, height: 0 };
 		const x = Math.round(Math.min(Math.max(8, r.x + r.width / 2 - pw / 2), Math.max(8, cw - pw - 8)));
-		const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
-		panel.setBounds({ x, y, width: pw, height: Math.min(ph, Math.max(160, ch - y - 8)) });
+		const below = ch - (r.y + r.height + 4) - 8; // место под кнопкой
+		const above = r.y - 4 - 8; // место над кнопкой: панель закладок может стоять внизу окна
+		if (ph > below && above > below) {
+			// Под кнопкой не помещается, а над ней места больше (панель закладок внизу): окошко раскрывается вверх
+			const hh = Math.round(Math.min(ph, Math.max(160, above)));
+			panel.setBounds({ x, y: Math.max(0, Math.round(r.y - 4 - hh)), width: pw, height: hh });
+		} else {
+			const y = Math.round(Math.min(r.y + r.height + 4, Math.max(0, ch - 120)));
+			panel.setBounds({ x, y, width: pw, height: Math.min(ph, Math.max(160, ch - y - 8)) });
+		}
 		uiZoom(panel.webContents);
 	};
 	place(w, h);
@@ -3455,15 +3630,34 @@ handle('cache:clear', async () => {
 	return { message: 'Кеш очищен' };
 });
 
-// Поиск из строки на странице новой вкладки: ищем в той вкладке, откуда пришёл запрос
+// Поле на странице новой вкладки: «Всё» работает как адресная строка, «Только поиск» всегда ищет, «Только URL» всегда переходит по адресу.
+// Искать или переходить, решает настройка, а не страница; поисковик берётся из настройки поля. Запрос идёт в ту вкладку, откуда он пришёл
 ipcMain.handle('search:run', (e, text) => {
 	guard(e);
 	const tab = senderTab(e);
 	const q = String(text || '').trim().slice(0, 500);
 	if (!tab || !q) return;
-	rememberSearch(q, tab);
+	const s = settings();
+	if (!s.ntSearch) return;
+	let url = '';
+	if (s.ntSearchMode === 'url') {
+		// Поиска нет: введённое — адрес. Без схемы это https://, а то, что на адрес не похоже, не открывается
+		const r = resolveInput(q, false, s.ntEngine);
+		if (r && !r.search) url = r.url;
+		else if (/^[^\s/]+(:\d+)?([/?#]\S*)?$/.test(q)) url = 'https://' + q;
+	} else if (s.ntSearchMode === 'all') {
+		const r = resolveInput(q, false, s.ntEngine);
+		if (r) {
+			url = r.url;
+			if (r.search) rememberSearch(q, tab);
+		}
+	} else {
+		rememberSearch(q, tab);
+		url = store.searchUrl(q, s.ntEngine);
+	}
+	if (!url) return;
 	tab.pendingUrl = null;
-	tab.view.webContents.loadURL(store.searchUrl(q)).catch(() => {});
+	tab.view.webContents.loadURL(url).catch(() => {});
 });
 
 // Открыть внутреннюю страницу (историю, закладки…) в новой вкладке
@@ -3489,6 +3683,10 @@ filesHandle('files:clip', (mode, paths) => (mode === undefined ? fm.getClip() : 
 // Открыть файл: то, что браузер умеет показать, — во вкладке, остальное — программой системы
 filesHandle('files:launch', async (p, how) => {
 	p = path.resolve(String(p));
+	if (how !== 'system' && settings().notepadDefault && NOTEPAD_FILES.test(p)) {
+		createTab('problet://notepad/?f=' + encodeURIComponent(p), { activate: true });
+		return 'tab';
+	}
 	if (how === 'system' || (how !== 'tab' && !BROWSER_VIEWABLE.test(p))) {
 		const err = await shell.openPath(p);
 		if (err) throw new Error(err);
@@ -3499,6 +3697,7 @@ filesHandle('files:launch', async (p, how) => {
 	else tab.view.webContents.loadURL(pathToFileURL(p).href).catch(() => {});
 	return 'tab';
 });
+const NOTEPAD_FILES = /\.(txt|md|pmd|html?|xhtml|json|xml|csv|tsv|css|js|mjs|ts|py|c|h|cpp|hpp|java|rs|go|sh|ya?ml|toml|ini|conf|cfg|log)$/i;
 const BROWSER_VIEWABLE = /\.(html?|xhtml|svg|png|jpe?g|gif|webp|avif|bmp|ico|pdf|txt|md|log|json|xml|csv|tsv|css|js|mjs|ts|py|c|h|cpp|hpp|java|rs|go|sh|ya?ml|toml|ini|conf|cfg|mp4|webm|ogg|ogv|mp3|wav|flac|m4a|opus)$/i;
 // Стандартный проводник системы
 handle('files-default:get', async () => ({ on: await fm.isDefault(), platform: process.platform }));
@@ -3520,6 +3719,24 @@ handle('files:open', (p, asIs) => {
 	if (!tab || tab.view.webContents.isDestroyed()) return;
 	const url = pathToFileURL(path.resolve(String(p))).href + (asIs ? '?view' : '');
 	tab.view.webContents.loadURL(url).catch(() => {});
+});
+
+// Блокнот: свой лист живёт в папке Problet (файл .pmd), остальное — текстовые файлы по полному пути
+const NOTEPAD_MAX = 5 * 1024 * 1024;
+const notepadOwn = () => path.join(app.getPath('userData'), 'notepad.pmd');
+const notepadPath = (p) => (p ? path.resolve(String(p)) : notepadOwn());
+handle('notepad:read', (p) => {
+	const file = notepadPath(p);
+	if (!fs.existsSync(file)) return { path: file, text: '', own: !p };
+	if (fs.statSync(file).size > NOTEPAD_MAX) throw new Error('Файл больше 5 МБ, в блокноте он не откроется');
+	return { path: file, text: fs.readFileSync(file, 'utf8'), own: !p };
+});
+handle('notepad:write', (p, text) => {
+	const file = notepadPath(p);
+	text = String(text);
+	if (Buffer.byteLength(text) > NOTEPAD_MAX) throw new Error('Текст больше 5 МБ');
+	fs.writeFileSync(file, text);
+	return { ok: true };
 });
 
 // Редактор svg: чтение и запись файла по полному пути
@@ -3632,6 +3849,28 @@ ipcMain.handle('page:open-file', (e, url, newTab) => {
 	if (newTab || !tab) createTab(u.href, { afterId: tab ? tab.id : undefined });
 	else tab.view.webContents.loadURL(u.href).catch(() => {});
 });
+// Главная страница настроек: сайт и документация браузера
+const SITE_URL = 'https://problet.dar-site.uk/';
+handle('welcome:done', () => {
+	store.setSettings({ welcomeDone: true });
+	applySettings();
+	navigate(NEWTAB);
+});
+handle('home:open', (what) => {
+	createTab(what === 'guide' ? SITE_URL + 'guide/' : SITE_URL, { activate: true });
+});
+handle('app:can-uninstall', () => !!uninstall.plan() && (!parental.isOn() || parental.isUnlocked()));
+// Удаление Problet: сначала спрашиваем, потом удаляем и закрываемся
+handle('app:uninstall', async () => {
+	if (!uninstall.plan()) throw new Error('Эту установку Problet нельзя удалить из самой программы. Удали её так же, как ставил');
+	if (parental.isOn() && !parental.isUnlocked()) throw new Error('Нужен пароль родительского контроля');
+	const r = await dialog.showMessageBox(win, { type: 'warning', title: 'Удалить Problet', message: 'Удалить Problet с этого компьютера?', detail: 'Браузер закроется. Закладки, пароли и история останутся на диске, если не удалять данные вместе с программой.', buttons: ['Удалить', 'Удалить вместе с моими данными', 'Отмена'], defaultId: 2, cancelId: 2, noLink: true });
+	if (r.response === 2) return { cancelled: true };
+	store.flush();
+	parental.flush();
+	await uninstall.run(r.response === 1);
+	app.exit(0);
+});
 handle('page:open-tab', (name) => {
 	if (!INTERNAL_PAGES.has(name) || name === 'newtab') throw new Error('Неизвестная страница');
 	createTab('problet://' + name);
@@ -3728,6 +3967,18 @@ handle('visits:clear-since', (period) => {
 	return store.clearVisitsSince(CLEAR_PERIODS[period]);
 });
 // Часто посещаемые сайты для новой вкладки
+handle('visits:recent', () => {
+	const n = settings().ntRecentCount;
+	const seen = new Set();
+	const out = [];
+	for (const v of store.visitsList().sort((a, b) => b.time - a.time)) {
+		if (!/^https?:/.test(v.url) || seen.has(v.url)) continue;
+		seen.add(v.url);
+		out.push({ url: v.url, title: v.title || v.url, icon: settings().cacheIcons ? iconByOrigin.get(originOf(v.url)) || '' : '' });
+		if (out.length >= n) break;
+	}
+	return settings().ntRecent ? out : [];
+});
 handle('visits:top', () => (settings().topSites ? store.topSites(8).map((s) => ({ ...s, icon: settings().cacheIcons ? iconByOrigin.get(s.origin) || '' : '' })) : []));
 
 handle('downloads:list', () => downloadsView());
@@ -3762,6 +4013,8 @@ handle('bookmarks:state', () => store.bookmarksState());
 handle('bookmarks:add', (b) => bookmarksAction(() => store.addBookmark(b)));
 handle('bookmarks:update', (id, patch) => bookmarksAction(() => store.updateBookmark(id, patch)));
 handle('bookmarks:remove', (id) => bookmarksAction(() => store.removeBookmark(id)));
+handle('bookmarks:hide', (id) => bookmarksAction(() => store.hideBookmark(String(id))));
+handle('bookmarks:unhide', (id) => bookmarksAction(() => store.unhideBookmark(String(id))));
 handle('bookmarks:restore', (b) => bookmarksAction(() => store.restoreBookmark(b)));
 handle('folders:add', (name) => bookmarksAction(() => store.addFolder(name)));
 handle('folders:rename', (id, name) => bookmarksAction(() => store.renameFolder(id, name)));
@@ -4139,8 +4392,8 @@ function sendExtActions() {
 	if (extReady && !safeMode) { // в безопасном режиме раскладка стандартная, сохранённую не трогаем
 		const ids = [...extensions.actions(), ...addons.actions()].map((x) => 'x:' + x.id);
 		const L = settings().btnLayout;
-		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.extra, ...L.hidden]);
-		const next = { tabs: [...L.tabs], toolbar: [...L.toolbar], bmbar: [...L.bmbar], extra: [...L.extra], hidden: [...L.hidden] };
+		const has = new Set([...L.tabs, ...L.toolbar, ...L.bmbar, ...L.extra, ...L.side, ...L.hidden]);
+		const next = { tabs: [...L.tabs], toolbar: [...L.toolbar], bmbar: [...L.bmbar], extra: [...L.extra], side: [...L.side], hidden: [...L.hidden] };
 		let changed = false;
 		for (const key of Object.keys(next)) {
 			const keep = next[key].filter((id) => !store.EXT_BTN.test(id) || ids.includes(id));
@@ -4153,7 +4406,7 @@ function sendExtActions() {
 		for (const id of ids) {
 			if (has.has(id)) continue;
 			changed = true;
-			const panel = ['toolbar', 'bmbar', 'tabs', 'extra'].find((k) => (mem[k] || []).includes(id));
+			const panel = ['toolbar', 'bmbar', 'tabs', 'extra', 'side'].find((k) => (mem[k] || []).includes(id));
 			if (!panel) {
 				next.toolbar.push(id);
 				continue;
@@ -4380,6 +4633,7 @@ handle('addon:install-zip', async () => {
 });
 handle('addon:remove', (id) => addons.remove(String(id).replace(/^@/, '')));
 handle('addon:reset', (id) => addons.resetPermissions(String(id).replace(/^@/, '')));
+handle('addon:devtools', (id) => addons.devtools(String(id).replace(/^@/, '')));
 handle('addon:options', (id) => {
 	const u = addons.pageUrl(String(id).replace(/^@/, ''), 'options');
 	if (u) createTab(u, { activate: true });
@@ -4652,7 +4906,7 @@ function createWindow() {
 		minHeight: 320,
 		backgroundColor: bgColor(),
 		show: false,
-		icon: path.join(__dirname, 'icon.png'),
+		icon: appIcon(),
 		autoHideMenuBar: true,
 		frame: false, // заголовок окна рисуем сами: панель вкладок и кнопки окна лежат в нём
 		title: 'Problet',
@@ -4778,6 +5032,7 @@ app.whenReady().then(() => {
 	registerInternalPages();
 	cache.start(session.defaultSession, store);
 	adblock.setGate(parentalGate);
+	adblock.setAddonRules(addons.beforeRequest);
 	adblock.start(session.defaultSession, store);
 	startIdentity(session.defaultSession);
 	setupDownloads(session.defaultSession);
@@ -4804,6 +5059,11 @@ app.whenReady().then(() => {
 			activateTab: (id) => activateTab(id),
 			changed: () => sendState(),
 			buttonsChanged: () => sendExtActions(),
+			setSettings: (patch) => {
+				store.setSettings(patch);
+				applySettings();
+			},
+			toggleSidebar: (id) => toggleSidePanel(id),
 		});
 	} catch (e) {
 		log('аддоны не загрузились', e);
@@ -4820,6 +5080,7 @@ app.whenReady().then(() => {
 	// Копия закладок: при запуске и раз в час проверяем, не пора ли
 	setTimeout(backupIfDue, 30000);
 	setInterval(backupIfDue, 3600000);
+	updater.setChannel(settings().updateChannel);
 	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster, off: safeMode }));
 });
 function startHeadless() {

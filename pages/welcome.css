@@ -1,0 +1,5 @@
+.welcome { margin: 0; min-height: 100vh; display: flex; justify-content: center; background: var(--bg); color: var(--text); }
+.welcome main { width: min(560px, 100%); padding: 56px 24px; box-sizing: border-box; }
+.welcome h1 { margin: 0 0 8px; font-size: 28px; }
+.welcome .lead { margin: 0 0 24px; color: var(--muted); line-height: 1.5; }
+.welcome .buttons { margin-top: 28px; display: flex; justify-content: flex-end; }

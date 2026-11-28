@@ -161,6 +161,10 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		restart: () => call('app:restart'),
 		insecureProceed: (url) => call('insecure:proceed', url),
 		openInNewTab: (name) => call('page:open-tab', name),
+		homeOpen: (what) => call('home:open', what),
+		welcomeDone: () => call('welcome:done'),
+		canUninstall: () => call('app:can-uninstall'),
+		uninstallApp: () => call('app:uninstall'),
 		spaces: () => call('spaces:state'),
 		spacesSwitch: (id) => call('spaces:switch', id),
 		spacesAdd: (name) => call('spaces:add', name),
@@ -174,7 +178,10 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		clearVisits: () => call('visits:clear'),
 		clearVisitsSince: (period) => call('visits:clear-since', period),
 		topSites: () => call('visits:top'),
+		recentVisits: () => call('visits:recent'),
 		downloads: () => call('downloads:list'),
+		notepadRead: (p) => call('notepad:read', p),
+		notepadWrite: (p, text) => call('notepad:write', p, text),
 		offlineList: () => call('offline:list'),
 		offlineOpen: (id) => call('offline:open', id),
 		offlineDelete: (id) => call('offline:delete', id),
@@ -202,6 +209,7 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		addonRemove: (id) => call('addon:remove', id),
 		addonReset: (id) => call('addon:reset', id),
 		addonOptions: (id) => call('addon:options', id),
+		addonDevtools: (id) => call('addon:devtools', id),
 		importBookmarkItems: (items) => call('bookmarks:import-items', items),
 		bookmarks: () => call('bookmarks:state'),
 		bmStarGet: (id) => call('bm:star-get', id),
@@ -217,6 +225,8 @@ if (location.protocol === 'problet:' && !isToolbar) {
 		addBookmark: (b) => call('bookmarks:add', b),
 		updateBookmark: (id, patch) => call('bookmarks:update', id, patch),
 		removeBookmark: (id) => call('bookmarks:remove', id),
+		hideBookmark: (id) => call('bookmarks:hide', id),
+		unhideBookmark: (id) => call('bookmarks:unhide', id),
 		restoreBookmark: (b) => call('bookmarks:restore', b),
 		addFolder: (name) => call('folders:add', name),
 		renameFolder: (id, name) => call('folders:rename', id, name),
@@ -377,6 +387,9 @@ if (location.protocol === 'problet-addon:') {
 		files: { pick: m('files.pick'), read: m('files.read'), write: m('files.write'), list: m('files.list'), reveal: m('files.reveal') },
 		exec: m('exec'),
 		button: { setTitle: m('button.setTitle') },
+		settings: { get: m('settings.get'), set: m('settings.set') },
+		requests: { setRules: m('requests.setRules') },
+		sidebar: { toggle: m('sidebar.toggle') },
 		openOptions: m('options.open'),
 	});
 }
@@ -408,6 +421,7 @@ if (/^(https?|file):$/.test(location.protocol) && window === window.top) {
 					if (!handlers.has(x.id)) handlers.set(x.id, []);
 					handlers.get(x.id).push(cb);
 				},
+				stored: x.data,
 				storage: x.storage ? { get: (k) => send('storage.get', [k]), set: (k, v) => send('storage.set', [k, v]) } : undefined,
 			});
 			for (const css of x.css) webFrame.insertCSS(css);

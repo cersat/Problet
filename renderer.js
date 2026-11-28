@@ -51,6 +51,7 @@ reload.addEventListener('click', () => problet.reload());
 star.addEventListener('click', () => problet.toggleBookmark());
 document.getElementById('bookmarks').addEventListener('click', () => problet.openInternal('bookmarks'));
 document.getElementById('passwords').addEventListener('click', () => problet.openInternal('passwords'));
+document.getElementById('notepad').addEventListener('click', () => problet.openInternal('notepad'));
 document.getElementById('history').addEventListener('click', () => problet.openInternal('history'));
 document.getElementById('pwoffer').addEventListener('click', () => problet.pwOfferAccept());
 document.getElementById('zoom').addEventListener('click', () => problet.zoomReset());
@@ -498,7 +499,7 @@ function syncExt(list) {
 	}
 }
 const elFor = (id) => (id.startsWith('cb:') ? customEls.get(id) : id.startsWith('x:') ? extEls.get(id) : $id(id));
-const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar, extra: $id('xbar') };
+const PANEL_EL = { tabs: $id('tabbar'), toolbar: $id('toolbar'), bmbar, extra: $id('xbar'), side: $id('sidebar') };
 // Главный элемент каждой панели: вокруг него расставляются кнопки
 // Ручка растягивания панели вкладок: до двойного размера (по высоте, а сбоку по ширине)
 const grip = document.createElement('div');
@@ -547,8 +548,13 @@ function applyLayout(l) {
 	rows.forEach((r, i) => { rowEl[r].style.gridRow = String(i + 1); });
 	if (p.side) {
 		PANEL_EL.tabs.style.gridRow = String(rows.indexOf('page') + 1);
-		PANEL_EL.tabs.style.gridColumn = p.side === 'left' ? '1' : '3';
+		PANEL_EL.tabs.style.gridColumn = p.side === 'left' ? '1' : '5';
 	}
+	if (p.sidebar) {
+		PANEL_EL.side.style.gridRow = String(rows.indexOf('page') + 1);
+		PANEL_EL.side.style.gridColumn = p.sidebar === 'left' ? '2' : '4';
+	}
+	document.body.dataset.sidebar = p.sidebar || 'off';
 	document.body.style.gridTemplateRows = rows.map((r) => (r === 'page' ? 'minmax(0, 1fr)' : 'auto')).join(' ');
 	document.body.dataset.tabs = p.side || (p.before.includes('tabs') ? 'top' : 'bottom');
 	document.body.dataset.bm = l.bookmarksBar ? (p.after.includes('bmbar') ? 'bottom' : 'top') : 'off';
@@ -588,6 +594,13 @@ function applyLayout(l) {
 	for (const id of L.hidden) {
 		const el = elFor(id);
 		if (el) el.classList.add('off');
+	}
+	// Боковая панель выключена: её кнопки не показываются (список сохраняется, при включении они возвращаются)
+	if (!p.sidebar) {
+		for (const id of L.side) {
+			const el = elFor(id);
+			if (el) el.classList.add('off');
+		}
 	}
 	// Размер панели вкладок и ручка, за которую её растягивают
 	const scale = l.tabsScale;

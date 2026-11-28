@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+	<script src="i18n-en.js"></script>
+	<script src="i18n.js"></script>
+	<title>Добро пожаловать</title>
+	<link rel="stylesheet" href="theme.css">
+	<link rel="stylesheet" href="common.css">
+	<link rel="stylesheet" href="welcome.css">
+</head>
+<body class="welcome">
+	<main>
+		<h1>Добро пожаловать в Problet</h1>
+		<p class="lead">Несколько вопросов, чтобы браузер сразу выглядел и работал, как тебе удобно. Всё это можно поменять потом в настройках.</p>
+		<div class="setting">
+			<div class="what">Язык</div>
+			<select id="language"><option value="auto" translate="no">Auto / Авто</option><option value="ru" translate="no">Русский</option><option value="en" translate="no">English</option></select>
+		</div>
+		<div class="setting">
+			<div class="what">Тёмная тема</div>
+			<label class="switch"><input type="checkbox" id="darkTheme"><span></span></label>
+		</div>
+		<div class="setting">
+			<div class="what">Положение вкладок</div>
+			<select id="tabsPos"><option value="row">Сверху</option><option value="left">Слева</option><option value="right">Справа</option></select>
+		</div>
+		<div class="setting">
+			<div class="what">Панель закладок</div>
+			<label class="switch"><input type="checkbox" id="bookmarksBar"><span></span></label>
+		</div>
+		<div class="setting">
+			<div class="what">Поисковик</div>
+			<select id="engine"></select>
+		</div>
+		<div class="buttons">
+			<button id="done" class="primary">Начать</button>
+		</div>
+	</main>
+	<script src="welcome.js"></script>
+</body>
+</html>

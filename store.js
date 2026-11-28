@@ -6,6 +6,9 @@ const crypto = require('crypto');
 const { ACCENTS, HEX, TINTS, CONTRASTS, UI_SCALES, PRESETS } = require('./theme');
 const accel = require('./pages/accel');
 
+// Папка «Скрытые»: есть всегда, не удаляется, её закладок нет на панели закладок и новой вкладке
+const HIDDEN_FOLDER = 'hidden';
+
 const ENGINES = {
 	duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' },
 	google: { name: 'Google', url: 'https://www.google.com/search?q=%s' },
@@ -36,22 +39,23 @@ const TWO_ROWS_MIN = 1.8;
 const ARROWS = require('./pages/icons').ARROWS; // наборы стрелок «назад/вперёд» (SVG)
 
 // Панели в порядке сверху вниз; page — окно со страницей. Всё, что выше page, находится над страницей, ниже — под ней
-const PANELS = ['tabs', 'toolbar', 'bmbar', 'extra']; // extra — четвёртая панель: пока на ней нет кнопок, её не видно
+const PANELS = ['tabs', 'toolbar', 'bmbar', 'extra', 'side']; // extra — четвёртая панель: пока на ней нет кнопок, её не видно; side — боковая панель (вертикальная), её порядок среди остальных не задаётся
 const DEFAULT_ORDER = ['tabs', 'toolbar', 'bmbar', 'extra', 'page'];
 // Кнопки на панелях. m:… — главный элемент панели (вкладки, адресная строка, закладки): его нельзя убрать или переселить, он нужен только как точка отсчёта
 const MAIN_OF = { 'm:tabs': 'tabs', 'm:address': 'toolbar', 'm:bookmarks': 'bmbar' };
-// sp1–sp4 — переменные промежутки: занимают свободное место на панели; на одной панели не больше одного
-const SPACERS = ['sp1', 'sp2', 'sp3', 'sp4'];
+// sp1–sp5 — переменные промежутки: занимают свободное место на панели; на одной панели не больше одного
+const SPACERS = ['sp1', 'sp2', 'sp3', 'sp4', 'sp5'];
 // x:<id расширения> — кнопка расширения, у каждого своя
 const EXT_BTN = /^x:([a-p]{32}|@[a-z0-9][a-z0-9-]{0,39})$/; // расширение Chrome или @аддон Problet
-const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'clock', 'date', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'];
+const BUTTONS = ['spaces', 'newtab', 'winctl', ...SPACERS, 'back', 'forward', 'reload', 'update', 'darkpage', 'translate', 'clock', 'date', 'chars', 'bookmarks', 'passwords', 'notepad', 'history', 'downloads', 'settings'];
 function defaultButtons() {
 	return {
 		tabs: ['spaces', 'm:tabs', 'newtab', 'sp1', 'winctl'],
 		toolbar: ['back', 'forward', 'reload', 'm:address', 'update', 'chars', 'bookmarks', 'passwords', 'history', 'downloads', 'settings'],
 		bmbar: ['m:bookmarks', 'sp3'],
 		extra: [],
-		hidden: ['sp2', 'sp4', 'darkpage', 'translate', 'clock', 'date'],
+		side: [],
+		hidden: ['sp2', 'sp4', 'sp5', 'notepad', 'darkpage', 'translate', 'clock', 'date'],
 	};
 }
 
@@ -60,7 +64,7 @@ const CUSTOM_LIMIT = 20;
 const CUSTOM_TYPES = ['url', 'script', 'action'];
 // Память о положении кнопок: порядок на панели с учётом тех, кого там сейчас нет (они остаются на своих местах)
 function cleanMemory(raw) {
-	const out = { tabs: [], toolbar: [], bmbar: [], extra: [] };
+	const out = { tabs: [], toolbar: [], bmbar: [], extra: [], side: [] };
 	const r = raw && typeof raw === 'object' ? raw : {};
 	for (const key of PANELS) {
 		for (const id of Array.isArray(r[key]) ? r[key] : []) {
@@ -189,7 +193,7 @@ function cleanHosts(raw) {
 function cleanButtons(raw, customIds = []) {
 	const def = defaultButtons();
 	const r = raw && typeof raw === 'object' ? raw : {};
-	const out = { tabs: [], toolbar: [], bmbar: [], extra: [], hidden: [] };
+	const out = { tabs: [], toolbar: [], bmbar: [], extra: [], side: [], hidden: [] };
 	const seen = new Set();
 	for (const key of [...PANELS, 'hidden']) {
 		if (!Array.isArray(r[key])) continue;
@@ -277,10 +281,21 @@ const SETTING_DEFAULTS = {
 	searchKeywords: DEFAULT_KEYWORDS,
 	historyKeep: '0',
 	topSites: true, // плитки часто посещаемых сайтов на новой вкладке
+	ntTitle: true, // название браузера на новой вкладке
+	ntSearch: true, // поле поиска на новой вкладке
+	ntSearchMode: 'search', // all — как адресная строка, search — только поиск, url — только переход по адресу
+	ntEngine: 'default', // поисковик поля: default — выбранный для адресной строки
+	ntBookmarks: true, // плитки закладок на новой вкладке
+	ntBmHidden: [], // id закладок, которые не показываются на новой вкладке (по умолчанию показаны все)
+	ntRecent: false, // недавно открытые страницы на новой вкладке
+	welcomeDone: false, // страница первого запуска уже показана (у профилей, созданных до неё, сразу true)
+	ntRecentCount: 8,
 	dnt: false,
 	hideSystem: false,
+	notepadDefault: false, // текстовые файлы из проводника открываются в блокноте Problet
 	autoUpdate: true,
 	updateEvery: '360',
+	updateChannel: 'stable', // stable — версия на 0.1.0 ниже последней, beta — самая свежая сборка
 	updateFaster: false,
 	autoRestart: false,
 	pwOffer: true,
@@ -292,12 +307,13 @@ const SETTING_DEFAULTS = {
 	incognitoAsk: true,
 	downloadDir: '',
 	tabsPos: 'row',
+	sidebar: 'off', // боковая панель: off, left или right
 	tabsScale: 1,
 	tabsTwoRows: false,
 	tabsAlign: 'bottom',
 	panelOrder: [...DEFAULT_ORDER],
 	btnLayout: defaultButtons(),
-	btnMemory: { tabs: [], toolbar: [], bmbar: [], extra: [] }, // где кнопка стояла на каждой панели, даже когда её там нет
+	btnMemory: { tabs: [], toolbar: [], bmbar: [], extra: [], side: [] }, // где кнопка стояла на каждой панели, даже когда её там нет
 	btnOptions: null, // заполняется cleanBtnOptions
 	darkSites: [],
 	customButtons: [],
@@ -325,7 +341,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -333,6 +349,7 @@ const ENUM_SETTINGS = {
 	contrast: Object.keys(CONTRASTS),
 	cacheKeep: ['always', 'month', 'week', 'day', 'hour', 'restart'],
 	maskAs: ['chrome', 'problet', 'firefox'],
+	sidebar: ['off', 'left', 'right'],
 	tabsPos: ['row', 'left', 'right'], // row — панель вкладок в ряду остальных панелей, left/right — сбоку от страницы
 	tabsAlign: ['bottom', 'center', 'top'], // где на растянутой панели вкладок стоят кнопки и прочие элементы, которые не растягиваются
 	arrows: Object.keys(ARROWS),
@@ -340,6 +357,9 @@ const ENUM_SETTINGS = {
 	updateEvery: ['15', '30', '60', '180', '360', '720', '1440'], // период авто-проверки обновлений в минутах
 	pwLock: ['5', '15', '60', '0'],
 	bmStar: ['dialog', 'toggle'],
+	updateChannel: ['stable', 'beta'],
+	ntSearchMode: ['all', 'search', 'url'],
+	ntEngine: ['default', ...Object.keys(ENGINES), 'custom'],
 	suggestCount: ['5', '7', '10', '12'],
 	historyKeep: HISTORY_KEEP,
 	bmBackup: ['off', 'day', 'week'],
@@ -355,7 +375,7 @@ let timer = null;
 function defaults() {
 	return {
 		settings: { ...SETTING_DEFAULTS },
-		folders: [],
+		folders: [{ id: HIDDEN_FOLDER, name: 'Скрытые', color: '', system: true }],
 		bookmarks: [],
 		searchHistory: [],
 		session: sanitizeSession({}),
@@ -500,6 +520,17 @@ function cleanFolderRef(v, allowLast) {
 	return /^[\w-]+$/.test(v) ? v : '';
 }
 
+// Список id (закладок): только строки допустимого вида, без повторов
+function cleanIdList(v) {
+	if (!Array.isArray(v)) return [];
+	return [...new Set(v.filter((x) => typeof x === 'string' && /^[\w-]{1,64}$/.test(x)))].slice(0, 5000);
+}
+// Целое число в пределах 1…30 (сколько недавних страниц показывать)
+function cleanCount(v, fallback) {
+	const n = Math.floor(Number(v));
+	return Number.isFinite(n) && n >= 1 && n <= 30 ? n : fallback;
+}
+
 function sanitizeSettings(raw) {
 	const r = raw && typeof raw === 'object' ? raw : {};
 	const out = { ...SETTING_DEFAULTS };
@@ -513,6 +544,8 @@ function sanitizeSettings(raw) {
 	out.btnMemory = cleanMemory(r.btnMemory);
 	out.btnOptions = cleanBtnOptions(r.btnOptions, false);
 	out.darkSites = cleanHosts(r.darkSites);
+	out.ntBmHidden = cleanIdList(r.ntBmHidden);
+	out.ntRecentCount = cleanCount(r.ntRecentCount, out.ntRecentCount);
 	out.customButtons = cleanCustom(r.customButtons);
 	const customIds = out.customButtons.map((c) => c.id);
 	// Файлы старых версий: положение вкладок и закладок и переключатели кнопок
@@ -638,6 +671,8 @@ function sanitizeBookmark(b, folderIds, usedIds) {
 		iconTone: ICON_TONES.has(b.iconTone) ? b.iconTone : undefined, // см. setBookmarkTones
 		customIcon: cleanCustomIcon(b.customIcon),
 		folder: folderIds.has(b.folder) ? b.folder : null,
+		// из какой папки закладку скрыли: «Показать» вернёт её туда
+		prevFolder: b.folder === HIDDEN_FOLDER && folderIds.has(b.prevFolder) && b.prevFolder !== HIDDEN_FOLDER ? b.prevFolder : undefined,
 		added: Number.isFinite(b.added) ? b.added : Date.now(),
 	};
 }
@@ -696,10 +731,13 @@ function sanitize(raw) {
 		const name = str(f.name, 100).trim();
 		if (!name) continue;
 		let id = str(f.id, 64);
+		if (id === HIDDEN_FOLDER) continue; // системная папка добавляется ниже
 		if (!id || folderIds.has(id)) id = newId();
 		folderIds.add(id);
 		out.folders.push({ id, name, color: cleanFolderColor(f.color) });
 	}
+	folderIds.add(HIDDEN_FOLDER);
+	out.folders.push({ id: HIDDEN_FOLDER, name: 'Скрытые', color: '', system: true });
 
 	const usedIds = new Set();
 	for (const b of (Array.isArray(r.bookmarks) ? r.bookmarks : []).slice(0, BOOKMARKS_LIMIT)) {
@@ -739,6 +777,7 @@ function init(dir) {
 		}
 	}
 	data = sanitize(raw);
+	if (raw && raw.settings && raw.settings.welcomeDone === undefined) data.settings.welcomeDone = true; // профиль старше страницы первого запуска
 	trimHistory();
 }
 
@@ -944,7 +983,7 @@ function setDownloads(list) {
 // ---------- Настройки и поиск ----------
 
 function resetSettings() {
-	data.settings = sanitizeSettings({});
+	data.settings = sanitizeSettings({ welcomeDone: true }); // приветствие после сброса настроек не возвращается
 	scheduleSave();
 	changed('settings');
 	return rawSettings();
@@ -999,6 +1038,12 @@ function setSettings(patch) {
 		if (!values.includes(p[key])) throw new Error('Некорректное значение настройки: ' + key);
 		next[key] = p[key];
 	}
+	if (p.ntRecentCount !== undefined) {
+		const n = cleanCount(p.ntRecentCount, 0);
+		if (!n) throw new Error('Сколько недавних показывать: число от 1 до 30');
+		next.ntRecentCount = n;
+	}
+	if (p.ntBmHidden !== undefined) next.ntBmHidden = cleanIdList(p.ntBmHidden);
 	if (p.accent !== undefined) {
 		const a = cleanAccent(p.accent);
 		if (!a) throw new Error('Некорректный цвет: нужен вид #rrggbb');
@@ -1134,11 +1179,12 @@ function keywordSearch(text) {
 	return k ? { keyword: k, query: m[2].trim(), url: k.url.split('%s').join(encodeURIComponent(m[2].trim())) } : null;
 }
 
-function searchUrl(text) {
+function searchUrl(text, engineId) {
 	const kw = keywordSearch(text);
 	if (kw) return kw.url;
 	const s = data.settings;
-	const template = s.engine === 'custom' ? s.customTemplate : ENGINES[s.engine].url;
+	const engine = engineId && engineId !== 'default' && (engineId === 'custom' ? s.customTemplate : Object.hasOwn(ENGINES, engineId)) ? engineId : s.engine;
+	const template = engine === 'custom' ? s.customTemplate : ENGINES[engine].url;
 	return template.split('%s').join(encodeURIComponent(text));
 }
 
@@ -1238,7 +1284,33 @@ function updateBookmark(id, patch) {
 	}
 	if (patch.title !== undefined) b.title = str(patch.title, 300).trim() || b.url;
 	if (patch.customIcon !== undefined) b.customIcon = cleanCustomIcon(patch.customIcon);
-	if (patch.folder !== undefined) b.folder = folderIdSet().has(patch.folder) ? patch.folder : null;
+	if (patch.folder !== undefined && patch.folder !== b.folder) {
+		if (patch.folder === HIDDEN_FOLDER) b.prevFolder = b.folder || undefined;
+		else delete b.prevFolder;
+		b.folder = folderIdSet().has(patch.folder) ? patch.folder : null;
+	}
+	scheduleSave();
+	changed('bookmarks');
+}
+
+// «Скрыть»: закладка уходит в папку «Скрытые» и помнит, откуда пришла
+function hideBookmark(id) {
+	const b = data.bookmarks.find((x) => x.id === id);
+	if (!b) throw new Error('Закладка не найдена');
+	if (b.folder === HIDDEN_FOLDER) return;
+	b.prevFolder = b.folder || undefined;
+	b.folder = HIDDEN_FOLDER;
+	scheduleSave();
+	changed('bookmarks');
+}
+
+// «Показать»: назад в прежнюю папку, а если её уже нет — в корень
+function unhideBookmark(id) {
+	const b = data.bookmarks.find((x) => x.id === id);
+	if (!b) throw new Error('Закладка не найдена');
+	if (b.folder !== HIDDEN_FOLDER) return;
+	b.folder = b.prevFolder && folderIdSet().has(b.prevFolder) ? b.prevFolder : null;
+	delete b.prevFolder;
 	scheduleSave();
 	changed('bookmarks');
 }
@@ -1270,6 +1342,7 @@ const cleanFolderColor = (v) => (FOLDER_COLORS.some((c) => c.hex === v) ? v : ''
 function setFolderColor(id, color) {
 	const f = data.folders.find((x) => x.id === id);
 	if (!f) throw new Error('Папка не найдена');
+	if (id === HIDDEN_FOLDER) throw new Error('У папки «Скрытые» цвет не меняется');
 	f.color = cleanFolderColor(color);
 	scheduleSave();
 	changed('bookmarks');
@@ -1291,6 +1364,7 @@ function renameFolder(id, name) {
 	const f = data.folders.find((x) => x.id === id);
 	const n = str(name, 100).trim();
 	if (!f) throw new Error('Папка не найдена');
+	if (id === HIDDEN_FOLDER) throw new Error('Папку «Скрытые» нельзя переименовать');
 	if (!n) throw new Error('Введи название папки');
 	f.name = n;
 	scheduleSave();
@@ -1299,6 +1373,7 @@ function renameFolder(id, name) {
 
 // Закладки из удалённой папки остаются, просто без папки
 function removeFolder(id) {
+	if (id === HIDDEN_FOLDER) throw new Error('Папку «Скрытые» нельзя удалить');
 	data.folders = data.folders.filter((f) => f.id !== id);
 	for (const b of data.bookmarks) {
 		if (b.folder === id) b.folder = null;
@@ -1532,5 +1607,5 @@ module.exports = {
 	onChange, notify: changed, DEFAULT_SPACE,
 	addBlocked, blockedTotal,
 	getZoom, setZoom,
-	addVisit, isSearchUrl, updateVisitTitle, visitsList, removeVisit, clearVisits, searchVisits, getDownloads, setDownloads, keywordSearch, pruneVisits, clearVisitsSince, topSites, DEFAULT_KEYWORDS,
+	hideBookmark, unhideBookmark, HIDDEN_FOLDER, addVisit, isSearchUrl, updateVisitTitle, visitsList, removeVisit, clearVisits, searchVisits, getDownloads, setDownloads, keywordSearch, pruneVisits, clearVisitsSince, topSites, DEFAULT_KEYWORDS,
 };

@@ -9,6 +9,7 @@ const os = require('os');
 const { pathToFileURL } = require('url');
 const childProcess = require('child_process');
 const extensions = require('./extensions');
+const accel = require('./pages/accel');
 
 const SCHEME = 'problet-addon';
 const ID_RE = /^(?!blocked$)[a-z0-9][a-z0-9-]{0,39}$/; // blocked — адрес заглушек блокировщика (problet-addon://blocked/), не id аддона
@@ -30,7 +31,10 @@ const PERMS = {
 	clipboard: { label: 'читать и менять буфер обмена', ask: true },
 	files: { label: 'читать и записывать файлы на компьютере', ask: true, every: true },
 	exec: { label: 'запускать программы и команды на компьютере', ask: true, every: true },
+	settings: { label: 'менять настройки браузера', ask: true, each: true },
+	requests: { label: 'перехватывать сетевые запросы страниц: блокировать, перенаправлять, менять заголовки', ask: true },
 };
+const MENU_CONTEXTS = ['page', 'link', 'selection', 'image', 'bookmark', 'tab'];
 
 let dir = '';
 let ctx = null; // функции главного процесса: вкладки, окно, раскладка
@@ -82,6 +86,9 @@ function validate(m) {
 		button: null,
 		options: '',
 		files: [],
+		hotkeys: [],
+		menus: [],
+		sidebar: null,
 	};
 	if (typeof m.icon === 'string') {
 		if (isRel(m.icon) && isIconFile(m.icon)) out.icon = m.icon;
@@ -116,7 +123,27 @@ function validate(m) {
 		out.options = m.options;
 	}
 	for (const f of Array.isArray(m.files) ? m.files : []) if (isRel(f)) out.files.push(f);
-	if (!out.content.length && !out.background && !out.button && !out.options) throw new Error('addon.json: аддон ничего не делает — нужен content, background, button или options');
+	// Горячие клавиши и пункты меню нажимаются в браузере, а обработает их фон аддона
+	for (const h of Array.isArray(m.hotkeys) ? m.hotkeys.slice(0, 10) : []) {
+		if (!h || !/^[a-z0-9_-]{1,30}$/.test(h.id || '')) throw new Error('addon.json: у горячей клавиши нужен id (латиница, цифры, - и _)');
+		if (!accel.valid(h.key) || !h.key) throw new Error('addon.json: неверная горячая клавиша «' + h.key + '», пример: Ctrl+Alt+C');
+		if (out.hotkeys.some((x) => x.id === h.id || x.key === h.key)) throw new Error('addon.json: горячие клавиши повторяются');
+		out.hotkeys.push({ id: h.id, key: h.key, title: str(h.title, 80) || h.id });
+	}
+	for (const x of Array.isArray(m.menus) ? m.menus.slice(0, 10) : []) {
+		if (!x || !/^[a-z0-9_-]{1,30}$/.test(x.id || '')) throw new Error('addon.json: у пункта меню нужен id (латиница, цифры, - и _)');
+		const contexts = (Array.isArray(x.contexts) ? x.contexts : ['page']).filter((c) => MENU_CONTEXTS.includes(c));
+		if (!contexts.length || !str(x.title, 80).trim()) throw new Error('addon.json: у пункта меню нужны title и contexts из списка: ' + MENU_CONTEXTS.join(', '));
+		out.menus.push({ id: x.id, title: str(x.title, 80).trim(), contexts });
+	}
+	if (out.hotkeys.length || out.menus.length) {
+		if (!out.background) throw new Error('addon.json: горячим клавишам и пунктам меню нужен background, который их обработает');
+	}
+	if (m.sidebar && typeof m.sidebar === 'object') {
+		if (!isRel(m.sidebar.page) || !/\.html?$/.test(m.sidebar.page)) throw new Error('addon.json: sidebar.page — путь к .html файлу');
+		out.sidebar = { page: m.sidebar.page, title: str(m.sidebar.title, 80) || out.name };
+	}
+	if (!out.content.length && !out.background && !out.button && !out.options && !out.sidebar) throw new Error('addon.json: аддон ничего не делает — нужен content, background, button, options или sidebar');
 	return out;
 }
 
@@ -257,6 +284,7 @@ function setSafe(on) {
 }
 
 function stopBackground(a) {
+	a.rules = [];
 	if (!a.bg) return;
 	const wc = a.bg.webContents;
 	a.bg = null;
@@ -327,6 +355,15 @@ async function need(a, perm, detail) {
 	const p = PERMS[perm];
 	if (!p.ask) return;
 	const st = stateOf(a.id);
+	if (p.each) {
+		// Каждое действие спрашивается заново, с описанием того, что именно хочет сделать аддон; «всегда» не бывает
+		const prev = asking.get(a.id) || Promise.resolve();
+		const next = prev.catch(() => {}).then(async () => {
+			if ((await ask(a, p.label + '.', detail || '', false)) === 'deny') throw new Error('Человек не разрешил: ' + p.label);
+		});
+		asking.set(a.id, next);
+		return next;
+	}
 	if (st.granted[perm] === 'always') return;
 	if (st.granted[perm] === 'denied') throw new Error('Разрешение «' + perm + '» запрещено. Его можно сбросить в настройках расширений');
 	const prev = asking.get(a.id) || Promise.resolve();
@@ -385,6 +422,100 @@ const webUrl = (url) => {
 function bytesOf(data, enc) {
 	if (enc === 'base64') return Buffer.from(String(data), 'base64');
 	return Buffer.from(String(data), 'utf8');
+}
+
+// Правила для запросов: block — отменить, redirect — перенаправить, headers — поменять заголовки запроса (null удаляет заголовок)
+function cleanRules(rules) {
+	if (!Array.isArray(rules) || rules.length > 50) throw new Error('Правил должно быть не больше 50');
+	return rules.map((r) => {
+		if (!r || !['block', 'redirect', 'headers'].includes(r.action)) throw new Error('У правила action: block, redirect или headers');
+		const urls = (Array.isArray(r.urls) ? r.urls : []).filter((x) => typeof x === 'string').slice(0, 20);
+		if (!urls.length) throw new Error('У правила нужен список urls');
+		const out = { action: r.action, match: urls.map((p) => matcher(p)), types: Array.isArray(r.types) ? r.types.map(String) : null };
+		if (r.action === 'redirect') {
+			if (!/^https?:\/\//i.test(String(r.redirectUrl || ''))) throw new Error('redirectUrl — адрес http:// или https://');
+			out.to = String(r.redirectUrl);
+		}
+		if (r.action === 'headers') {
+			out.headers = {};
+			for (const [k, v] of Object.entries(r.requestHeaders && typeof r.requestHeaders === 'object' ? r.requestHeaders : {})) {
+				if (!/^[A-Za-z0-9-]{1,60}$/.test(k) || (v !== null && typeof v !== 'string')) throw new Error('requestHeaders: имя заголовка и строка (или null, чтобы убрать)');
+				out.headers[k] = v;
+			}
+		}
+		return out;
+	});
+}
+const ruleHits = (r, details, u) => (!r.types || r.types.includes(details.resourceType)) && r.match.some((m) => m(u));
+// Вызывается перед каждым запросом: вернёт { cancel } или { redirectURL }, если подошло правило аддона
+function beforeRequest(details) {
+	if (safe || details.url.startsWith(SCHEME + ':')) return null;
+	let u;
+	try {
+		u = new URL(details.url);
+	} catch (e) {
+		return null;
+	}
+	for (const a of addons.values()) {
+		for (const r of a.rules || []) {
+			if (r.action === 'headers' || !ruleHits(r, details, u)) continue;
+			return r.action === 'block' ? { cancel: true } : { redirectURL: r.to };
+		}
+	}
+	return null;
+}
+function requestHeaders(details, headers) {
+	if (safe || details.url.startsWith(SCHEME + ':')) return;
+	let u;
+	try {
+		u = new URL(details.url);
+	} catch (e) {
+		return;
+	}
+	for (const a of addons.values()) {
+		for (const r of a.rules || []) {
+			if (r.action !== 'headers' || !ruleHits(r, details, u)) continue;
+			for (const [k, v] of Object.entries(r.headers)) {
+				for (const have of Object.keys(headers)) if (have.toLowerCase() === k.toLowerCase()) delete headers[have];
+				if (v !== null) headers[k] = v;
+			}
+		}
+	}
+}
+
+// Горячие клавиши и меню аддонов
+function hotkey(combo) {
+	if (safe) return false;
+	for (const a of addons.values()) {
+		const h = a.manifest && a.bg && a.manifest.hotkeys.find((x) => x.key === combo);
+		if (h) {
+			emit('hotkey', { id: h.id }, a.id);
+			return true;
+		}
+	}
+	return false;
+}
+// Пункты меню для места: page, link, selection, image, bookmark, tab. info — что известно о месте (url, linkUrl, srcUrl, text, tabId, bookmarkId)
+function menuItems(context, info) {
+	if (safe) return [];
+	const out = [];
+	for (const a of addons.values()) {
+		if (!a.manifest || !a.bg) continue;
+		for (const x of a.manifest.menus) {
+			if (x.contexts.includes(context)) out.push({ label: loc({ ...a.manifest, name: x.title }, 'name'), click: () => emit('menu', { id: x.id, context, ...info }, a.id) });
+		}
+	}
+	return out;
+}
+function sidebarUrl(id) {
+	const a = addons.get(id);
+	return !safe && a && a.manifest && a.manifest.sidebar ? SCHEME + '://' + id + '/' + a.manifest.sidebar.page : '';
+}
+// Окно инструментов разработчика для фона аддона
+function devtools(id) {
+	const a = addons.get(id);
+	if (!a || !a.bg || a.bg.webContents.isDestroyed()) throw new Error('У аддона не запущен фоновый скрипт');
+	a.bg.webContents.openDevTools({ mode: 'detach' });
 }
 
 const API = {
@@ -552,6 +683,39 @@ const API = {
 		a.manifest.button.custom = true; // название задано самим аддоном: перевод не подменяет его
 		ctx.buttonsChanged();
 	},
+	'settings.get': async (a, keys) => {
+		if (!a.manifest.permissions.includes('settings')) throw new Error('Аддон не заявил разрешение «settings» в addon.json');
+		const all = ctx.store.rawSettings();
+		if (keys === undefined) return JSON.parse(JSON.stringify(all));
+		const out = {};
+		for (const k of Array.isArray(keys) ? keys : [keys]) if (Object.hasOwn(all, k)) out[k] = JSON.parse(JSON.stringify(all[k]));
+		return out;
+	},
+	'settings.set': async (a, patch) => {
+		if (!a.manifest.permissions.includes('settings')) throw new Error('Аддон не заявил разрешение «settings» в addon.json');
+		if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('Нужен объект вида { ключ: значение }');
+		const all = ctx.store.rawSettings();
+		const keys = Object.keys(patch);
+		if (!keys.length || keys.length > 30) throw new Error('Можно менять от 1 до 30 настроек за раз');
+		const unknown = keys.filter((k) => !Object.hasOwn(all, k));
+		if (unknown.length) throw new Error('Нет таких настроек: ' + unknown.join(', '));
+		const show = (v) => {
+			const t = JSON.stringify(v);
+			return t === undefined ? 'пусто' : t.length > 80 ? t.slice(0, 79) + '…' : t;
+		};
+		await need(a, 'settings', keys.map((k) => k + ': ' + show(all[k]) + ' → ' + show(patch[k])).join('\n'));
+		ctx.setSettings(patch);
+		return keys;
+	},
+	'requests.setRules': async (a, rules) => {
+		await need(a, 'requests', 'Правила: ' + (Array.isArray(rules) ? rules.length : 0) + ' шт.');
+		a.rules = cleanRules(rules);
+		return a.rules.length;
+	},
+	'sidebar.toggle': async (a) => {
+		if (!a.manifest.sidebar) throw new Error('У аддона нет sidebar в addon.json');
+		return ctx.toggleSidebar('@' + a.id);
+	},
 	'options.open': async (a) => {
 		const u = pageUrl(a.id, 'options');
 		if (!u) throw new Error('У аддона нет страницы настроек');
@@ -614,7 +778,10 @@ function contentFor(url) {
 				} catch (e) { /* файла нет */ }
 			}
 		}
-		if (at.start.length || at.end.length || at.idle.length || css.length) out.push({ id: a.id, world: a.world, css, js: at, storage: a.manifest.permissions.includes('storage') });
+		if (!(at.start.length || at.end.length || at.idle.length || css.length)) continue;
+		const hasStorage = a.manifest.permissions.includes('storage');
+		// Сохранённые данные отдаём сразу вместе со скриптом: так аддон может применить настройку на старте страницы, не дожидаясь ответа главного процесса
+		out.push({ id: a.id, world: a.world, css, js: at, storage: hasStorage, data: hasStorage ? JSON.parse(JSON.stringify(storageOf(a.id))) : undefined });
 	}
 	return out;
 }
@@ -683,6 +850,9 @@ function list() {
 			permissions: m ? m.permissions.map((p) => PERMS[p].label) : [],
 			granted,
 			options: !!(m && m.options),
+			hotkeys: m ? m.hotkeys.map((h) => ({ key: h.key, title: h.title })) : [],
+			sidebar: !!(m && m.sidebar),
+			running: !!a.bg,
 		};
 	});
 }
@@ -911,4 +1081,4 @@ function removeAll() {
 	for (const id of [...addons.keys()]) remove(id);
 }
 
-module.exports = { setSafe, SCHEME, init, handler, pageUrl, call, reply, emit, contentFor, fromContent, actions, click, list, catalog, installFromCatalog, installFromUrl, installFromZip, remove, removeAll, resetPermissions, validate, matcher, PERMS };
+module.exports = { hotkey, menuItems, sidebarUrl, devtools, beforeRequest, requestHeaders, setSafe, SCHEME, init, handler, pageUrl, call, reply, emit, contentFor, fromContent, actions, click, list, catalog, installFromCatalog, installFromUrl, installFromZip, remove, removeAll, resetPermissions, validate, matcher, PERMS };

@@ -9,7 +9,7 @@ problet.bmStarGet(id).then((st) => {
 	$('title').value = st.bookmark.title;
 	const sel = $('folder');
 	sel.append(new Option('Без папки', ''));
-	for (const f of st.folders) sel.append(new Option(f.name, f.id));
+	for (const f of st.folders.filter((x) => x.id !== 'hidden')) sel.append(new Option(f.name, f.id));
 	sel.append(new Option('Новая папка…', NEW));
 	sel.value = st.bookmark.folder;
 	$('title').focus();

@@ -17,12 +17,15 @@ const OS = { linux: 'linux', win32: 'win', darwin: 'mac' }[process.platform];
 
 let setupInstall = null; // установлен ли Problet установщиком (Windows); объявлено до state: mode() читает его сразу
 // state: idle | checking | uptodate | available | downloading | ready | error
-let state = { status: 'idle', version: '', progress: 0, message: '', changelog: '', mode: mode() };
+let state = { status: 'idle', version: '', progress: 0, message: '', changelog: '', mode: mode(), beta: false, channel: 'stable' };
 let listeners = [];
 let asset = null;
 let page = '';
 let timer = null;
 let busy = false;
+let channel = 'stable'; // stable или beta: задаётся из настроек (setChannel)
+let stableSeries = [9, 4]; // серия (a.b), которая сейчас считается stable; уточняется при каждой проверке
+const FIRST_STABLE = [9, 4]; // с 9.4.0 начинается деление на stable и beta
 
 function mode() {
 	if (!app.isPackaged) return 'dev';
@@ -33,7 +36,7 @@ function mode() {
 }
 
 function set(patch) {
-	state = { ...state, ...patch, mode: mode() };
+	state = { ...state, ...patch, mode: mode(), beta: isBeta(), channel };
 	for (const cb of listeners) cb(state);
 }
 
@@ -49,6 +52,27 @@ function parseVersion(v) {
 	return String(v).split('.').map((n) => parseInt(n, 10) || 0);
 }
 
+const seriesOf = (v) => parseVersion(v).slice(0, 2);
+const cmpSeries = (a, b) => (a[0] - b[0]) || (a[1] - b[1]);
+
+// Какая серия считается stable, если самая новая — latest: серия на одну ниже, но не ниже первой stable.
+// available — серии (a.b), для которых есть релиз вида s9.4. Если подходящей нет, остаётся null
+function stableFor(latest, available) {
+	if (cmpSeries(latest, FIRST_STABLE) <= 0) return latest;
+	const below = available.filter((x) => cmpSeries(x, latest) < 0 && cmpSeries(x, FIRST_STABLE) >= 0).sort(cmpSeries);
+	return below.length ? below[below.length - 1] : null;
+}
+
+// Версия сборки новее, чем stable: значит, это beta
+function isBeta() {
+	return cmpSeries(seriesOf(app.getVersion()), stableSeries) > 0;
+}
+
+function setChannel(c) {
+	channel = c === 'beta' ? 'beta' : 'stable';
+	set({});
+}
+
 function isNewer(a, b) {
 	const x = parseVersion(a);
 	const y = parseVersion(b);
@@ -56,6 +80,16 @@ function isNewer(a, b) {
 		if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
 	}
 	return false;
+}
+
+// Самая новая версия среди файлов релиза, для любой системы
+function pickAnyVersion(assets) {
+	let best = '';
+	for (const a of assets) {
+		const m = /^Problet-(\d+\.\d+\.\d+)-/i.exec(a.name);
+		if (m && (!best || isNewer(m[1], best))) best = m[1];
+	}
+	return best;
 }
 
 // Подходящий файл релиза для этой системы
@@ -77,12 +111,35 @@ function pickAsset(assets) {
 const SITE = 'https://github.com/' + REPO;
 const decodeHtml = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
-async function releaseFromSite() {
-	const res = await net.fetch(SITE + '/releases/expanded_assets/latest');
+async function releaseFromSite(tag = 'latest') {
+	const res = await net.fetch(SITE + '/releases/expanded_assets/' + tag);
 	if (!res.ok) return null;
 	const html = await res.text();
-	const assets = [...html.matchAll(/href="([^"]*\/releases\/download\/latest\/([^"/]+))"/g)].map((m) => ({ name: decodeURIComponent(m[2]), browser_download_url: 'https://github.com' + m[1], size: 0 }));
-	return assets.length ? { html_url: SITE + '/releases/tag/latest', assets } : null;
+	const assets = [...html.matchAll(new RegExp('href="([^"]*/releases/download/' + tag + '/([^"/]+))"', 'g'))].map((m) => ({ name: decodeURIComponent(m[2]), browser_download_url: 'https://github.com' + m[1], size: 0 }));
+	return assets.length ? { html_url: SITE + '/releases/tag/' + tag, assets } : null;
+}
+
+// Серии, для которых есть релиз s<a>.<b>. API даёт список целиком, а когда он отказывает, берём их со страницы релизов
+async function seriesList() {
+	const found = new Set();
+	try {
+		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/releases?per_page=100', { headers: { Accept: 'application/vnd.github+json' } });
+		if (res.ok) {
+			for (const r of await res.json()) found.add(r.tag_name);
+		} else if (res.status === 403 || res.status === 429) {
+			const html = await (await net.fetch(SITE + '/releases')).text();
+			for (const m of html.matchAll(/\/releases\/tag\/(s\d+\.\d+)"/g)) found.add(m[1]);
+		}
+	} catch (e) { /* без списка stable не выбрать, останемся на текущей версии */ }
+	return [...found].map((t) => /^s(\d+)\.(\d+)$/.exec(t)).filter(Boolean).map((m) => [Number(m[1]), Number(m[2])]);
+}
+
+async function releaseByTag(tag) {
+	if (process.env.PROBLET_UPDATE_URL) return null;
+	const res = await net.fetch('https://api.github.com/repos/' + REPO + '/releases/tags/' + tag, { headers: { Accept: 'application/vnd.github+json' } });
+	if (res.ok) return res.json();
+	if (res.status === 403 || res.status === 429) return releaseFromSite(tag);
+	return null;
 }
 
 async function headFromSite() {
@@ -126,13 +183,15 @@ const cacheFile = () => path.join(app.getPath('userData'), 'update-cache.json');
 function loadCache() {
 	try {
 		const c = JSON.parse(fs.readFileSync(cacheFile(), 'utf8'));
+		if (Array.isArray(c.stableSeries) && c.stableSeries.length === 2 && c.stableSeries.every(Number.isInteger)) stableSeries = c.stableSeries;
 		if (typeof c.changelog === 'string') set({ changelog: c.changelog });
+		else set({});
 	} catch (e) { /* кеша ещё нет */ }
 }
 
 function saveCache() {
 	try {
-		fs.writeFileSync(cacheFile(), JSON.stringify({ changelog: state.changelog }));
+		fs.writeFileSync(cacheFile(), JSON.stringify({ changelog: state.changelog, stableSeries }));
 	} catch (e) { /* не страшно */ }
 }
 
@@ -146,9 +205,27 @@ async function check(force) {
 		let release = res.ok ? await res.json() : null;
 		if (!release && (res.status === 403 || res.status === 429)) release = await releaseFromSite();
 		if (!release) throw new Error('GitHub ответил ' + res.status);
-		page = release.html_url || 'https://github.com/' + REPO + '/releases';
-		asset = pickAsset(release.assets || []);
-		const head = await headInfo();
+		const newest = pickAnyVersion(release.assets || []); // версия самой свежей сборки (latest)
+		// Поток stable не обновляет до бета-версий: цель — релиз серии на одну ниже последней
+		let target = release;
+		if (newest && !process.env.PROBLET_UPDATE_URL) {
+			const latestSeries = seriesOf(newest);
+			const stable = stableFor(latestSeries, await seriesList());
+			if (stable) {
+				stableSeries = stable;
+				saveCache();
+			}
+			if (channel === 'stable' && stable && cmpSeries(stable, latestSeries) < 0) {
+				target = await releaseByTag('s' + stable[0] + '.' + stable[1]);
+				if (!target) throw new Error('Не удалось получить stable-версию');
+			} else if (channel === 'stable' && !stable) {
+				target = { html_url: release.html_url, assets: [] }; // stable-серии ещё нет: обновляться некуда
+			}
+		}
+		page = target.html_url || 'https://github.com/' + REPO + '/releases';
+		asset = pickAsset(target.assets || []);
+		// Название последнего коммита и версию из него показываем только в потоке beta: в stable это чужие, ещё не вышедшие изменения
+		const head = channel === 'beta' ? await headInfo() : null;
 		if (head) {
 			set({ changelog: head.title });
 			saveCache();
@@ -156,7 +233,7 @@ async function check(force) {
 		const ready = asset && (force || isNewer(asset.version, app.getVersion()));
 		if (ready) set({ status: 'available', version: asset.version });
 		else if (head && head.version && isNewer(head.version, app.getVersion())) set({ status: 'building', version: head.version }); // коммит уже есть, сборка ещё идёт
-		else if (!asset) throw new Error('Для этой системы в релизе нет подходящего файла');
+		else if (!asset && channel === 'beta') throw new Error('Для этой системы в релизе нет подходящего файла');
 		else set({ status: 'uptodate', version: app.getVersion() });
 	} catch (e) {
 		set({ status: 'error', message: String((e && e.message) || e) });
@@ -346,4 +423,4 @@ function schedule(opts) {
 
 const hooks = {}; // beforeRestart: главный процесс сохраняет окно и сессию перед перезапуском в новую версию
 
-module.exports = { hooks, looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };
+module.exports = { hooks, setChannel, stableFor, isBeta, seriesOf, looksLikeAppImage, restartAppImage, check, prepare, apply, getState, onChange, schedule, isNewer, pickAsset };

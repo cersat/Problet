@@ -4,6 +4,19 @@ document.getElementById('search-form').addEventListener('submit', (e) => {
 	if (q) problet.search(q);
 });
 
+let opts = { ntTitle: true, ntSearch: true, ntSearchMode: 'search', ntBookmarks: true, ntBmHidden: [], ntRecent: false };
+
+// Что показывать, решают настройки раздела «Новая вкладка»
+function applyOptions() {
+	document.getElementById('title').hidden = !opts.ntTitle;
+	const form = document.getElementById('search-form');
+	form.hidden = !opts.ntSearch;
+	const q = document.getElementById('q');
+	q.placeholder = opts.ntSearchMode === 'url' ? 'Адрес сайта' : 'Поиск';
+	if (opts.ntSearchMode === 'all') q.placeholder = 'Поиск или адрес';
+	document.getElementById('tiles').hidden = !opts.ntBookmarks;
+}
+
 function tile(b, hint) {
 	const a = document.createElement('a');
 	a.className = 'tile';
@@ -37,7 +50,8 @@ async function renderTiles() {
 	const { bookmarks } = await problet.bookmarks();
 	const tiles = document.getElementById('tiles');
 	tiles.textContent = '';
-	const latest = [...bookmarks].sort((a, b) => b.added - a.added).slice(0, 12);
+	const hide = new Set(opts.ntBmHidden || []);
+	const latest = bookmarks.filter((b) => b.folder !== 'hidden' && !hide.has(b.id)).sort((a, b) => b.added - a.added).slice(0, opts.ntBmHidden && opts.ntBmHidden.length ? 24 : 12);
 	for (const b of latest) tiles.append(tile(b));
 	headings();
 }
@@ -62,14 +76,40 @@ async function renderTop() {
 
 // Заголовки нужны, только когда видны оба ряда плиток
 function headings() {
-	const both = document.getElementById('top').children.length > 0 && document.getElementById('tiles').children.length > 0;
-	document.getElementById('top-head').hidden = !both;
-	document.getElementById('bm-head').hidden = !both;
+	const rows = ['recent', 'top', 'tiles'].filter((id) => !document.getElementById(id).hidden && document.getElementById(id).children.length > 0);
+	const both = rows.length > 1;
+	document.getElementById('recent-head').hidden = !both || !rows.includes('recent');
+	document.getElementById('top-head').hidden = !both || !rows.includes('top');
+	document.getElementById('bm-head').hidden = !both || !rows.includes('tiles');
 }
 
-renderTiles();
-renderTop();
+// Недавно открытые страницы
+async function renderRecent() {
+	const list = opts.ntRecent ? await problet.recentVisits() : [];
+	const box = document.getElementById('recent');
+	box.textContent = '';
+	for (const v of list) box.append(tile({ url: v.url, title: v.title, icon: v.icon }, v.url));
+	headings();
+}
+
+async function refresh() {
+	try {
+		opts = { ...opts, ...(await problet.getSettings()).settings };
+	} catch (e) { /* остаются значения по умолчанию */ }
+	applyOptions();
+	renderTiles();
+	renderTop();
+	renderRecent();
+}
+
+refresh();
 problet.onChange((kinds) => {
-	if (kinds.includes('bookmarks') || kinds.includes('all')) renderTiles();
-	if (kinds.includes('visits') || kinds.includes('settings') || kinds.includes('all')) renderTop();
+	if (kinds.includes('settings') || kinds.includes('all')) refresh();
+	else {
+		if (kinds.includes('bookmarks')) renderTiles();
+		if (kinds.includes('visits')) {
+			renderTop();
+			renderRecent();
+		}
+	}
 });

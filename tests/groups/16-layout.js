@@ -138,6 +138,22 @@ module.exports = {
 		lp = await b.page((u) => u === base + '/light');
 		t.check('выключенная — не включается', (await lp.ev('document.documentElement.style.filter')) === '');
 
+		// Боковая панель и пятый промежуток
+		await b.go('problet://settings/', 800);
+		const curLay = (await b.fe('w.problet.getSettings()')).settings.btnLayout;
+		const sideLay = JSON.parse(JSON.stringify(curLay));
+		for (const k of Object.keys(sideLay)) sideLay[k] = sideLay[k].filter((x) => !['history', 'downloads', 'sp5', 'winctl'].includes(x));
+		sideLay.side = ['history', 'sp5', 'downloads', 'winctl'];
+		await b.fe(`w.problet.setSettings(${JSON.stringify({ sidebar: 'left', btnLayout: sideLay })})`);
+		await t.sleep(1000);
+		const side = await b.tb.ev(`(() => { const s = document.getElementById('sidebar'); const r = s.getBoundingClientRect(); return { w: r.width, h: r.height, inside: ['history', 'downloads', 'sp5'].every((id) => s.contains(document.getElementById(id))), winctlVertical: getComputedStyle(document.getElementById('winctl')).flexDirection }; })()`);
+		t.check('боковая панель слева: показана, кнопки и промежуток внутри', side.w > 20 && side.h > 200 && side.inside, side);
+		t.check('кнопки окна на боковой панели встают столбцом', side.winctlVertical === 'column', side);
+		const sp = await b.tb.ev(`(() => { const a = document.getElementById('history').getBoundingClientRect(); const z = document.getElementById('downloads').getBoundingClientRect(); return z.top - a.top; })()`);
+		t.check('промежуток прижимает нижние кнопки панели к её концу', sp > 150, sp);
+		await b.fe(`w.problet.setSettings({ sidebar: 'off' })`);
+		await t.sleep(800);
+		t.check('боковая панель выключается', (await b.tb.ev(`document.getElementById('sidebar').getBoundingClientRect().width`)) < 2);
 		// Новая вкладка — инкогнито
 		await b.go('problet://settings/', 800);
 		await b.fe(`([...d.getElementById('cats').children].find(c => /Панели/.test(c.textContent)).click(), 1)`);

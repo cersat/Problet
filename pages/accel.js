@@ -24,6 +24,8 @@
 		{ id: 'downloads', label: 'Загрузки', key: 'Ctrl+J' },
 		{ id: 'saveOffline', label: 'Сохранить страницу для офлайна', key: 'Ctrl+Alt+S' },
 		{ id: 'offlinePage', label: 'Сохранённые страницы', key: '' },
+		{ id: 'split', label: 'Разделить экран (две страницы рядом)', key: 'Ctrl+Alt+V' },
+		{ id: 'notepad', label: 'Блокнот', key: 'Ctrl+Alt+N' },
 		{ id: 'passwords', label: 'Пароли', key: 'Ctrl+Shift+K' },
 		{ id: 'settings', label: 'Настройки', key: 'Ctrl+,' },
 		{ id: 'zoomIn', label: 'Увеличить масштаб', key: 'Ctrl+=' },

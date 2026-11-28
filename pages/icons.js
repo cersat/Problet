@@ -15,6 +15,7 @@
 		chars: { label: 'Таблица символов', body: '<path d="M4 19h5v-2.2C6.2 15.6 5 13.6 5 11.5a7 7 0 0 1 14 0c0 2.1-1.2 4.1-4 5.3V19h5"/>' },
 		bookmarks: { label: 'Закладки', body: '<path d="M7 4h10v16l-5-4-5 4z"/>' },
 		passwords: { label: 'Пароли', body: '<circle cx="8.5" cy="14" r="3.5"/><path d="M11 12l8-8M16 7l2.5 2.5M13.5 9.5L15 11"/>' },
+		notepad: { label: 'Блокнот', body: '<path d="M6 3.5h12v17H6z"/><path d="M9 8h6M9 12h6M9 16h3"/>' },
 		history: { label: 'История', body: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>' },
 		downloads: { label: 'Загрузки', body: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>' },
 		settings: { label: 'Настройки', body: '<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/>' },

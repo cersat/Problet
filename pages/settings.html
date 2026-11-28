@@ -19,6 +19,26 @@
 		<nav id="cats" class="cats"></nav>
 
 		<section>
+			<h2>Главная</h2>
+			<div class="setting">
+				<div class="what">Страница браузера<small>Сайт Problet: последние версии для скачивания</small></div>
+				<button id="home-site">Перейти</button>
+			</div>
+			<div class="setting">
+				<div class="what">Документация<small>Руководство по всем возможностям Problet</small></div>
+				<button id="home-guide">Перейти</button>
+			</div>
+			<div class="setting">
+				<div class="what">Версия браузера</div>
+				<span id="home-version" class="value"></span>
+			</div>
+			<div class="setting" id="uninstall-row" hidden>
+				<div class="what">Удалить Problet<small>Браузер спросит подтверждение и закроется. Данные можно оставить или удалить вместе с ним</small></div>
+				<button id="uninstall" class="danger solid">Удалить Problet</button>
+			</div>
+		</section>
+
+		<section>
 			<h2>Язык</h2>
 			<div class="setting">
 				<div class="what">Язык интерфейса<small>Меняет язык самого браузера: настройки, меню, окна и страницы Problet. Часть системных надписей Chromium обновится после перезапуска</small></div>
@@ -124,6 +144,43 @@
 		</section>
 
 		<section>
+			<h2>Новая вкладка</h2>
+			<div class="setting">
+				<div class="what">Показывать название браузера</div>
+				<label class="switch"><input type="checkbox" data-setting="ntTitle"><span></span></label>
+			</div>
+			<div class="setting">
+				<div class="what">Показывать поле поиска</div>
+				<label class="switch"><input type="checkbox" data-setting="ntSearch"><span></span></label>
+			</div>
+			<div class="setting" data-dep="ntSearch">
+				<div class="what">Поиск в поле поиска<small>«Всё» делает поле таким же, как адресная строка. «Только URL» отключает поиск: по Enter открывается введённый адрес</small></div>
+				<select data-setting="ntSearchMode"><option value="all">Всё</option><option value="search">Только поиск</option><option value="url">Только URL</option></select>
+			</div>
+			<div class="setting" data-dep="ntSearch&amp;ntSearchMode!=url">
+				<div class="what">Поисковик в поле поиска<small>«Стандартный» — тот, что выбран для адресной строки</small></div>
+				<select data-setting="ntEngine" id="nt-engine"><option value="default">Стандартный</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Показывать закладки</div>
+				<label class="switch"><input type="checkbox" data-setting="ntBookmarks"><span></span></label>
+			</div>
+			<div class="setting" data-dep="ntBookmarks">
+				<div class="what">Выбрать закладки для показа<small id="nt-bm-count">По умолчанию показаны все</small></div>
+				<button id="nt-bm-pick">Выбрать</button>
+			</div>
+			<div id="nt-bm-list" class="bm-list" hidden></div>
+			<div class="setting">
+				<div class="what">Показывать недавние<small>Страницы, которые ты открывал последними</small></div>
+				<label class="switch"><input type="checkbox" data-setting="ntRecent"><span></span></label>
+			</div>
+			<div class="setting" data-dep="ntRecent">
+				<div class="what">Сколько недавних показывать<small>От 1 до 30</small></div>
+				<input type="number" min="1" max="30" step="1" data-setting="ntRecentCount" class="num">
+			</div>
+		</section>
+
+		<section>
 			<h2>Закладки</h2>
 			<div class="setting">
 				<div class="what">Показывать только иконку</div>
@@ -179,6 +236,10 @@
 			<div class="setting">
 				<div class="what">Положение панели вкладок<small>Сбоку вкладки идут столбцом рядом со страницей и в порядок панелей ниже не входят</small></div>
 				<select data-setting="tabsPos"><option value="row">В ряду панелей</option><option value="left">Слева</option><option value="right">Справа</option></select>
+			</div>
+			<div class="setting">
+				<div class="what">Боковая панель<small>Вертикальная панель с кнопками рядом со страницей. Она работает как остальные панели: кнопки на неё переносятся в списке ниже, а кнопки окна на ней тоже встают столбцом</small></div>
+				<select data-setting="sidebar"><option value="off">Выключена</option><option value="left">Слева</option><option value="right">Справа</option></select>
 			</div>
 			<div class="setting">
 				<div class="what">Кнопки на растянутой панели вкладок<small>Где стоят элементы, которые не растягиваются вместе с панелью: кнопки, поле адреса и другие</small></div>
@@ -425,6 +486,10 @@
 				<label class="switch"><input type="checkbox" data-setting="autoUpdate"><span></span></label>
 			</div>
 			<div class="setting">
+				<div class="what">Поток обновлений<small>Stable — версия на 0.1.0 ниже последней: она проверена временем, до бета-версий браузер не обновляется. Beta — самая свежая сборка, в ней больше нового и больше ошибок</small></div>
+				<select data-setting="updateChannel"><option value="stable">Stable</option><option value="beta">Beta</option></select>
+			</div>
+			<div class="setting">
 				<div class="what">Период авто-проверки на обновления<small>Как часто Problet проверяет, вышла ли новая версия. Работает при включённом автообновлении</small></div>
 				<select data-setting="updateEvery"><option value="15">15 минут</option><option value="30">30 минут</option><option value="60">1 час</option><option value="180">3 часа</option><option value="360">6 часов</option><option value="720">12 часов</option><option value="1440">24 часа</option></select>
 			</div>
@@ -454,6 +519,10 @@
 			<div class="data-row">
 				<div class="what"><b>Стандартный браузер</b><span>Ссылки из других программ будут открываться в Problet</span></div>
 				<button id="make-default">Сделать стандартным браузером</button>
+			</div>
+			<div class="setting">
+				<div class="what">Открывать текстовые файлы в блокноте Problet<small>Файлы вроде txt, md, html, json и кода, открытые из проводника Problet, будут открываться в блокноте</small></div>
+				<label class="switch"><input type="checkbox" data-setting="notepadDefault"><span></span></label>
 			</div>
 			<div class="data-row">
 				<div class="what"><b>Стандартный проводник</b><span id="files-default-note">Папки из других программ и с рабочего стола будут открываться в проводнике Problet</span></div>

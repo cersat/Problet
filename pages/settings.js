@@ -18,6 +18,19 @@ async function run(fn) {
 	}
 }
 
+// Настройки, зависящие от других (data-dep="ключ", "ключ!=значение", несколько через &), скрыты, пока условие не выполнено
+function applyDeps() {
+	for (const el of document.querySelectorAll('[data-dep]')) {
+		const ok = el.dataset.dep.split('&').every((cond) => {
+			const m = /^([\w]+)(!?=)?(.*)$/.exec(cond);
+			const v = current[m[1]];
+			if (!m[2]) return !!v;
+			return m[2] === '=' ? String(v) === m[3] : String(v) !== m[3];
+		});
+		el.classList.toggle('dep-off', !ok);
+	}
+}
+
 function showCustom(on) {
 	$('custom-row').classList.toggle('hidden', !on);
 	$('custom-hint').classList.toggle('hidden', !on);
@@ -48,6 +61,10 @@ async function load() {
 		select.append(option);
 	}
 	select.value = settings.engine;
+	const ntEngine = $('nt-engine');
+	ntEngine.textContent = '';
+	ntEngine.append(new Option('Стандартный', 'default'));
+	for (const e of engines) ntEngine.append(new Option(e.name, e.id));
 	$('custom').value = settings.customTemplate;
 	showCustom(settings.engine === 'custom');
 	$('history-count').textContent = 'Сохранено запросов: ' + searchCount;
@@ -64,6 +81,9 @@ async function load() {
 
 	renderSwatches();
 	renderPresets();
+	applyDeps();
+	$('home-version').textContent = version + (updaterBeta ? ' beta' : '');
+	renderNtBookmarks();
 }
 
 function fillSelect(sel, pairs) {
@@ -204,8 +224,8 @@ let defaultKeywords = [];
 
 // ---------- Панели и кнопки ----------
 
-const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', extra: 'Четвёртая панель', page: 'Окно вкладки' };
-const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', sp4: 'Переменный промежуток 4', clock: 'Часы', date: 'Дата', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
+const PANEL_NAMES = { tabs: 'Панель вкладок', toolbar: 'Панель инструментов', bmbar: 'Панель закладок', extra: 'Четвёртая панель', side: 'Боковая панель', page: 'Окно вкладки' };
+const BTN_NAMES = { sp1: 'Переменный промежуток 1', sp2: 'Переменный промежуток 2', sp3: 'Переменный промежуток 3', sp4: 'Переменный промежуток 4', sp5: 'Переменный промежуток 5', clock: 'Часы', date: 'Дата', spaces: 'Пространства', newtab: 'Новая вкладка', winctl: 'Кнопки окна (свернуть, развернуть, закрыть)', back: 'Назад', forward: 'Вперёд', reload: 'Обновить страницу', update: 'Значок обновления', darkpage: 'Тёмная тема страницы', translate: 'Перевод страницы', chars: 'Таблица символов', bookmarks: 'Закладки', passwords: 'Пароли', notepad: 'Блокнот', history: 'История поиска', downloads: 'Загрузки', settings: 'Настройки' };
 const MAIN_NAMES = { 'm:tabs': 'Вкладки', 'm:address': 'Адресная строка', 'm:bookmarks': 'Закладки' };
 // Настройки отдельных кнопок: открываются шестерёнкой на карточке кнопки. Ключи и проверка — в store.js (BTN_OPTIONS)
 const BTN_OPTIONS = {
@@ -411,7 +431,8 @@ function renderPanels() {
 	const lists = $('btn-lists');
 	lists.textContent = '';
 	const L = current.btnLayout;
-	for (const key of ['tabs', 'toolbar', 'bmbar', 'extra', 'hidden']) {
+	const panelKeys = ['tabs', 'toolbar', 'bmbar', 'extra', ...(current.sidebar !== 'off' ? ['side'] : []), 'hidden']; // боковая панель в списках только пока она включена
+	for (const key of panelKeys) {
 		const head = document.createElement('div');
 		head.className = 'plist-head';
 		head.textContent = key === 'hidden' ? 'Скрытые' : PANEL_NAMES[key];
@@ -427,7 +448,7 @@ function renderPanels() {
 			const custom = (current.customButtons || []).find((c) => c.id === id);
 			const row = listRow(custom ? custom.icon + '  ' + custom.name : id.startsWith('x:') ? 'Расширение: ' + (extNames[id] || 'удалено') : BTN_NAMES[id]);
 			const sel = document.createElement('select');
-			for (const p of ['tabs', 'toolbar', 'bmbar', 'extra']) sel.append(new Option(PANEL_NAMES[p], p));
+			for (const p of panelKeys.filter((x) => x !== 'hidden')) sel.append(new Option(PANEL_NAMES[p], p));
 			sel.append(new Option('Скрыть', 'hidden'));
 			sel.value = key;
 			sel.addEventListener('change', () => {
@@ -510,7 +531,7 @@ function renderPanels() {
 // Переключатели и списки с data-setting сохраняются сразу
 for (const el of document.querySelectorAll('[data-setting]')) {
 	el.addEventListener('change', () => run(async () => {
-		const value = el.type === 'checkbox' ? el.checked : el.value;
+		const value = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
 		try {
 			await problet.setSettings({ [el.dataset.setting]: value });
 		} catch (e) {
@@ -519,7 +540,8 @@ for (const el of document.querySelectorAll('[data-setting]')) {
 			throw e;
 		}
 		current[el.dataset.setting] = value;
-		if (el.dataset.setting === 'tabsPos' || el.dataset.setting === 'arrows') {
+		applyDeps();
+		if (el.dataset.setting === 'tabsPos' || el.dataset.setting === 'arrows' || el.dataset.setting === 'sidebar') {
 			current = { ...current, [el.dataset.setting]: value };
 			renderPanels();
 		}
@@ -761,7 +783,7 @@ async function loadExtensions() {
 		else if (e.addon) {
 			const allowed = e.granted.filter((g) => g.allowed).map((g) => g.label);
 			const denied = e.granted.filter((g) => !g.allowed).map((g) => g.label);
-			sub.textContent = [e.description.replace(/\.$/, ''), allowed.length ? 'Разрешено: ' + allowed.join('; ') : '', denied.length ? 'Запрещено: ' + denied.join('; ') : ''].filter(Boolean).join('. ');
+			sub.textContent = [e.description.replace(/\.$/, ''), (e.hotkeys || []).length ? 'Горячие клавиши: ' + e.hotkeys.map((h) => h.key + ' — ' + h.title).join('; ') : '', allowed.length ? 'Разрешено: ' + allowed.join('; ') : '', denied.length ? 'Запрещено: ' + denied.join('; ') : ''].filter(Boolean).join('. ');
 		} else sub.textContent = e.path;
 		what.append(b, sub);
 		const acts = document.createElement('div');
@@ -771,6 +793,13 @@ async function loadExtensions() {
 			opt.textContent = 'Настройки';
 			opt.addEventListener('click', () => run(() => problet.addonOptions(e.id)));
 			acts.append(opt);
+		}
+		if (e.addon && e.running) {
+			const dev = document.createElement('button');
+			dev.textContent = 'Инструменты разработчика';
+			dev.title = 'Окно с консолью, сетью и отладчиком для фонового скрипта аддона';
+			dev.addEventListener('click', () => run(() => problet.addonDevtools(e.id)));
+			acts.append(dev);
 		}
 		if (e.addon && e.granted.length) {
 			const reset = document.createElement('button');
@@ -1166,7 +1195,7 @@ async function renderBmDefault() {
 	const sel = $('bm-default-folder');
 	sel.textContent = '';
 	sel.append(new Option('Без папки', ''), new Option('В последнюю выбранную', 'last'));
-	for (const f of st.folders) sel.append(new Option('В папку «' + f.name + '»', f.id));
+	for (const f of st.folders.filter((x) => x.id !== 'hidden')) sel.append(new Option('В папку «' + f.name + '»', f.id));
 	sel.value = current.bmDefaultFolder || '';
 	if (sel.value !== (current.bmDefaultFolder || '')) sel.value = '';
 }
@@ -1402,4 +1431,83 @@ run(async () => {
 $('safe-exit').addEventListener('click', async () => {
 	await problet.setSafeMode(false);
 	$('safe-banner').classList.add('hidden');
+});
+
+
+// ---------- Главная ----------
+
+let updaterBeta = false;
+problet.updateState().then((st) => {
+	updaterBeta = !!st.beta;
+	loaded.then(() => { $('home-version').textContent = $('app-version').textContent + (updaterBeta ? ' beta' : ''); });
+}).catch(() => {});
+$('home-site').addEventListener('click', () => run(() => problet.homeOpen('site')));
+$('home-guide').addEventListener('click', () => run(() => problet.homeOpen('guide')));
+problet.canUninstall().then((ok) => { $('uninstall-row').hidden = !ok; }).catch(() => {});
+$('uninstall').addEventListener('click', () => run(() => problet.uninstallApp()));
+
+// ---------- Новая вкладка: какие закладки показывать ----------
+
+async function renderNtBookmarks() {
+	const { bookmarks } = await problet.bookmarks();
+	const shown = bookmarks.filter((b) => b.folder !== 'hidden');
+	const hide = new Set(current.ntBmHidden || []);
+	$('nt-bm-count').textContent = hide.size ? 'Показано ' + shown.filter((b) => !hide.has(b.id)).length + ' из ' + shown.length : 'По умолчанию показаны все';
+	const box = $('nt-bm-list');
+	box.textContent = '';
+	for (const b of shown) {
+		const row = document.createElement('label');
+		row.className = 'item';
+		const cb = document.createElement('input');
+		cb.type = 'checkbox';
+		cb.checked = !hide.has(b.id);
+		cb.addEventListener('change', () => run(async () => {
+			const next = new Set(current.ntBmHidden || []);
+			if (cb.checked) next.delete(b.id);
+			else next.add(b.id);
+			current = await problet.setSettings({ ntBmHidden: [...next] });
+			$('nt-bm-count').textContent = next.size ? 'Показано ' + shown.filter((x) => !next.has(x.id)).length + ' из ' + shown.length : 'По умолчанию показаны все';
+			say('Сохранено');
+		}));
+		const info = document.createElement('span');
+		info.className = 'info';
+		const t = document.createElement('b');
+		t.textContent = b.title;
+		t.setAttribute('translate', 'no');
+		const u = document.createElement('small');
+		u.textContent = b.url;
+		info.append(t, u);
+		row.append(cb, info);
+		box.append(row);
+	}
+}
+$('nt-bm-pick').addEventListener('click', () => {
+	const box = $('nt-bm-list');
+	box.hidden = !box.hidden;
+	$('nt-bm-pick').textContent = box.hidden ? 'Выбрать' : 'Готово';
+});
+problet.onChange((kinds) => {
+	if (kinds.includes('bookmarks') || kinds.includes('all')) renderNtBookmarks();
+});
+
+// ---------- Назад / вперёд внизу каждого раздела ----------
+
+sections.forEach((sec, i) => {
+	const bar = document.createElement('div');
+	bar.className = 'sec-pager';
+	const mk = (j, cls, label) => {
+		const b = document.createElement('button');
+		b.className = cls;
+		const sm = document.createElement('small');
+		sm.textContent = label;
+		b.append(sm, document.createTextNode(sections[j].querySelector('h2').textContent));
+		b.addEventListener('click', () => {
+			showCategory(j);
+			window.scrollTo(0, 0);
+		});
+		return b;
+	};
+	if (i > 0) bar.append(mk(i - 1, 'prev', 'Назад'));
+	if (i < sections.length - 1) bar.append(mk(i + 1, 'next', 'Дальше'));
+	sec.append(bar);
 });

@@ -74,6 +74,12 @@ jobs:
           else
             gh release create latest --latest --target "$GITHUB_SHA" --title "Последняя сборка" --notes "$notes"
           fi
+          # Скользящий релиз серии a.b (s9.4): в нём всегда самая свежая сборка серии. Из них клиент и сайт выбирают stable — серию на одну ниже последней
+          cur=$(node -p "require('./package.json').version")
+          series="s${cur%.*}"
+          if ! gh release view "$series" >/dev/null 2>&1; then
+            gh release create "$series" --latest=false --target "$GITHUB_SHA" --title "Серия ${cur%.*}" --notes "Самая свежая сборка серии ${cur%.*}.x"
+          fi
 
   build:
     name: Сборка ${{ matrix.name }}
@@ -110,6 +116,11 @@ jobs:
         run: npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Веб-установщик Windows собирается в подпапку: переносим к остальным файлам
+      - name: Веб-установщик на место
+        shell: bash
+        run: |
+          if [ -d dist/nsis-web ]; then mv dist/nsis-web/*.exe dist/; fi
       - name: Артефакты
         uses: actions/upload-artifact@v7
         with:
@@ -119,6 +130,7 @@ jobs:
             dist/*.AppImage
             dist/*.tar.gz
             dist/*.exe
+            dist/*.nsis.7z
             dist/*.zip
             dist/*.dmg
       # Пуш в main: файлы этой системы сразу попадают в latest, остальные сборки не ждём
@@ -128,13 +140,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          files=$(ls dist/*.AppImage dist/*.tar.gz dist/*.exe dist/*.zip dist/*.dmg 2>/dev/null || true)
+          files=$(ls dist/*.AppImage dist/*.tar.gz dist/*.exe dist/*.nsis.7z dist/*.zip dist/*.dmg installers/* 2>/dev/null || true)
           [ -n "$files" ] || { echo "Нет файлов для выкладки"; exit 1; }
-          gh release upload latest $files --clobber
+          cur=$(node -p "require('./package.json').version")
           keep=$(for f in $files; do basename "$f"; done)
-          # убрать старые версии файлов этой системы, чтобы обновление не нашло устаревший
-          gh release view latest --json assets --jq '.assets[].name' | grep -- "-${{ matrix.token }}-" | while read -r name; do
-            echo "$keep" | grep -qxF "$name" || gh release delete-asset latest "$name" --yes
+          for rel in latest "s${cur%.*}"; do
+            gh release upload "$rel" $files --clobber
+            # убрать старые версии файлов этой системы, чтобы обновление не нашло устаревший
+            gh release view "$rel" --json assets --jq '.assets[].name' | grep -E -- "-${{ matrix.token }}-|$([ '${{ matrix.token }}' = win ] && echo 'nsis\.7z$' || echo 'ничего-такого')" | while read -r name; do
+              echo "$keep" | grep -qxF "$name" || gh release delete-asset "$rel" "$name" --yes
+            done
           done
 
       # Ручной запуск с тегом: файлы этой системы попадают в релиз этой версии
@@ -145,7 +160,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.ref }}
         run: |
-          files=$(ls dist/*.AppImage dist/*.tar.gz dist/*.exe dist/*.zip dist/*.dmg 2>/dev/null || true)
+          files=$(ls dist/*.AppImage dist/*.tar.gz dist/*.exe dist/*.nsis.7z dist/*.zip dist/*.dmg installers/* 2>/dev/null || true)
           [ -n "$files" ] || { echo "Нет файлов для выкладки"; exit 1; }
           gh release upload "$TAG" $files --clobber
 
@@ -169,6 +184,7 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           tag="v$VERSION"
+          cp installers/* out/ # скрипты-загрузчики Linux и macOS
           ls -la out
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" out/* --clobber
