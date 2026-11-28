@@ -631,6 +631,7 @@
 		['Вкладок в пространстве', 'Tabs in the space'],
 		['Удалить пространство: вкладки уйдут в «Основное»', 'Delete the space: its tabs will move to “Main”'],
 		['Установлена последняя версия', 'The latest version is installed'],
+		['Список изменений пока не получен', 'The change list has not been received yet'],
 		['Доступна версия {}', 'Version {} is available'],
 		['Скачивается версия {}: {}%', 'Downloading version {}: {}%'],
 		['Версия {} скачана, нужен перезапуск', 'Version {} downloaded, a restart is needed'],

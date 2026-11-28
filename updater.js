@@ -150,26 +150,26 @@ async function releaseByTag(tag) {
 	return null;
 }
 
-async function headFromSite() {
-	const res = await fresh(SITE + '/commits/main.atom');
+async function headFromSite(tag = 'main') {
+	const res = await fresh(SITE + '/commits/' + tag + '.atom');
 	if (!res.ok) return null;
 	const m = /<entry>[\s\S]*?<title>\s*([\s\S]*?)\s*<\/title>/.exec(await res.text());
 	return m ? decodeHtml(m[1]).split('\n')[0].trim().slice(0, 300) : null;
 }
 
 // Последний коммит ветки main: его название служит списком изменений, а версия в package.json показывает, что скоро выйдет
-async function headInfo() {
+async function headInfo(tag = 'main') {
 	if (process.env.PROBLET_UPDATE_URL) return null;
 	try {
-		const res = await fresh('https://api.github.com/repos/' + REPO + '/commits/main', { headers: { Accept: 'application/vnd.github+json' } });
-		let ref = 'main';
+		const res = await fresh('https://api.github.com/repos/' + REPO + '/commits/' + tag, { headers: { Accept: 'application/vnd.github+json' } });
+		let ref = tag;
 		let title;
 		if (res.ok) {
 			const data = await res.json();
 			ref = data.sha;
 			title = String((data.commit && data.commit.message) || '').split('\n')[0].trim().slice(0, 300);
 		} else if (res.status === 403 || res.status === 429) {
-			title = await headFromSite();
+			title = await headFromSite(tag);
 			if (title === null) return null;
 		} else {
 			return null;
@@ -245,8 +245,10 @@ async function check(force) {
 		asset = pickAsset(target.assets || []);
 		// Название последнего коммита и версию из него показываем только в потоке beta: в stable это чужие, ещё не вышедшие изменения
 		const head = channel === 'beta' ? await headInfo() : null;
-		if (head) {
-			set({ changelog: head.title });
+		// В stable список изменений — название коммита выпущенной сборки: ещё не вышедших изменений там нет
+		const shown = head || (channel === 'stable' && target.tag_name ? await headInfo(target.tag_name) : null);
+		if (shown) {
+			set({ changelog: shown.title });
 			saveCache();
 		}
 		const ready = asset && (force || isNewer(asset.version, app.getVersion()));
