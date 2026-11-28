@@ -44,6 +44,9 @@ function onChange(cb) {
 	listeners.push(cb);
 }
 
+// Сведения о релизах берём без кеша HTTP: иначе старый ответ (raw.githubusercontent держит файл около 5 минут) скрывает свежую сборку
+const fresh = (url, opts = {}) => net.fetch(url, { cache: 'no-store', ...opts });
+
 function getState() {
 	return state;
 }
@@ -112,7 +115,7 @@ const SITE = 'https://github.com/' + REPO;
 const decodeHtml = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
 async function releaseFromSite(tag = 'latest') {
-	const res = await net.fetch(SITE + '/releases/expanded_assets/' + tag);
+	const res = await fresh(SITE + '/releases/expanded_assets/' + tag);
 	if (!res.ok) return null;
 	const html = await res.text();
 	const assets = [...html.matchAll(new RegExp('href="([^"]*/releases/download/' + tag + '/([^"/]+))"', 'g'))].map((m) => ({ name: decodeURIComponent(m[2]), browser_download_url: 'https://github.com' + m[1], size: 0 }));
@@ -123,11 +126,11 @@ async function releaseFromSite(tag = 'latest') {
 async function seriesList() {
 	const found = new Set();
 	try {
-		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/releases?per_page=100', { headers: { Accept: 'application/vnd.github+json' } });
+		const res = await fresh('https://api.github.com/repos/' + REPO + '/releases?per_page=100', { headers: { Accept: 'application/vnd.github+json' } });
 		if (res.ok) {
 			for (const r of await res.json()) found.add(r.tag_name);
 		} else if (res.status === 403 || res.status === 429) {
-			const html = await (await net.fetch(SITE + '/releases')).text();
+			const html = await (await fresh(SITE + '/releases')).text();
 			for (const m of html.matchAll(/\/releases\/tag\/(s\d+\.\d+)"/g)) found.add(m[1]);
 		}
 	} catch (e) { /* без списка stable не выбрать, останемся на текущей версии */ }
@@ -136,14 +139,14 @@ async function seriesList() {
 
 async function releaseByTag(tag) {
 	if (process.env.PROBLET_UPDATE_URL) return null;
-	const res = await net.fetch('https://api.github.com/repos/' + REPO + '/releases/tags/' + tag, { headers: { Accept: 'application/vnd.github+json' } });
+	const res = await fresh('https://api.github.com/repos/' + REPO + '/releases/tags/' + tag, { headers: { Accept: 'application/vnd.github+json' } });
 	if (res.ok) return res.json();
 	if (res.status === 403 || res.status === 429) return releaseFromSite(tag);
 	return null;
 }
 
 async function headFromSite() {
-	const res = await net.fetch(SITE + '/commits/main.atom');
+	const res = await fresh(SITE + '/commits/main.atom');
 	if (!res.ok) return null;
 	const m = /<entry>[\s\S]*?<title>\s*([\s\S]*?)\s*<\/title>/.exec(await res.text());
 	return m ? decodeHtml(m[1]).split('\n')[0].trim().slice(0, 300) : null;
@@ -153,7 +156,7 @@ async function headFromSite() {
 async function headInfo() {
 	if (process.env.PROBLET_UPDATE_URL) return null;
 	try {
-		const res = await net.fetch('https://api.github.com/repos/' + REPO + '/commits/main', { headers: { Accept: 'application/vnd.github+json' } });
+		const res = await fresh('https://api.github.com/repos/' + REPO + '/commits/main', { headers: { Accept: 'application/vnd.github+json' } });
 		let ref = 'main';
 		let title;
 		if (res.ok) {
@@ -168,7 +171,7 @@ async function headInfo() {
 		}
 		const info = { title, version: '' };
 		try {
-			const pkg = await net.fetch('https://raw.githubusercontent.com/' + REPO + '/' + ref + '/package.json');
+			const pkg = await fresh('https://raw.githubusercontent.com/' + REPO + '/' + ref + '/package.json');
 			if (pkg.ok) info.version = String((await pkg.json()).version || '');
 		} catch (e) { /* без версии определим по названию релиза */ }
 		return info;
@@ -204,7 +207,7 @@ async function check(force) {
 	busy = true;
 	set({ status: 'checking', message: '' });
 	try {
-		const res = await net.fetch(API, { headers: { Accept: 'application/vnd.github+json' } });
+		const res = await fresh(API, { headers: { Accept: 'application/vnd.github+json' } });
 		if (res.status === 404) throw new Error('Релиз пока не опубликован');
 		let release = res.ok ? await res.json() : null;
 		if (!release && (res.status === 403 || res.status === 429)) release = await releaseFromSite();
@@ -266,7 +269,7 @@ function looksLikeAppImage(file) {
 }
 
 async function download(url, dest) {
-	const res = await net.fetch(url);
+	const res = await fresh(url);
 	if (!res.ok || !res.body) throw new Error('Не удалось скачать: ' + res.status);
 	const total = Number(res.headers.get('content-length')) || (asset && asset.size) || 0;
 	let got = 0;
