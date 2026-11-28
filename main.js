@@ -3338,6 +3338,46 @@ function switchSpace(id) {
 	store.notify('spaces');
 }
 
+// Синхронизация пространств: уходят только id и названия, вкладки остаются на своих устройствах
+function syncedSpacesGet() {
+	return spaces.map((x) => ({ id: x.id, name: x.name }));
+}
+
+// mode: 'merge' — недостающие пространства добавляются; 'replace' — список становится таким же, как в аккаунте (вкладки удалённых уходят в основное)
+function syncedSpacesApply(list, mode) {
+	if (!Array.isArray(list)) return;
+	const remote = [];
+	for (const x of list) {
+		const id = x && typeof x.id === 'string' ? x.id.slice(0, 40) : '';
+		const name = cleanSpaceName(x && x.name);
+		if (id && name && !remote.some((r) => r.id === id)) remote.push({ id, name });
+	}
+	let next;
+	if (mode === 'merge') {
+		next = spaces.map((x) => ({ ...x }));
+		for (const r of remote) if (!next.some((x) => x.id === r.id) && next.length < store.SPACES_LIMIT) next.push(r);
+	} else {
+		const main = spaces.find((x) => x.id === store.DEFAULT_SPACE) || { id: store.DEFAULT_SPACE, name: 'Основное' };
+		next = [main, ...remote.filter((r) => r.id !== store.DEFAULT_SPACE)].slice(0, store.SPACES_LIMIT);
+		for (const x of next) {
+			const r = remote.find((y) => y.id === x.id);
+			if (r && x.id !== store.DEFAULT_SPACE) x.name = r.name;
+		}
+	}
+	const same = next.length === spaces.length && next.every((x, i) => spaces[i].id === x.id && spaces[i].name === x.name);
+	if (same) return;
+	const gone = spaces.filter((x) => !next.some((y) => y.id === x.id));
+	for (const t of tabs) if (gone.some((x) => x.id === t.space)) t.space = store.DEFAULT_SPACE;
+	for (const x of gone) delete spaceActive[x.id];
+	spaces = next;
+	if (!spaces.some((x) => x.id === currentSpace)) {
+		currentSpace = store.DEFAULT_SPACE;
+		const list = tabs.filter((t) => t.space === store.DEFAULT_SPACE && !t.hidden);
+		if (list.length && !settings().spacesMerged) activateTab(list[list.length - 1].id);
+	}
+	spacesChanged();
+}
+
 const cleanSpaceName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 40);
 
 // ---------- API для внутренних страниц (настройки, закладки, новая вкладка) ----------
@@ -5113,7 +5153,7 @@ app.whenReady().then(() => {
 	setTimeout(backupIfDue, 30000);
 	setInterval(backupIfDue, 3600000);
 	updater.setChannel(settings().updateChannel);
-	if (!headless.enabled) sync.init({ store, vault, settings, off: () => safeMode });
+	if (!headless.enabled) sync.init({ store, vault, settings, off: () => safeMode, spaces: { get: syncedSpacesGet, apply: syncedSpacesApply } });
 	if (!headless.enabled) updater.schedule(() => ({ every: settings().updateEvery, enabled: settings().autoUpdate, restart: settings().autoRestart, faster: settings().updateFaster, off: safeMode }));
 });
 function startHeadless() {

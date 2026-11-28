@@ -100,6 +100,16 @@ module.exports = {
 		await t.sleep(1500);
 		const sideDate = await b.tb.ev(`(() => { const s = document.getElementById('sidebar').getBoundingClientRect(); const e = document.getElementById('date'); const r = e.getBoundingClientRect(); return { text: e.textContent, inside: r.left >= s.left - 0.5 && r.right <= s.right + 0.5, fits: e.scrollWidth <= e.clientWidth + 1 }; })()`);
 		t.check('длинная дата на боковой панели не вылезает за края', sideDate.inside && sideDate.fits, sideDate);
+		// Время с секундами на боковой панели остаётся в одной строке
+		const L4 = JSON.parse(JSON.stringify(L2));
+		L4.toolbar = L4.toolbar.filter((x) => x !== 'clock');
+		L4.side = ['clock'];
+		await b.fe(`w.problet.setSettings({ sidebar: 'left', btnLayout: ${JSON.stringify(L4)} })`);
+		await setOpt('clock.seconds', true);
+		await t.sleep(1500);
+		const sideClock = await b.tb.ev(`(() => { const e = document.getElementById('clock'); const lh = parseFloat(getComputedStyle(e).lineHeight) || 14; return { text: e.textContent, lines: Math.round((e.getBoundingClientRect().height - 8) / lh) }; })()`);
+		t.check('время с секундами на боковой панели не переносится', sideClock.lines <= 1, sideClock);
+		await setOpt('clock.seconds', false);
 		await b.fe(`w.problet.setSettings({ sidebar: 'off', btnLayout: ${JSON.stringify(L2)} })`);
 		await t.sleep(800);
 

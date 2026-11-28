@@ -699,4 +699,5 @@ body[data-sidebar="right"] .sidebar { border-left: 1px solid var(--border); }
 .sidebar .winctl { flex-direction: column; align-self: stretch; margin: 0; }
 .sidebar .winctl button { width: 100%; height: 34px; align-self: auto; }
 .sidebar .spacer { align-self: stretch; }
-.sidebar > .clock { height: auto; padding: 4px 0; font-size: 11px; line-height: 1.2; width: 100%; text-align: center; white-space: normal; overflow-wrap: anywhere; }
+.sidebar > .clock { height: auto; padding: 4px 0; font-size: 11px; line-height: 1.2; width: 100%; text-align: center; }
+.sidebar > #date { white-space: normal; overflow-wrap: anywhere; }

@@ -60,6 +60,28 @@ module.exports = {
 			const am = await ap(`bookmarks()`);
 			t.check('удаление закладки дошло до первого устройства', !am.bookmarks.some((x) => x.title === 'Закладка с первого'), am.bookmarks);
 
+			// Пространства: названия переносятся, вкладки нет
+			await ap(`setSettings({ syncSpaces: true, spacesMerged: true })`); // в объединённом режиме добавление пространства не уводит со страницы
+			await bp(`setSettings({ syncSpaces: true, spacesMerged: true })`);
+			const sid = await ap(`spacesAdd('Работа')`);
+			await ap(`syncNow()`);
+			await bp(`syncNow()`);
+			let bs = await bp(`spaces()`);
+			t.check('пространство пришло на второе устройство', bs.spaces.some((x) => x.id === sid && x.name === 'Работа'), bs.spaces);
+			t.check('вкладки пространств между устройствами не ходят', bs.spaces.find((x) => x.id === sid).count === 0, bs.spaces);
+			await ap(`spacesRename(${JSON.stringify(sid)}, 'Учёба')`);
+			await ap(`syncNow()`);
+			await bp(`syncNow()`);
+			bs = await bp(`spaces()`);
+			t.check('переименование пространства дошло', bs.spaces.some((x) => x.id === sid && x.name === 'Учёба'), bs.spaces);
+			await ap(`spacesRemove(${JSON.stringify(sid)})`);
+			await ap(`syncNow()`);
+			await bp(`syncNow()`);
+			bs = await bp(`spaces()`);
+			t.check('удаление пространства дошло', !bs.spaces.some((x) => x.id === sid), bs.spaces);
+			const spRaw = srv.stored('Anna_1', 'spaces');
+			t.check('на сервере пространства лежат зашифрованными', spRaw && !/Учёба|Работа/.test(spRaw.data), spRaw);
+
 			// Пароли: сливаются, по сети только зашифрованными
 			await ap(`pwCreate('мастер-пароль-а')`);
 			await ap(`pwAdd({ origin: 'https://site-a.example', username: 'ann', password: 'секрет-а-123' })`);

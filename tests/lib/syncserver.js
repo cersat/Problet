@@ -42,7 +42,7 @@ function start() {
 				a.tokens.delete(token);
 				return send(200, { ok: true });
 			}
-			const s = /^\/api\/sync\/(bookmarks|settings|passwords)$/.exec(url.pathname);
+			const s = /^\/api\/sync\/(bookmarks|spaces|settings|passwords)$/.exec(url.pathname);
 			if (!s) return send(404, { error: 'Нет такого адреса' });
 			const key = a.nick.toLowerCase() + '/' + s[1];
 			const cur = store.get(key) || { rev: 0 };

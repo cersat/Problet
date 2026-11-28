@@ -295,6 +295,7 @@ const SETTING_DEFAULTS = {
 	syncBookmarks: false, // синхронизировать закладки с аккаунтом Problet
 	syncSettings: false, // синхронизировать настройки
 	syncPasswords: false, // синхронизировать пароли (в зашифрованном виде)
+	syncSpaces: false, // синхронизировать пространства (названия, без вкладок)
 	notepadDefault: false, // текстовые файлы из проводника открываются в блокноте Problet
 	autoUpdate: true,
 	updateEvery: '360',
@@ -344,7 +345,7 @@ const SETTING_DEFAULTS = {
 	bmBackupKeep: '10', // сколько последних копий хранить
 	hotkeys: {}, // только изменённые: { действие: 'Ctrl+Shift+X' }, пустая строка — клавиша отключена
 };
-const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords'];
+const BOOL_SETTINGS = ['pageTranslate', 'showUrlInTabs', 'showTabIcons', 'settingsAsTab', 'darkTheme', 'cacheIcons', 'cachePages', 'cacheImages', 'cacheFonts', 'cacheMedia', 'cacheScripts', 'askDownload', 'saveHistory', 'adblock', 'adblockYoutube', 'adblockStub', 'hideCookieBanners', 'calcSuggest', 'searchSuggest', 'dnt', 'autoUpdate', 'updateFaster', 'autoRestart', 'pwOffer', 'pwFill', 'urlSuggest', 'incognitoAsk', 'bmOnlyIcons', 'bookmarksBar', 'tabsTwoRows', 'spacesPopup', 'spacesMerged', 'noDuplicateTabs', 'freezeStart', 'freezeSpaces', 'freezeDiscard', 'warnInsecure', 'hideSystem', 'bmNewTab', 'engineSuggest', 'topSites', 'ntTitle', 'ntSearch', 'ntBookmarks', 'ntRecent', 'notepadDefault', 'welcomeDone', 'syncBookmarks', 'syncSettings', 'syncPasswords', 'syncSpaces'];
 const ENUM_SETTINGS = {
 	startup: ['newtab', 'url', 'session'],
 	tabOverflow: ['shrink', 'scroll'],
@@ -1628,7 +1629,7 @@ module.exports = {
 	addFolder, renameFolder, removeFolder, setFolderColor, FOLDER_COLORS, importBookmarkItems, setBookmarkIcons, setBookmarkTones, exportBookmarksHtml, bookmarksBackup, restoreBookmarks, defaultFolder,
 	exportData, looksLikeBackup, importData, syncSettingsGet, syncSettingsApply, syncBookmarksGet, syncBookmarksApply,
 	getSession, setSession, getWindow, setWindow, getCacheClearedAt, setCacheClearedAt,
-	onChange, notify: changed, DEFAULT_SPACE,
+	onChange, notify: changed, DEFAULT_SPACE, SPACES_LIMIT,
 	addBlocked, blockedTotal,
 	getZoom, setZoom,
 	hideBookmark, unhideBookmark, HIDDEN_FOLDER, addVisit, isSearchUrl, updateVisitTitle, visitsList, removeVisit, clearVisits, searchVisits, getDownloads, setDownloads, keywordSearch, pruneVisits, clearVisitsSince, topSites, DEFAULT_KEYWORDS,

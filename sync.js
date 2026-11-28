@@ -2,7 +2,7 @@
 // Пароль аккаунта на сервер не уходит: из него (scrypt) получаются два ключа — «auth» для входа и ключ шифрования данных. Данные на сервере
 // лежат зашифрованными (AES-256-GCM), сервер их не читает. Токен и ключ шифрования хранятся в sync.json рядом с данными браузера;
 // ключ дополнительно защищён средствами системы (safeStorage), если они доступны.
-// Закладки и настройки синхронизируются снимками (побеждает более свежее изменение), пароли — слиянием и только пока хранилище открыто.
+// Закладки, пространства (только названия, без вкладок) и настройки синхронизируются снимками (побеждает более свежее изменение), пароли — слиянием и только пока хранилище открыто.
 
 const fs = require('fs');
 const path = require('path');
@@ -13,8 +13,8 @@ const DEFAULT_URL = 'https://problet.dar-site.uk/';
 const EVERY = 5 * 60 * 1000;
 const NICK = /^[A-Za-z0-9_.-]{3,32}$/;
 const MIN_PASSWORD = 8;
-const KINDS = ['bookmarks', 'settings', 'passwords'];
-const FLAG = { bookmarks: 'syncBookmarks', settings: 'syncSettings', passwords: 'syncPasswords' };
+const KINDS = ['bookmarks', 'spaces', 'settings', 'passwords'];
+const FLAG = { bookmarks: 'syncBookmarks', spaces: 'syncSpaces', settings: 'syncSettings', passwords: 'syncPasswords' };
 
 let deps = null; // { store, vault, settings, off }
 let acc = null; // { nick, token, encKey: Buffer, kinds: { вид: { rev, hash, at } } }
@@ -163,10 +163,12 @@ async function logout() {
 const local = {
 	bookmarks: () => deps.store.syncBookmarksGet(),
 	settings: () => deps.store.syncSettingsGet(),
+	spaces: () => deps.spaces.get(),
 };
 const apply = {
 	bookmarks: (data, mode) => deps.store.syncBookmarksApply(data, mode),
 	settings: (data) => deps.store.syncSettingsApply(data),
+	spaces: (data, mode) => deps.spaces.apply(data, mode),
 };
 
 async function push(kind, data, baseRev) {
@@ -174,7 +176,7 @@ async function push(kind, data, baseRev) {
 	return r.rev;
 }
 
-// Закладки и настройки: снимок целиком
+// Закладки, пространства и настройки: снимок целиком
 async function syncSnapshot(kind) {
 	const st = acc.kinds[kind] || (acc.kinds[kind] = {});
 	const remote = await request('GET', '/api/sync/' + kind, null, acc.token);
@@ -184,8 +186,8 @@ async function syncSnapshot(kind) {
 	if (!st.rev) {
 		// Первая синхронизация на этом устройстве
 		if (remoteData) {
-			apply[kind](remoteData, kind === 'bookmarks' ? 'merge' : 'replace'); // закладки объединяются, настройки берутся из аккаунта
-			if (kind === 'bookmarks') st.rev = await push(kind, local[kind](), remote.rev);
+			apply[kind](remoteData, kind === 'settings' ? 'replace' : 'merge'); // закладки и пространства объединяются, настройки берутся из аккаунта
+			if (kind !== 'settings') st.rev = await push(kind, local[kind](), remote.rev);
 			else st.rev = remote.rev;
 		} else {
 			st.rev = await push(kind, local[kind](), 0);
@@ -260,12 +262,12 @@ function status() {
 	return { logged: !!acc, nick: acc ? acc.nick : '', last: info.last, error: info.error, busy: !!busy, passwords: info.passwords };
 }
 
-// d: { store, vault, settings: () => настройки, off: () => безопасный режим }
+// d: { store, vault, spaces: { get, apply }, settings: () => настройки, off: () => безопасный режим }
 function init(d) {
 	deps = d;
 	load();
 	d.store.onChange((kind) => {
-		if (kind === 'bookmarks' || kind === 'settings' || kind === 'all') soon();
+		if (kind === 'bookmarks' || kind === 'settings' || kind === 'spaces' || kind === 'all') soon();
 	});
 	timer = setInterval(() => run().catch(() => {}), EVERY);
 	timer.unref();

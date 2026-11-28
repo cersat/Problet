@@ -1365,6 +1365,8 @@
 		['Выйти из аккаунта', 'Sign out'],
 		['Синхронизировать закладки', 'Sync bookmarks'],
 		['Закладки и папки. Удаление и переименование тоже переносятся: при расхождении побеждает более свежее изменение. При первой синхронизации закладки с обоих устройств объединяются', 'Bookmarks and folders. Deleting and renaming are synced too: on a conflict the newer change wins. On the first sync, bookmarks from both devices are merged'],
+		['Синхронизировать пространства', 'Sync spaces'],
+		['Список пространств и их названия, без вкладок: вкладки остаются на своих устройствах. Новые, переименованные и удалённые пространства переносятся; вкладки удалённого пространства уходят в основное. При первой синхронизации пространства устройств объединяются', 'The list of spaces and their names, without tabs: tabs stay on their own devices. New, renamed and deleted spaces are synced; tabs of a deleted space move to the main one. On the first sync, the spaces of both devices are merged'],
 		['Синхронизировать настройки', 'Sync settings'],
 		['Все настройки, кроме относящихся к этому устройству: папок, обновлений и самих переключателей синхронизации. На новом устройстве при первой синхронизации берутся настройки из аккаунта', 'All settings except those that belong to this device: folders, updates and the sync switches themselves. On a new device the first sync takes the settings from the account'],
 		['Синхронизировать пароли', 'Sync passwords'],
