@@ -16,6 +16,11 @@ module.exports = {
 		await a.go('problet://settings/', 1000);
 		await b.go('problet://settings/', 1000);
 		try {
+			// Раздел идёт сразу после «Главной», поля входа не вылезают за него
+			const lay = await a.fe(`(() => { const cats = [...d.querySelectorAll('#cats button')].map((x) => x.textContent); const i = cats.indexOf('Синхронизация'); d.querySelectorAll('#cats button')[i].click(); const sec = d.getElementById('sync-out').closest('section').getBoundingClientRect(); const bad = [...d.querySelectorAll('#sync-out input, #sync-out button')].filter((e) => { const r = e.getBoundingClientRect(); return r.right > sec.right + 0.5 || r.left < sec.left - 0.5; }).map((e) => e.id); const tops = ['sync-nick', 'sync-pass', 'sync-pass2'].map((id) => Math.round(d.getElementById(id).getBoundingClientRect().top)); if (new Set(tops).size === 3) bad.length += 0; else bad.push('поля в одной строке'); return { cats: cats.slice(0, 3), bad }; })()`);
+			t.check('«Синхронизация» второй раздел, сразу после «Главной»', lay.cats[0] === 'Главная' && lay.cats[1] === 'Синхронизация', lay.cats);
+			t.check('поля и кнопки входа не вылезают за раздел', lay.bad.length === 0, lay.bad);
+
 			// Аккаунт
 			t.check('короткий пароль не принимается', /не короче 8/.test(await err(`syncRegister('anna', 'short', 'short')`, a)));
 			t.check('разные пароли не принимаются', /не совпадают/.test(await err(`syncRegister('anna', 'password-1', 'password-2')`, a)));

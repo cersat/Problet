@@ -1114,6 +1114,8 @@ dialog textarea { display: block; width: 100%; margin-top: 5px; padding: 8px; bo
 .preset .del:hover { background: var(--danger-bg); color: var(--danger); }
 .inline-form { display: flex; gap: 8px; }
 .inline-form input { margin-top: 0 !important; width: 200px; }
+.inline-form.sync-fields { flex-direction: column; align-items: stretch; width: 260px; max-width: 100%; }
+.inline-form.sync-fields input { width: 100%; box-sizing: border-box; }
 
 /* Списки в разделе «Закладки»: копии и битые закладки */
 .bm-list { display: flex; flex-direction: column; }
