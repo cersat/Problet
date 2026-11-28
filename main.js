@@ -2493,6 +2493,23 @@ ipcMain.on('find-close', (e) => {
 
 // ---------- Контекстные меню ----------
 
+// «Подставить шаблонный юзернейм» и «Подставить пароль» в меню полей ввода: один вариант вставляется сразу, несколько — подменю.
+// Пароль берётся из открытого хранилища для сайта страницы
+function fillMenuItems(wc, params) {
+	const origin = originOf(params.frameURL || wc.getURL());
+	const make = (label, values, empty) => {
+		if (!values.length) return { label, enabled: false, toolTip: empty };
+		const entries = values.map((v) => ({ label: v.label, click: () => wc.insertText(v.text) }));
+		return entries.length === 1 ? { label, click: entries[0].click } : { label, submenu: entries };
+	};
+	const logins = settings().loginTemplates.map((l) => ({ label: l, text: l }));
+	const saved = origin && vault.isUnlocked() ? vault.forOrigin(origin).map((x) => ({ label: x.username || '—', text: x.password })) : [];
+	return [
+		make('Подставить шаблонный юзернейм', logins, 'Шаблонные логины задаются в настройках, раздел «Пароли»'),
+		make('Подставить пароль', saved, vault.isUnlocked() ? 'Для этого сайта нет сохранённых паролей' : 'Хранилище паролей закрыто'),
+	];
+}
+
 function popupMenu(template) {
 	Menu.buildFromTemplate(template).popup({ window: win });
 }
@@ -2529,6 +2546,8 @@ function showPageMenu(tab, params) {
 		t.push({ label: 'Копировать', role: 'copy', enabled: f.canCopy });
 		t.push({ label: 'Вставить', role: 'paste', enabled: f.canPaste });
 		t.push({ label: 'Выделить всё', role: 'selectAll', enabled: f.canSelectAll });
+		sep();
+		t.push(...fillMenuItems(wc, params));
 		sep();
 	} else if (params.selectionText) {
 		const text = params.selectionText.trim().slice(0, 200);

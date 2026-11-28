@@ -1482,6 +1482,11 @@
 		[' Вход в аккаунт не восстановлен: нужен пароль файла. Войди в аккаунт в настройках.', ' The account sign-in was not restored: the file password is needed. Sign in in settings.'],
 		[' Перезапускаюсь…', ' Restarting…'],
 		['Сайт Problet недоступен', 'Problet server is unreachable'],
+		['Подставить шаблонный юзернейм', 'Insert template username'],
+		['Подставить пароль', 'Insert password'],
+		['Шаблонные логины задаются в настройках, раздел «Пароли»', 'Template usernames are set in Settings, Passwords'],
+		['Для этого сайта нет сохранённых паролей', 'There are no saved passwords for this site'],
+		['Хранилище паролей закрыто', 'The password vault is locked'],
 	];
 	if (typeof module !== 'undefined' && module.exports) module.exports = PAIRS;
 	else root.PROBLET_EN = PAIRS;
