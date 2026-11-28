@@ -29,8 +29,12 @@
 			return (t[k] = (...a) => reply(a, undefined));
 		},
 	});
+	const made = new Set(); // пространства имён, которых не было в Electron и которые создали мы
 	const ensure = (name, fixed) => {
-		if (!c[name]) c[name] = blank(fixed);
+		if (!c[name]) {
+			c[name] = blank(fixed);
+			made.add(name);
+		}
 	};
 
 	// Вход должен переживать перезапуск браузера. Расширение держит токены в storage.session, а он очищается при каждом запуске
@@ -248,6 +252,205 @@
 				hasDocument: (...a) => call(a, { op: 'offscreen-has' }),
 				closeDocument: (...a) => call(a, { op: 'offscreen-close' }),
 			};
+		}
+	}
+
+	// Настоящие cookies, contextMenus, notifications, webNavigation и declarativeNetRequest: работу делает браузер (extapi.js),
+	// сюда он присылает события. Родные API Electron, если они есть, не трогаем
+	// Родные версии этих API в Electron есть не везде, а где есть — не доходят до браузера (правила запросов не применяются, меню нет),
+	// поэтому подменяем их всегда
+	{
+		const own = (name) => {
+			const o = blank({});
+			try {
+				Object.defineProperty(c, name, { value: o, configurable: true, writable: true });
+			} catch (err) { /* останется родной объект */ }
+			return c[name] === o ? o : c[name];
+		};
+		for (const n of ['cookies', 'contextMenus', 'notifications', 'webNavigation', 'declarativeNetRequest', 'commands']) made.add(n);
+		const wasNav = c.webNavigation;
+		for (const n of ['cookies', 'contextMenus', 'notifications', 'webNavigation', 'declarativeNetRequest', 'commands']) if (!(c[n] && c[n].__probletOwn)) {
+			const keep = n === 'webNavigation' ? wasNav : null;
+			const o = own(n);
+			o.__probletOwn = true;
+			if (keep && keep.onBeforeNavigate) o.onBeforeNavigate = keep.onBeforeNavigate;
+		}
+		const evs = new Map(); // имя события 'api.событие' → объект события
+		const ev = (name) => {
+			if (!evs.has(name)) evs.set(name, event());
+			return evs.get(name);
+		};
+		bus.addEventListener('message', (m) => {
+			const e = (m.data || {}).apiEv;
+			if (!e || !e.name) return;
+			if (e.name === 'contextMenus.onClicked') {
+				// Флажки и переключатели меняет браузер: у себя обновляем то же самое, прежде чем слушатели увидят нажатие
+				const it = menuItems.get(e.args[0].menuItemId);
+				if (it && (it.type === 'checkbox' || it.type === 'radio')) {
+					if (it.type === 'checkbox') it.checked = !!e.args[0].checked;
+					else for (const k of menuItems.values()) if (k.type === 'radio' && k.parentId === it.parentId) k.checked = k === it;
+				}
+			}
+			if (evs.has(e.name)) evs.get(e.name)._fire(...e.args);
+		});
+		const withCb = (a, p) => {
+			const cb = a.length && typeof a[a.length - 1] === 'function' ? a[a.length - 1] : null;
+			if (!cb) return p;
+			p.then((v) => cb(v), (err) => {
+				c.runtime.lastError = { message: String((err && err.message) || err) };
+				try { cb(undefined); } finally { c.runtime.lastError = undefined; }
+			});
+			return undefined;
+		};
+		const obj = (a, i = 0) => (a[i] && typeof a[i] === 'object' ? a[i] : {});
+
+		if (made.has('cookies')) {
+			Object.assign(c.cookies, {
+				get: (...a) => call(a, { op: 'cookies-get', details: obj(a) }),
+				getAll: (...a) => call(a, { op: 'cookies-getAll', details: obj(a) }),
+				set: (...a) => call(a, { op: 'cookies-set', details: obj(a) }),
+				remove: (...a) => call(a, { op: 'cookies-remove', details: obj(a) }),
+				getAllCookieStores: (...a) => reply(a, [{ id: '0', tabIds: [] }]),
+				onChanged: ev('cookies.onChanged'),
+				SameSiteStatus: { NO_RESTRICTION: 'no_restriction', LAX: 'lax', STRICT: 'strict', UNSPECIFIED: 'unspecified' },
+			});
+		}
+
+		// contextMenus: список пунктов ведём здесь, браузер получает его целиком при каждом изменении
+		const menuItems = new Map();
+		let menuSeq = 0;
+		const pushMenu = () => rpc({ op: 'menus-sync', items: [...menuItems.values()] }).catch(() => {});
+		if (made.has('contextMenus')) {
+			const CM = c.contextMenus;
+			Object.assign(CM, {
+				ACTION_MENU_TOP_LEVEL_LIMIT: 6,
+				ContextType: { ALL: 'all', PAGE: 'page', FRAME: 'frame', SELECTION: 'selection', LINK: 'link', EDITABLE: 'editable', IMAGE: 'image', VIDEO: 'video', AUDIO: 'audio', LAUNCHER: 'launcher', BROWSER_ACTION: 'browser_action', PAGE_ACTION: 'page_action', ACTION: 'action' },
+				ItemType: { NORMAL: 'normal', CHECKBOX: 'checkbox', RADIO: 'radio', SEPARATOR: 'separator' },
+				onClicked: ev('contextMenus.onClicked'),
+				create: (...a) => {
+					const o = { ...obj(a) };
+					if (o.id === undefined) o.id = '__problet_menu_' + (++menuSeq);
+					const cb = typeof a[1] === 'function' ? a[1] : null;
+					if (menuItems.has(o.id)) {
+						c.runtime.lastError = { message: 'Cannot create item with duplicate id ' + o.id };
+						try { if (cb) cb(); } finally { c.runtime.lastError = undefined; }
+						return o.id;
+					}
+					if (o.type !== 'separator' && o.title === undefined) {
+						c.runtime.lastError = { message: 'Extensions using event pages or Service Workers must pass an id parameter to chrome.contextMenus.create' };
+						try { if (cb) cb(); } finally { c.runtime.lastError = undefined; }
+						return o.id;
+					}
+					menuItems.set(o.id, o);
+					pushMenu();
+					if (cb) setTimeout(cb, 0);
+					return o.id;
+				},
+				update: (...a) => {
+					const it = menuItems.get(a[0]);
+					if (it) {
+						Object.assign(it, obj(a, 1));
+						pushMenu();
+					}
+					return withCb(a, it ? Promise.resolve() : Promise.reject(new Error('Cannot find menu item with id ' + a[0])));
+				},
+				remove: (...a) => {
+					const drop = (id) => {
+						menuItems.delete(id);
+						for (const k of [...menuItems.values()]) if (k.parentId === id) drop(k.id);
+					};
+					const ok = menuItems.has(a[0]);
+					drop(a[0]);
+					pushMenu();
+					return withCb(a, ok ? Promise.resolve() : Promise.reject(new Error('Cannot find menu item with id ' + a[0])));
+				},
+				removeAll: (...a) => {
+					menuItems.clear();
+					pushMenu();
+					return withCb(a, Promise.resolve());
+				},
+			});
+		}
+
+		if (made.has('notifications')) {
+			const known = new Map(); // id → параметры показанных уведомлений
+			let seq = 0;
+			Object.assign(c.notifications, {
+				onClicked: ev('notifications.onClicked'),
+				onClosed: ev('notifications.onClosed'),
+				create: (...a) => {
+					const id = typeof a[0] === 'string' && a[0] ? a[0] : 'problet-' + Date.now() + '-' + (++seq);
+					const o = (typeof a[0] === 'string' ? obj(a, 1) : obj(a));
+					known.set(id, o);
+					return withCb(a, rpc({ op: 'notif-create', id, options: o }).then(() => id));
+				},
+				update: (...a) => {
+					const o = known.get(a[0]);
+					if (!o) return withCb(a, Promise.resolve(false));
+					Object.assign(o, obj(a, 1));
+					return withCb(a, rpc({ op: 'notif-create', id: a[0], options: o }).then(() => true));
+				},
+				clear: (...a) => withCb(a, rpc({ op: 'notif-clear', id: a[0] }).then((r) => { known.delete(a[0]); return !!r; })),
+				getAll: (...a) => withCb(a, Promise.resolve(Object.fromEntries([...known.keys()].map((k) => [k, true])))),
+				getPermissionLevel: (...a) => reply(a, 'granted'),
+				onButtonClicked: ev('notifications.onButtonClicked'),
+				onPermissionLevelChanged: event(),
+				onShowSettings: event(),
+				PermissionLevel: { GRANTED: 'granted', DENIED: 'denied' },
+				TemplateType: { BASIC: 'basic', IMAGE: 'image', LIST: 'list', PROGRESS: 'progress' },
+			});
+		}
+
+		if (made.has('webNavigation')) {
+			const W = c.webNavigation;
+			for (const n of ['onBeforeNavigate', 'onCommitted', 'onDOMContentLoaded', 'onCompleted', 'onErrorOccurred', 'onHistoryStateUpdated', 'onReferenceFragmentUpdated', 'onCreatedNavigationTarget', 'onTabReplaced']) {
+				const e = n === 'onBeforeNavigate' && W.onBeforeNavigate && W.onBeforeNavigate._fire ? W.onBeforeNavigate : ev('webNavigation.' + n);
+				W[n] = e;
+				if (e !== evs.get('webNavigation.' + n)) evs.set('webNavigation.' + n, e);
+			}
+			W.getFrame = (...a) => call(a, { op: 'nav-frame', tabId: obj(a).tabId, frameId: obj(a).frameId });
+			W.getAllFrames = (...a) => call(a, { op: 'nav-frames', tabId: obj(a).tabId });
+		}
+
+		Object.assign(c.commands, {
+			onCommand: ev('commands.onCommand'),
+			onChanged: ev('commands.onChanged'),
+			getAll: (...a) => call(a, { op: 'commands-getAll' }),
+		});
+
+		if (made.has('declarativeNetRequest')) {
+			const D = c.declarativeNetRequest;
+			Object.assign(D, {
+				MAX_NUMBER_OF_DYNAMIC_RULES: 30000,
+				MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES: 5000,
+				MAX_NUMBER_OF_SESSION_RULES: 5000,
+				GUARANTEED_MINIMUM_STATIC_RULES: 30000,
+				MAX_NUMBER_OF_STATIC_RULESETS: 100,
+				MAX_NUMBER_OF_ENABLED_STATIC_RULESETS: 50,
+				DYNAMIC_RULESET_ID: '_dynamic',
+				SESSION_RULESET_ID: '_session',
+				RuleActionType: { BLOCK: 'block', REDIRECT: 'redirect', ALLOW: 'allow', UPGRADE_SCHEME: 'upgradeScheme', MODIFY_HEADERS: 'modifyHeaders', ALLOW_ALL_REQUESTS: 'allowAllRequests' },
+				ResourceType: { MAIN_FRAME: 'main_frame', SUB_FRAME: 'sub_frame', STYLESHEET: 'stylesheet', SCRIPT: 'script', IMAGE: 'image', FONT: 'font', OBJECT: 'object', XMLHTTPREQUEST: 'xmlhttprequest', PING: 'ping', CSP_REPORT: 'csp_report', MEDIA: 'media', WEBSOCKET: 'websocket', OTHER: 'other' },
+				HeaderOperation: { APPEND: 'append', SET: 'set', REMOVE: 'remove' },
+				DomainType: { FIRST_PARTY: 'firstParty', THIRD_PARTY: 'thirdParty' },
+				RequestMethod: { CONNECT: 'connect', DELETE: 'delete', GET: 'get', HEAD: 'head', OPTIONS: 'options', PATCH: 'patch', POST: 'post', PUT: 'put', OTHER: 'other' },
+				updateDynamicRules: (...a) => call(a, { op: 'dnr-update', kind: 'dynamic', options: obj(a) }),
+				updateSessionRules: (...a) => call(a, { op: 'dnr-update', kind: 'session', options: obj(a) }),
+				getDynamicRules: (...a) => call(a, { op: 'dnr-get', kind: 'dynamic', filter: obj(a) }),
+				getSessionRules: (...a) => call(a, { op: 'dnr-get', kind: 'session', filter: obj(a) }),
+				updateEnabledRulesets: (...a) => call(a, { op: 'dnr-rulesets', options: obj(a) }, () => undefined),
+				getEnabledRulesets: (...a) => call(a, { op: 'dnr-rulesets' }),
+				getAvailableStaticRuleCount: (...a) => call(a, { op: 'dnr-count' }, (r) => r.available),
+				isRegexSupported: (...a) => {
+					let ok = true;
+					try { new RegExp(obj(a).regex); } catch (e) { ok = false; }
+					return reply(a, ok ? { isSupported: true } : { isSupported: false, reason: 'syntaxError' });
+				},
+				getMatchedRules: (...a) => reply(a, { rulesMatchedInfo: [] }),
+				setExtensionActionOptions: (...a) => reply(a, undefined),
+				testMatchOutcome: (...a) => reply(a, { matchedRules: [] }),
+				onRuleMatchedDebug: event(),
+			});
 		}
 	}
 	for (const n of ['debugger', 'idle', 'history', 'bookmarks', 'downloads', 'sessions', 'power', 'system', 'topSites', 'webNavigation', 'proxy', 'privacy', 'browsingData', 'identity', 'tts', 'contentSettings', 'fontSettings', 'readingList', 'search', 'userScripts', 'sidePanel']) ensure(n);

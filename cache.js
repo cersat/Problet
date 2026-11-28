@@ -9,6 +9,8 @@ const CHECK_INTERVAL = 60 * 1000;
 
 const iconUrls = new Set(); // адреса значков сайтов, о которых нам сообщили страницы
 
+let responseHook = null;
+const setResponseHook = (fn) => { responseHook = fn; };
 let ses = null;
 let store = null;
 
@@ -51,16 +53,20 @@ function install() {
 	// Ответ: просим не сохранять в кеш (заголовки запроса правит tweakRequest, его вызывает identity-слой в main.js)
 	ses.webRequest.onHeadersReceived({ urls: URLS }, (details, callback) => {
 		const category = categoryOf(details);
-		if (!category || isCached(store.getSettings(), category)) {
-			callback({});
-			return;
+		let headers = null;
+		if (category && !isCached(store.getSettings(), category)) {
+			headers = {};
+			for (const [name, value] of Object.entries(details.responseHeaders || {})) {
+				if (!['cache-control', 'expires', 'pragma'].includes(name.toLowerCase())) headers[name] = value;
+			}
+			headers['Cache-Control'] = ['no-store'];
 		}
-		const headers = {};
-		for (const [name, value] of Object.entries(details.responseHeaders || {})) {
-			if (!['cache-control', 'expires', 'pragma'].includes(name.toLowerCase())) headers[name] = value;
+		// Правила расширений (declarativeNetRequest, modifyHeaders) правят заголовки ответа
+		if (responseHook) {
+			const base = headers || { ...(details.responseHeaders || {}) };
+			if (responseHook(details, base)) headers = base;
 		}
-		headers['Cache-Control'] = ['no-store'];
-		callback({ responseHeaders: headers });
+		callback(headers ? { responseHeaders: headers } : {});
 	});
 }
 
@@ -95,4 +101,4 @@ function start(session, storeApi) {
 	setInterval(checkRetention, CHECK_INTERVAL).unref();
 }
 
-module.exports = { size, start, tweakRequest, addIcon, clearNow, checkRetention, categoryOf, PERIODS };
+module.exports = { setResponseHook, size, start, tweakRequest, addIcon, clearNow, checkRetention, categoryOf, PERIODS };

@@ -23,7 +23,7 @@
 <table>
 	<tr><th></th><th>Расширения Chrome</th><th>Аддоны Problet</th></tr>
 	<tr><td>Откуда</td><td>Chrome Web Store или папка с <code>manifest.json</code></td><td>Каталог <a href="https://github.com/cersat/ProbletAddons">ProbletAddons</a>, ссылка на <code>addon.json</code> или архив</td></tr>
-	<tr><td>Совместимость</td><td>Работают не все API Chrome: недостающие заменены заглушками, сложные расширения могут работать не полностью</td><td>Сделаны под Problet, работают полностью</td></tr>
+	<tr><td>Совместимость</td><td>Работают не все API Chrome: важные (cookies, меню, уведомления, правила запросов, вкладки) сделаны, остальные заменены заглушками</td><td>Сделаны под Problet, работают полностью</td></tr>
 	<tr><td>Что могут</td><td>Что позволяет Chrome</td><td>Больше: файлы, запуск программ, сеть без ограничений CORS — но спрашивают разрешения</td></tr>
 	<tr><td>Кнопка</td><td>У каждого расширения своя кнопка, открывает его окошко</td><td>Своя кнопка, если аддон её объявил</td></tr>
 </table>
@@ -44,8 +44,10 @@
 	<li>фоновый процесс (service worker) и API, которые есть в Electron: <code>storage</code>, <code>runtime</code>, часть <code>tabs</code> и другие;</li>
 	<li><b>боковая панель</b> (<code>chrome.sidePanel</code>): страница расширения открывается справа от сайта и привязана к своей вкладке;</li>
 	<li>для расширений из магазина Problet дописывает недостающее: настоящие вкладки и окно в <code>chrome.tabs</code> и <code>chrome.windows</code> (список, создание, переход, события), <code>chrome.debugger</code>, <code>chrome.offscreen</code>, группы вкладок (имитация: группа видна расширению, но не рисуется на панели), сохранение <code>chrome.storage.session</code> с данными входа между перезапусками.</li>
+	<li>настоящие, а не заглушки: <code>chrome.cookies</code> (чтение, запись, удаление, <code>onChanged</code>), <code>chrome.contextMenus</code> (пункты в меню правой кнопки по контексту, подменю, флажки, переключатели, <code>onClicked</code>), <code>chrome.notifications</code> (системные уведомления, <code>onClicked</code>, <code>onClosed</code>, кнопки только на macOS), <code>chrome.webNavigation</code> (переходы, фреймы, <code>getFrame</code> и <code>getAllFrames</code>) <code>chrome.commands</code> (горячие клавиши из манифеста, <code>onCommand</code>) и <code>chrome.declarativeNetRequest</code> (блокировка, разрешение, переадресация, смена схемы, заголовков запроса и ответа; наборы правил из манифеста, динамические и сеансовые правила).</li>
 </ul>
 <p>Например, работает «Claude in Chrome»: и в боковой панели, и в связке с <code>claude --chrome</code> из терминала, когда боковая панель закрыта.</p>
+<div class="note">Чего пока нет: кнопок в уведомлениях на Linux и Windows (Electron их там не показывает), команд <code>_execute_action</code> и <code>_execute_side_panel</code>, своих сочетаний вместо предложенных в манифесте. Фоновый процесс получает эти API только у расширений, установленных из магазина (у расширений из папки он работает на родных API Electron).</div>
 <div class="note">Если расширение работает не полностью, скорее всего, ему нужен API, которого нет в Electron. Напиши об этом в <a href="https://github.com/cersat/Problet/issues">Issues</a> с названием расширения.</div>
 
 <h2 id="аддоны-problet">Аддоны Problet</h2>

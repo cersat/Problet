@@ -11,6 +11,7 @@ const identity = require('./identity');
 const updater = require('./updater');
 const importer = require('./importer');
 const extensions = require('./extensions');
+const extapi = require('./extapi');
 const addons = require('./addons');
 const accel = require('./pages/accel');
 const pageTranslate = require('./pagetranslate');
@@ -1159,6 +1160,7 @@ function wireTab(tab) {
 	});
 	wc.on('before-input-event', hotkeys);
 	wc.on('context-menu', (_e, params) => showPageMenu(tab, params));
+	extapi.hookNavigation(wc);
 	wc.on('found-in-page', (_e, result) => {
 		if (tab.id === activeId && findOpen && findView) findView.webContents.send('find-result', { active: result.activeMatchOrdinal, total: result.matches });
 	});
@@ -2220,6 +2222,8 @@ function hotkeys(event, input) {
 		else ACTION_RUN[id]();
 	} else if (addons.hotkey(combo)) {
 		// горячая клавиша аддона
+	} else if (!safeMode && extapi.hotkey(combo, extTabList().find((x) => x.active) || null)) {
+		// команда расширения Chrome
 	} else if (ctrl && !input.alt && !input.shift && /^[1-9]$/.test(input.key)) {
 		// Ctrl+1…9 — переход к вкладке по номеру, не настраивается
 		const vis = visibleTabs();
@@ -2619,6 +2623,13 @@ function showPageMenu(tab, params) {
 		sep();
 		t.push(...extra);
 	}
+	if (!tab.incognito && !safeMode) {
+		const fromExt = extapi.menuItems(tab, { ...params, pageURL: pageUrl }, (extId, it, p) => extapi.menuClicked(extId, it, p, extTabList().find((x) => x.id === wc.id) || null));
+		if (fromExt.length) {
+			sep();
+			t.push(...fromExt);
+		}
+	}
 	sep();
 	item('Скриншот страницы', () => screenshotPage());
 	item('Печать…', () => printPage());
@@ -2936,6 +2947,7 @@ function attachIdentity(ses, withCache) {
 		if (withCache) cache.tweakRequest(details, headers);
 		identity.applyHeaders(headers, profileFor(details.url), settings().dnt);
 		addons.requestHeaders(details, headers);
+		if (!safeMode) extapi.requestHeaders(details, headers);
 		callback({ requestHeaders: headers });
 	});
 }
@@ -4511,7 +4523,9 @@ handle('ext:store', async (input) => {
 	}
 });
 handle('ext:remove', async (p) => {
+	const gone = extensions.list().find((x) => x.path === String(p));
 	await extensions.remove(String(p));
+	if (gone && gone.id) extapi.forget(gone.id);
 	sendExtActions();
 });
 // Кнопки расширений на панели инструментов
@@ -4695,6 +4709,8 @@ ipcMain.handle('ext:dbg', async (e, req) => {
 
 // Вкладки, которые завело расширение: остаются настоящими страницами, чтобы номер вкладки у расширения не менялся
 async function extDbg(req, extId) {
+	const viaApi = await extapi.handle(req, extId);
+	if (viaApi !== undefined) return viaApi;
 	if (req.op === 'tab-list') return extTabList();
 	if (req.op === 'tab-update' || req.op === 'tab-reload') {
 		const t = tabs.find((x) => !x.view.webContents.isDestroyed() && x.view.webContents.id === Number(req.tabId));
@@ -5316,14 +5332,16 @@ app.whenReady().then(() => {
 	vault.setAutoLock(settings().pwLock);
 	nativeTheme.themeSource = settings().darkTheme ? 'dark' : 'light';
 	registerInternalPages();
+	cache.setResponseHook((d, h) => !safeMode && extapi.responseHeaders(d, h));
 	cache.start(session.defaultSession, store);
 	adblock.setGate(parentalGate);
-	adblock.setAddonRules(addons.beforeRequest);
+	adblock.setAddonRules((d) => addons.beforeRequest(d) || extapi.beforeRequest(d));
 	adblock.start(session.defaultSession, store);
 	startIdentity(session.defaultSession);
 	setupDownloads(session.defaultSession);
 	extensions.setLog(log);
 	session.defaultSession.serviceWorkers.on('console-message', (_e, d) => { if (/^chrome-extension:/.test(d.sourceUrl || '') && d.level >= 2) log('фон расширения:', d.message, d.sourceUrl, d.lineNumber); });
+	extapi.start({ session: () => session.defaultSession, relays: () => extRelays, dataDir: () => app.getPath('userData'), tabById: (id) => dbgTab(id) });
 	extensions.init(session.defaultSession, app.getPath('userData')).then(() => {
 		extReady = true;
 		sendExtActions();

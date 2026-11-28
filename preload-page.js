@@ -348,6 +348,7 @@ if (location.protocol === 'chrome-extension:') {
 			};
 			ipcRenderer.on('dbg:event', (e, ev) => dch.postMessage({ ev }));
 			ipcRenderer.on('tab:event', (e, tabEv) => dch.postMessage({ tabEv }));
+			ipcRenderer.on('api:event', (e, apiEv) => dch.postMessage({ apiEv }));
 			dch.postMessage({ relayReady: true }); // запросы, отправленные до запуска посредника, уйдут заново
 		}
 		webFrame.executeJavaScript('(' + function () {
